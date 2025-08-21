@@ -1,0 +1,318 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels"
+        xmlns:theming="using:CdCSharp.Pangea.Theming.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+        x:Class="CdCSharp.Pangea.Tests.Int.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Pangea UI - Theme Showcase"
+        Background="{DynamicResource ThemeBackgroundBrush}"
+        Width="1400" Height="900">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- HEADER -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource ThemeControlLowBrush}"
+                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="🎨" FontSize="24" VerticalAlignment="Center" />
+                    <TextBlock Text="Pangea UI Theme Showcase"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource ThemeForegroundBrush}" />
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="Theme:" 
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                    <theming:ThemeSelector DataContext="{Binding ThemeSelector}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- CONTENT -->
+        <ScrollViewer Grid.Row="1" Padding="32">
+            <StackPanel Spacing="32" MaxWidth="1200">
+
+                <!-- Status Section -->
+                <Border Background="{DynamicResource ThemeControlHighlightLowBrush}"
+                        BorderBrush="{DynamicResource ThemeAccentBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Theme Status" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="18"
+                                   Foreground="{DynamicResource ThemeForegroundBrush}" />
+                        <TextBlock Text="{Binding StatusMessage}" 
+                                   FontSize="14"
+                                   Foreground="{DynamicResource ThemeForegroundBrush}" />
+                        <TextBlock Text="{Binding ProgressText}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                        <ProgressBar Value="{Binding ProgressValue}" 
+                                     Maximum="100" 
+                                     Height="6"
+                                     CornerRadius="3" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Controls Gallery -->
+                <Border Background="{DynamicResource ThemeControlHighlightMidBrush}"
+                        BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="24">
+                        <TextBlock Text="Controls Gallery" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="18"
+                                   Foreground="{DynamicResource ThemeForegroundBrush}" />
+                        
+                        <!-- Buttons Section -->
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Buttons" 
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button Content="Default Button" />
+                                <Button Content="Accent" 
+                                        Background="{DynamicResource ThemeAccentBrush}"
+                                        Foreground="{DynamicResource HighlightForegroundBrush}" />
+                                <Button Content="Disabled" IsEnabled="False" />
+                                <ToggleButton Content="Toggle" />
+                                <Button Content="Action" Command="{Binding UpdateStatusCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Input Controls -->
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Input Controls" 
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+                            <Grid ColumnDefinitions="*,16,*,16,*" RowDefinitions="Auto,12,Auto">
+                                <TextBox Grid.Row="0" Grid.Column="0" 
+                                         Text="{Binding Greeting}" 
+                                         Watermark="Enter text..." />
+                                <ComboBox Grid.Row="0" Grid.Column="2" 
+                                          SelectedIndex="0"
+                                          PlaceholderText="Select option">
+                                    <ComboBoxItem Content="Light Theme" />
+                                    <ComboBoxItem Content="Dark Theme" />
+                                    <ComboBoxItem Content="Auto Theme" />
+                                </ComboBox>
+                                <Slider Grid.Row="0" Grid.Column="4" 
+                                        Value="{Binding ProgressValue}" 
+                                        Maximum="100" />
+                                
+                                <TextBox Grid.Row="2" Grid.Column="0" 
+                                         Watermark="Placeholder text"
+                                         IsEnabled="False" />
+                                <ComboBox Grid.Row="2" Grid.Column="2" 
+                                          PlaceholderText="Disabled combo"
+                                          IsEnabled="False" />
+                                <ProgressBar Grid.Row="2" Grid.Column="4" 
+                                             Value="65" 
+                                             Maximum="100"
+                                             Height="24" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Selection Controls -->
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Selection Controls" 
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+                            <UniformGrid Columns="3" HorizontalAlignment="Left">
+                                <StackPanel Spacing="8" Margin="0,0,24,0">
+                                    <CheckBox Content="Checkbox option" IsChecked="True" />
+                                    <CheckBox Content="Unchecked option" />
+                                    <CheckBox Content="Disabled" IsEnabled="False" />
+                                </StackPanel>
+                                <StackPanel Spacing="8" Margin="0,0,24,0">
+                                    <RadioButton Content="Radio option A" IsChecked="True" GroupName="Group1" />
+                                    <RadioButton Content="Radio option B" GroupName="Group1" />
+                                    <RadioButton Content="Disabled radio" IsEnabled="False" GroupName="Group1" />
+                                </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <ToggleSwitch Content="Toggle switch" />
+                                    <ToggleSwitch Content="Off switch" />
+                                    <ToggleSwitch Content="Disabled" IsEnabled="False" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+
+                    </StackPanel>
+                </Border>
+
+                <!-- Color Palette Showcase -->
+                <Border Background="{DynamicResource ThemeControlHighlightHighBrush}"
+                        BorderBrush="{DynamicResource ThemeBorderHighBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Color Palette" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="18"
+                                   Foreground="{DynamicResource ThemeForegroundBrush}" />
+                        
+                        <!-- Background Colors -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Backgrounds" 
+                                       FontWeight="Medium"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource ThemeBackgroundBrush}"
+                                        BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <TextBlock Text="Base" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource ThemeForegroundBrush}" />
+                                </Border>
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource ThemeControlLowBrush}"
+                                        BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <TextBlock Text="Low" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource ThemeForegroundBrush}" />
+                                </Border>
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource ThemeControlMidBrush}"
+                                        BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <TextBlock Text="Mid" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource ThemeForegroundBrush}" />
+                                </Border>
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource ThemeControlHighBrush}"
+                                        BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <TextBlock Text="High" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource ThemeForegroundBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Accent Colors -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Accent Colors" 
+                                       FontWeight="Medium"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource ThemeAccentBrush}"
+                                        CornerRadius="4">
+                                    <TextBlock Text="Primary" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource HighlightForegroundBrush}" />
+                                </Border>
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource HighlightBrush}"
+                                        CornerRadius="4">
+                                    <TextBlock Text="Highlight" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource HighlightForegroundBrush}" />
+                                </Border>
+                                <Border Width="60" Height="40" 
+                                        Background="{DynamicResource ErrorBrush}"
+                                        CornerRadius="4">
+                                    <TextBlock Text="Error" 
+                                               FontSize="10"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource HighlightForegroundBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Typography -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Typography" 
+                                       FontWeight="Medium"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Primary text using ThemeForegroundBrush" 
+                                           Foreground="{DynamicResource ThemeForegroundBrush}" />
+                                <TextBlock Text="Secondary text using ThemeForegroundLowBrush" 
+                                           Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                                <TextBlock Text="Accent text using ThemeAccentBrush" 
+                                           Foreground="{DynamicResource ThemeAccentBrush}" />
+                                <TextBlock Text="Highlight text using HighlightBrush" 
+                                           Foreground="{DynamicResource HighlightBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                        
+                    </StackPanel>
+                </Border>
+
+                <!-- Instructions -->
+                <Border Background="{DynamicResource ThemeControlHighlightLowBrush}"
+                        BorderBrush="{DynamicResource ThemeAccentBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Theme Instructions" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="16"
+                                   Foreground="{DynamicResource ThemeForegroundBrush}" />
+                        <TextBlock Foreground="{DynamicResource ThemeForegroundBrush}">
+                            <Run Text="• Use the" />
+                            <Run Text="Theme Selector" FontWeight="Medium" Foreground="{DynamicResource ThemeAccentBrush}" />
+                            <Run Text="in the top-right corner to switch between Light ☀️ and Dark 🌙 themes" />
+                        </TextBlock>
+                        <TextBlock Foreground="{DynamicResource ThemeForegroundBrush}">
+                            <Run Text="• All controls automatically adapt to the selected theme using" />
+                            <Run Text="DynamicResource" FontWeight="Medium" Foreground="{DynamicResource ThemeAccentBrush}" />
+                            <Run Text="bindings" />
+                        </TextBlock>
+                        <TextBlock Foreground="{DynamicResource ThemeForegroundBrush}">
+                            <Run Text="• The color palette showcases the complete theme hierarchy from backgrounds to accents" />
+                        </TextBlock>
+                        <TextBlock Text="Perfect for testing theme consistency across all UI elements!" 
+                                   FontStyle="Italic"
+                                   Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

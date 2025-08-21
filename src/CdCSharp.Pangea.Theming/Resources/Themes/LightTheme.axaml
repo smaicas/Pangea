@@ -1,0 +1,333 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="using:System">
+
+    <!-- === SHARED THEME VALUES === -->
+    <FontFamily x:Key="ContentControlThemeFontFamily">fonts:Inter#Inter, $Default</FontFamily>
+    <Thickness x:Key="ThemeBorderThickness">1</Thickness>
+    <sys:Double x:Key="ThemeDisabledOpacity">0.4</sys:Double>
+    <sys:Double x:Key="FontSizeSmall">10</sys:Double>
+    <sys:Double x:Key="FontSizeNormal">12</sys:Double>
+    <sys:Double x:Key="FontSizeLarge">16</sys:Double>
+    <sys:Double x:Key="ScrollBarThickness">16</sys:Double>
+    <sys:Double x:Key="ScrollBarThumbThickness">10</sys:Double>
+    <sys:Double x:Key="IconElementThemeHeight">20</sys:Double>
+    <sys:Double x:Key="IconElementThemeWidth">20</sys:Double>
+    <SolidColorBrush x:Key="ThemeControlTransparentBrush" Color="Transparent" />
+    
+    <!-- Button Specific Values -->
+    <sys:Double x:Key="ButtonMinHeight">32</sys:Double>
+    <sys:Double x:Key="ButtonMinWidth">64</sys:Double>
+    <Thickness x:Key="ButtonPadding">12,6</Thickness>
+    <CornerRadius x:Key="ButtonCornerRadius">6</CornerRadius>
+    
+    <!-- TextBox Specific Values -->
+    <sys:Double x:Key="TextBoxMinHeight">32</sys:Double>
+    <Thickness x:Key="TextBoxPadding">8,6</Thickness>
+    <CornerRadius x:Key="TextBoxCornerRadius">4</CornerRadius>
+    
+    <!-- ComboBox Specific Values -->
+    <sys:Double x:Key="ComboBoxMinHeight">32</sys:Double>
+    <Thickness x:Key="ComboBoxPadding">8,6</Thickness>
+    <CornerRadius x:Key="ComboBoxCornerRadius">4</CornerRadius>
+    
+    <!-- Slider Specific Values -->
+    <sys:Double x:Key="SliderTrackHeight">4</sys:Double>
+    <sys:Double x:Key="SliderThumbSize">18</sys:Double>
+    <CornerRadius x:Key="SliderTrackCornerRadius">2</CornerRadius>
+    
+    <!-- ProgressBar Specific Values -->
+    <sys:Double x:Key="ProgressBarHeight">6</sys:Double>
+    <CornerRadius x:Key="ProgressBarCornerRadius">3</CornerRadius>
+    
+    <!-- CheckBox/RadioButton Specific Values -->
+    <sys:Double x:Key="CheckBoxSize">18</sys:Double>
+    <sys:Double x:Key="RadioButtonSize">18</sys:Double>
+    <CornerRadius x:Key="CheckBoxCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="RadioButtonCornerRadius">9</CornerRadius>
+    
+    <!-- Tab Specific Values -->
+    <Thickness x:Key="TabItemPadding">12,8</Thickness>
+    <sys:Double x:Key="TabItemMinHeight">36</sys:Double>
+    <CornerRadius x:Key="TabItemCornerRadius">6,6,0,0</CornerRadius>
+    
+    <!-- Expander Specific Values -->
+    <sys:Double x:Key="ExpanderMinHeight">40</sys:Double>
+    <Thickness x:Key="ExpanderPadding">12,10</Thickness>
+    
+    <!-- Calendar Specific Values -->
+    <sys:Double x:Key="CalendarButtonSize">40</sys:Double>
+    <CornerRadius x:Key="CalendarButtonCornerRadius">4</CornerRadius>
+    
+    <!-- Menu Specific Values -->
+    <Thickness x:Key="MenuItemPadding">8,6</Thickness>
+    <sys:Double x:Key="MenuItemMinHeight">28</sys:Double>
+    <CornerRadius x:Key="MenuItemCornerRadius">4</CornerRadius>
+    
+    <!-- NotificationCard Specific Values -->
+    <CornerRadius x:Key="NotificationCornerRadius">8</CornerRadius>
+    <Thickness x:Key="NotificationPadding">16</Thickness>
+    <Thickness x:Key="NotificationBorderThickness">1</Thickness>
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+            <!-- === BASE COLORS - LIGHT WARM MINIMAL === -->
+            <Color x:Key="ThemeBackgroundColor">#FFFBF9F4</Color>
+            <Color x:Key="ThemeForegroundColor">#FF2A251F</Color>
+            
+            <!-- Border Hierarchy -->
+            <Color x:Key="ThemeBorderLowColor">#FFE2D5C4</Color>
+            <Color x:Key="ThemeBorderMidColor">#FFD4C0A3</Color>
+            <Color x:Key="ThemeBorderHighColor">#FFC6AB82</Color>
+            <Color x:Key="ThemeBorderVeryHighColor">#FFB89661</Color>
+            
+            <!-- Control Background Hierarchy -->
+            <Color x:Key="ThemeControlLowColor">#FFF6F2EA</Color>
+            <Color x:Key="ThemeControlMidColor">#FFF1EAD8</Color>
+            <Color x:Key="ThemeControlMidHighColor">#FFECE2C6</Color>
+            <Color x:Key="ThemeControlHighColor">#FFE7DAB4</Color>
+            <Color x:Key="ThemeControlVeryHighColor">#FFE2D2A2</Color>
+            
+            <!-- Highlight/Hover States -->
+            <Color x:Key="ThemeControlHighlightLowColor">#FFF3EFE7</Color>
+            <Color x:Key="ThemeControlHighlightMidColor">#FFEEE7D5</Color>
+            <Color x:Key="ThemeControlHighlightHighColor">#FFE9DFC3</Color>
+            
+            <!-- Text Hierarchy -->
+            <Color x:Key="ThemeForegroundLowColor">#FF5C523E</Color>
+            <Color x:Key="ThemeForegroundMidColor">#FF3A342A</Color>
+            <Color x:Key="ThemeForegroundHighColor">#FF2A251F</Color>
+            
+            <!-- Accent Colors -->
+            <Color x:Key="ThemeAccentColor">#FF8B5A3C</Color>
+            <Color x:Key="ThemeAccentLightColor">#FFA66B47</Color>
+            <Color x:Key="ThemeAccentDarkColor">#FF7A4D31</Color>
+            
+            <!-- State Colors -->
+            <Color x:Key="HighlightColor">#FF8B5A3C</Color>
+            <Color x:Key="HighlightColor2">#FF7A4D31</Color>
+            <Color x:Key="HyperlinkColor">#FF6B4528</Color>
+            <Color x:Key="HyperlinkVisitedColor">#FF9B6B8C</Color>
+            
+            <!-- Status Colors -->
+            <Color x:Key="ErrorColor">#FFCC5A5A</Color>
+            <Color x:Key="WarningColor">#FFE0A347</Color>
+            <Color x:Key="SuccessColor">#FF6B9E4A</Color>
+            <Color x:Key="InfoColor">#FF4A7BA7</Color>
+            
+            <!-- Interactive States -->
+            <Color x:Key="ButtonHoverColor">#FFE0D6C0</Color>
+            <Color x:Key="ButtonPressedColor">#FFDBCEB0</Color>
+            <Color x:Key="ButtonDisabledColor">#FFF1EAD8</Color>
+            
+            <Color x:Key="InputHoverColor">#FFEAE1CF</Color>
+            <Color x:Key="InputFocusColor">#FFE5DBBD</Color>
+            <Color x:Key="InputDisabledColor">#FFF3EFE7</Color>
+            
+            <!-- Selection States -->
+            <Color x:Key="SelectionColor">#FF8B5A3C</Color>
+            <Color x:Key="SelectionBackgroundColor">#338B5A3C</Color>
+            <Color x:Key="SelectionHoverColor">#668B5A3C</Color>
+            
+            <!-- ScrollBar Colors -->
+            <Color x:Key="ScrollBarTrackColor">#FFF1EAD8</Color>
+            <Color x:Key="ScrollBarThumbColor">#FFE2D2A2</Color>
+            <Color x:Key="ScrollBarThumbHoverColor">#FFD4C0A3</Color>
+            
+            <!-- Window Chrome Colors -->
+            <Color x:Key="WindowChromeBackgroundColor">#FFF6F2EA</Color>
+            <Color x:Key="WindowChromeForegroundColor">#FF2A251F</Color>
+            
+            <!-- Menu Colors -->
+            <Color x:Key="MenuBackgroundColor">#FFF6F2EA</Color>
+            <Color x:Key="MenuBorderColor">#FFD4C0A3</Color>
+            <Color x:Key="MenuItemHoverColor">#FFEEE7D5</Color>
+            <Color x:Key="MenuSeparatorColor">#FFD4C0A3</Color>
+            
+            <!-- Tooltip Colors -->
+            <Color x:Key="TooltipBackgroundColor">#FFF1EAD8</Color>
+            <Color x:Key="TooltipForegroundColor">#FF2A251F</Color>
+            <Color x:Key="TooltipBorderColor">#FFD4C0A3</Color>
+            
+            <!-- Calendar Colors -->
+            <Color x:Key="CalendarBackgroundColor">#FFF6F2EA</Color>
+            <Color x:Key="CalendarHeaderBackgroundColor">#FFF1EAD8</Color>
+            <Color x:Key="CalendarButtonHoverColor">#FFEEE7D5</Color>
+            <Color x:Key="CalendarButtonTodayColor">#338B5A3C</Color>
+            <Color x:Key="CalendarButtonSelectedColor">#FF8B5A3C</Color>
+            
+            <!-- Notification Colors -->
+            <Color x:Key="NotificationBackgroundColor">#FFF6F2EA</Color>
+            <Color x:Key="NotificationInfoBackgroundColor">#FFE8F2F0</Color>
+            <Color x:Key="NotificationSuccessBackgroundColor">#FFF0F5E8</Color>
+            <Color x:Key="NotificationWarningBackgroundColor">#FFFBF2E3</Color>
+            <Color x:Key="NotificationErrorBackgroundColor">#FFF8EBE8</Color>
+            
+            <!-- Tab Colors -->
+            <Color x:Key="TabBackgroundColor">#FFF6F2EA</Color>
+            <Color x:Key="TabSelectedBackgroundColor">#FFFBF9F4</Color>
+            <Color x:Key="TabHoverBackgroundColor">#FFEEE7D5</Color>
+            <Color x:Key="TabBorderColor">#FFD4C0A3</Color>
+            
+            <!-- DataGrid Colors -->
+            <Color x:Key="DataGridHeaderBackgroundColor">#FFF1EAD8</Color>
+            <Color x:Key="DataGridRowHoverColor">#FFF3EFE7</Color>
+            <Color x:Key="DataGridRowSelectedColor">#338B5A3C</Color>
+            <Color x:Key="DataGridBorderColor">#FFD4C0A3</Color>
+            
+            <!-- Expander Colors -->
+            <Color x:Key="ExpanderHeaderBackgroundColor">#FFF1EAD8</Color>
+            <Color x:Key="ExpanderHeaderHoverColor">#FFEEE7D5</Color>
+            <Color x:Key="ExpanderContentBackgroundColor">#FFF6F2EA</Color>
+            
+            <!-- Flyout Colors -->
+            <Color x:Key="FlyoutBackgroundColor">#FFF6F2EA</Color>
+            <Color x:Key="FlyoutBorderColor">#FFD4C0A3</Color>
+            
+            <!-- === BRUSHES === -->
+            <!-- Base Brushes -->
+            <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="{StaticResource ThemeBackgroundColor}" />
+            <SolidColorBrush x:Key="ThemeForegroundBrush" Color="{StaticResource ThemeForegroundColor}" />
+            
+            <!-- Border Brushes -->
+            <SolidColorBrush x:Key="ThemeBorderLowBrush" Color="{StaticResource ThemeBorderLowColor}" />
+            <SolidColorBrush x:Key="ThemeBorderMidBrush" Color="{StaticResource ThemeBorderMidColor}" />
+            <SolidColorBrush x:Key="ThemeBorderHighBrush" Color="{StaticResource ThemeBorderHighColor}" />
+            <SolidColorBrush x:Key="ThemeBorderVeryHighBrush" Color="{StaticResource ThemeBorderVeryHighColor}" />
+            
+            <!-- Control Brushes -->
+            <SolidColorBrush x:Key="ThemeControlLowBrush" Color="{StaticResource ThemeControlLowColor}" />
+            <SolidColorBrush x:Key="ThemeControlMidBrush" Color="{StaticResource ThemeControlMidColor}" />
+            <SolidColorBrush x:Key="ThemeControlMidHighBrush" Color="{StaticResource ThemeControlMidHighColor}" />
+            <SolidColorBrush x:Key="ThemeControlHighBrush" Color="{StaticResource ThemeControlHighColor}" />
+            <SolidColorBrush x:Key="ThemeControlVeryHighBrush" Color="{StaticResource ThemeControlVeryHighColor}" />
+            
+            <!-- Highlight Brushes -->
+            <SolidColorBrush x:Key="ThemeControlHighlightLowBrush" Color="{StaticResource ThemeControlHighlightLowColor}" />
+            <SolidColorBrush x:Key="ThemeControlHighlightMidBrush" Color="{StaticResource ThemeControlHighlightMidColor}" />
+            <SolidColorBrush x:Key="ThemeControlHighlightHighBrush" Color="{StaticResource ThemeControlHighlightHighColor}" />
+            
+            <!-- Text Brushes -->
+            <SolidColorBrush x:Key="ThemeForegroundLowBrush" Color="{StaticResource ThemeForegroundLowColor}" />
+            <SolidColorBrush x:Key="ThemeForegroundMidBrush" Color="{StaticResource ThemeForegroundMidColor}" />
+            <SolidColorBrush x:Key="ThemeForegroundHighBrush" Color="{StaticResource ThemeForegroundHighColor}" />
+            
+            <!-- Accent Brushes -->
+            <SolidColorBrush x:Key="ThemeAccentBrush" Color="{StaticResource ThemeAccentColor}" />
+            <SolidColorBrush x:Key="ThemeAccentLightBrush" Color="{StaticResource ThemeAccentLightColor}" />
+            <SolidColorBrush x:Key="ThemeAccentDarkBrush" Color="{StaticResource ThemeAccentDarkColor}" />
+            
+            <!-- State Brushes -->
+            <SolidColorBrush x:Key="HighlightBrush" Color="{StaticResource HighlightColor}" />
+            <SolidColorBrush x:Key="HighlightBrush2" Color="{StaticResource HighlightColor2}" />
+            <SolidColorBrush x:Key="HyperlinkBrush" Color="{StaticResource HyperlinkColor}" />
+            <SolidColorBrush x:Key="HyperlinkVisitedBrush" Color="{StaticResource HyperlinkVisitedColor}" />
+            
+            <!-- Status Brushes -->
+            <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+            <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+            <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}" />
+            
+            <!-- Interactive State Brushes -->
+            <SolidColorBrush x:Key="ButtonHoverBrush" Color="{StaticResource ButtonHoverColor}" />
+            <SolidColorBrush x:Key="ButtonPressedBrush" Color="{StaticResource ButtonPressedColor}" />
+            <SolidColorBrush x:Key="ButtonDisabledBrush" Color="{StaticResource ButtonDisabledColor}" />
+            
+            <SolidColorBrush x:Key="InputHoverBrush" Color="{StaticResource InputHoverColor}" />
+            <SolidColorBrush x:Key="InputFocusBrush" Color="{StaticResource InputFocusColor}" />
+            <SolidColorBrush x:Key="InputDisabledBrush" Color="{StaticResource InputDisabledColor}" />
+            
+            <!-- Selection Brushes -->
+            <SolidColorBrush x:Key="SelectionBrush" Color="{StaticResource SelectionColor}" />
+            <SolidColorBrush x:Key="SelectionBackgroundBrush" Color="{StaticResource SelectionBackgroundColor}" />
+            <SolidColorBrush x:Key="SelectionHoverBrush" Color="{StaticResource SelectionHoverColor}" />
+            
+            <!-- ScrollBar Brushes -->
+            <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="{StaticResource ScrollBarTrackColor}" />
+            <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="{StaticResource ScrollBarThumbColor}" />
+            <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="{StaticResource ScrollBarThumbHoverColor}" />
+            
+            <!-- Chrome Brushes -->
+            <SolidColorBrush x:Key="WindowChromeBackgroundBrush" Color="{StaticResource WindowChromeBackgroundColor}" />
+            <SolidColorBrush x:Key="WindowChromeForegroundBrush" Color="{StaticResource WindowChromeForegroundColor}" />
+            
+            <!-- Menu Brushes -->
+            <SolidColorBrush x:Key="MenuBackgroundBrush" Color="{StaticResource MenuBackgroundColor}" />
+            <SolidColorBrush x:Key="MenuBorderBrush" Color="{StaticResource MenuBorderColor}" />
+            <SolidColorBrush x:Key="MenuItemHoverBrush" Color="{StaticResource MenuItemHoverColor}" />
+            <SolidColorBrush x:Key="MenuSeparatorBrush" Color="{StaticResource MenuSeparatorColor}" />
+            
+            <!-- Tooltip Brushes -->
+            <SolidColorBrush x:Key="TooltipBackgroundBrush" Color="{StaticResource TooltipBackgroundColor}" />
+            <SolidColorBrush x:Key="TooltipForegroundBrush" Color="{StaticResource TooltipForegroundColor}" />
+            <SolidColorBrush x:Key="TooltipBorderBrush" Color="{StaticResource TooltipBorderColor}" />
+            
+            <!-- Calendar Brushes -->
+            <SolidColorBrush x:Key="CalendarBackgroundBrush" Color="{StaticResource CalendarBackgroundColor}" />
+            <SolidColorBrush x:Key="CalendarHeaderBackgroundBrush" Color="{StaticResource CalendarHeaderBackgroundColor}" />
+            <SolidColorBrush x:Key="CalendarButtonHoverBrush" Color="{StaticResource CalendarButtonHoverColor}" />
+            <SolidColorBrush x:Key="CalendarButtonTodayBrush" Color="{StaticResource CalendarButtonTodayColor}" />
+            <SolidColorBrush x:Key="CalendarButtonSelectedBrush" Color="{StaticResource CalendarButtonSelectedColor}" />
+            
+            <!-- Notification Brushes -->
+            <SolidColorBrush x:Key="NotificationCardBackgroundBrush" Color="{StaticResource NotificationBackgroundColor}" Opacity="0.95" />
+            <SolidColorBrush x:Key="NotificationCardInformationBackgroundBrush" Color="{StaticResource NotificationInfoBackgroundColor}" Opacity="0.95" />
+            <SolidColorBrush x:Key="NotificationCardSuccessBackgroundBrush" Color="{StaticResource NotificationSuccessBackgroundColor}" Opacity="0.95" />
+            <SolidColorBrush x:Key="NotificationCardWarningBackgroundBrush" Color="{StaticResource NotificationWarningBackgroundColor}" Opacity="0.95" />
+            <SolidColorBrush x:Key="NotificationCardErrorBackgroundBrush" Color="{StaticResource NotificationErrorBackgroundColor}" Opacity="0.95" />
+            
+            <!-- Tab Brushes -->
+            <SolidColorBrush x:Key="TabBackgroundBrush" Color="{StaticResource TabBackgroundColor}" />
+            <SolidColorBrush x:Key="TabSelectedBackgroundBrush" Color="{StaticResource TabSelectedBackgroundColor}" />
+            <SolidColorBrush x:Key="TabHoverBackgroundBrush" Color="{StaticResource TabHoverBackgroundColor}" />
+            <SolidColorBrush x:Key="TabBorderBrush" Color="{StaticResource TabBorderColor}" />
+            
+            <!-- DataGrid Brushes -->
+            <SolidColorBrush x:Key="DataGridHeaderBackgroundBrush" Color="{StaticResource DataGridHeaderBackgroundColor}" />
+            <SolidColorBrush x:Key="DataGridRowHoverBrush" Color="{StaticResource DataGridRowHoverColor}" />
+            <SolidColorBrush x:Key="DataGridRowSelectedBrush" Color="{StaticResource DataGridRowSelectedColor}" />
+            <SolidColorBrush x:Key="DataGridBorderBrush" Color="{StaticResource DataGridBorderColor}" />
+            
+            <!-- Expander Brushes -->
+            <SolidColorBrush x:Key="ExpanderHeaderBackgroundBrush" Color="{StaticResource ExpanderHeaderBackgroundColor}" />
+            <SolidColorBrush x:Key="ExpanderHeaderHoverBrush" Color="{StaticResource ExpanderHeaderHoverColor}" />
+            <SolidColorBrush x:Key="ExpanderContentBackgroundBrush" Color="{StaticResource ExpanderContentBackgroundColor}" />
+            
+            <!-- Flyout Brushes -->
+            <SolidColorBrush x:Key="FlyoutBackgroundBrush" Color="{StaticResource FlyoutBackgroundColor}" />
+            <SolidColorBrush x:Key="FlyoutBorderBrush" Color="{StaticResource FlyoutBorderColor}" />
+            
+            <!-- Special System Brushes -->
+            <SolidColorBrush x:Key="RefreshVisualizerForeground" Color="{StaticResource ThemeForegroundColor}" />
+            <SolidColorBrush x:Key="RefreshVisualizerBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="CaptionButtonForeground" Color="{StaticResource WindowChromeForegroundColor}" />
+            <SolidColorBrush x:Key="CaptionButtonBackground" Color="{StaticResource WindowChromeBackgroundColor}" />
+            <SolidColorBrush x:Key="CaptionButtonBorderBrush" Color="{StaticResource ThemeBorderMidColor}" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- === GLOBAL THEME COLORS (OVERRIDE DEFAULTS) === -->
+    <Color x:Key="ThemeAccentColor">#FF8B5A3C</Color>
+    <Color x:Key="ThemeAccentColor2">#B38B5A3C</Color>
+    <Color x:Key="ThemeAccentColor3">#668B5A3C</Color>
+    <Color x:Key="ThemeAccentColor4">#338B5A3C</Color>
+    <Color x:Key="ThemeForegroundLowColor">#FF5C523E</Color>
+    <Color x:Key="HighlightForegroundColor">#FFFBF9F4</Color>
+    <Color x:Key="ErrorColor">#FFCC5A5A</Color>
+    <Color x:Key="ErrorLowColor">#1ACC5A5A</Color>
+
+    <SolidColorBrush x:Key="HighlightForegroundBrush" Color="{StaticResource HighlightForegroundColor}" />
+    <SolidColorBrush x:Key="ThemeForegroundLowBrush" Color="{StaticResource ThemeForegroundLowColor}" />
+    <SolidColorBrush x:Key="ThemeAccentBrush2" Color="{StaticResource ThemeAccentColor2}" />
+    <SolidColorBrush x:Key="ThemeAccentBrush3" Color="{StaticResource ThemeAccentColor3}" />
+    <SolidColorBrush x:Key="ThemeAccentBrush4" Color="{StaticResource ThemeAccentColor4}" />
+    <SolidColorBrush x:Key="ThemeAccentBrush" Color="{StaticResource ThemeAccentColor}" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="ErrorLowBrush" Color="{StaticResource ErrorLowColor}" />
+
+    <!-- === PICKER SPECIFIC BRUSHES === -->
+    <SolidColorBrush x:Key="DatePickerFlyoutPresenterHighlightFill" Opacity="0.2" Color="{StaticResource ThemeAccentColor}" />
+    <SolidColorBrush x:Key="TimePickerFlyoutPresenterHighlightFill" Opacity="0.2" Color="{StaticResource ThemeAccentColor}" />
+
+</ResourceDictionary>

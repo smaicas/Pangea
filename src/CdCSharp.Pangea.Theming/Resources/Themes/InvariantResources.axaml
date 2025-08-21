@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=System.Runtime">
+ 
+    <!-- Dimensiones fijas para todos los temas -->
+    <Thickness x:Key="DefaultBorderThickness">1</Thickness>
+    <CornerRadius x:Key="DefaultCornerRadius">4</CornerRadius>
+    
+    <!-- Opacidades fijas -->
+    <x:Double x:Key="DisabledOpacity">0.4</x:Double>
+    <x:Double x:Key="HoverOpacity">0.8</x:Double>
+    <x:Double x:Key="PressedOpacity">0.6</x:Double>
+    
+    <!-- Duraciones de animación -->
+    <system:TimeSpan x:Key="DefaultAnimationDuration">0:0:0.2</system:TimeSpan>
+    <system:TimeSpan x:Key="FastAnimationDuration">0:0:0.1</system:TimeSpan>
+    
+    <!-- Espaciados comunes -->
+    <x:Double x:Key="SmallSpacing">4</x:Double>
+    <x:Double x:Key="MediumSpacing">8</x:Double>
+    <x:Double x:Key="LargeSpacing">16</x:Double>
+    
+    <!-- NOTA: NO definimos colores base aquí para evitar conflictos -->
+    <!-- Los colores se definen exclusivamente en DarkTheme.axaml y LightTheme.axaml -->
+    
+</ResourceDictionary>

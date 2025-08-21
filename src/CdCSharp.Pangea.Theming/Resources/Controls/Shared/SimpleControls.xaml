@@ -1,0 +1,77 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/AdornerLayer.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Button.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/RadioButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Expander.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/RepeatButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ToggleSwitch.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ButtonSpinner.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ToggleButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/DropDownButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/PathIcon.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/CheckBox.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ToolTip.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Label.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ComboBoxItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ComboBox.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Window.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Carousel.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/CaptionButtons.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TitleBar.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TextBox.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/AutoCompleteBox.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/DataValidationErrors.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/FlyoutPresenter.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/MenuFlyoutPresenter.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/GridSplitter.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/HyperlinkButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ItemsControl.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ListBoxItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ListBox.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ScrollBar.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ScrollViewer.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TabStrip.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TabStripItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TabControl.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TabItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/PopupRoot.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/OverlayPopupHost.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/WindowNotificationManager.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/EmbeddableControlRoot.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TransitioningContentControl.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TreeView.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TreeViewItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ProgressBar.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Separator.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Menu.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/MenuItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ContextMenu.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/CalendarButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/CalendarDayButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/CalendarItem.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Calendar.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/CalendarDatePicker.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/Slider.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/NotificationCard.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/NumericUpDown.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/DateTimePickerShared.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/DatePicker.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TimePicker.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/SplitView.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ManagedFileChooser.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/SplitButton.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/SelectableTextBlock.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/RefreshContainer.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/RefreshVisualizer.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/ThemeVariantScope.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/HeaderedContentControl.xaml" />
+                <MergeResourceInclude Source="avares://CdCSharp.Pangea.Theming/Resources/Controls/Shared/TextSelectionHandle.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>

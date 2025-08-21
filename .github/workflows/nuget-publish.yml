@@ -1,0 +1,299 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags: ['v*']
+    branches: ['master']
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  CONFIGURATION: 'Release'
+  MAJOR_VERSION: 1
+  MINOR_VERSION: 0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Generate Version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            # If tagged, use version from tag
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "Using tag version: $VERSION"
+          else
+            # Automatic Version: Major.Minor.RunNumber
+            VERSION="${{ env.MAJOR_VERSION }}.${{ env.MINOR_VERSION }}.${{ github.run_number }}"
+            echo "Generated automatic version: $VERSION"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Display Version
+        run: echo "🚀 Building version ${{ steps.version.outputs.version }}"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build Solution
+        run: |
+          echo "🔧 Step 1: Building Analyzers first (REQUIRED for main package)..."
+          dotnet build src/CdCSharp.Pangea.Binding.CodeGeneration/CdCSharp.Pangea.Binding.CodeGeneration.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+          
+          dotnet build src/CdCSharp.Pangea.Theming.CodeGeneration/CdCSharp.Pangea.Theming.CodeGeneration.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+          echo "✅ Analyzers built successfully. Verifying..."
+          ls -la src/CdCSharp.Pangea.Binding.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
+          ls -la src/CdCSharp.Pangea.Theming.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
+
+          echo "🔧 Step 2: Building Core..."
+          dotnet build src/CdCSharp.Pangea.Core/CdCSharp.Pangea.Core.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+          
+          echo "🔧 Step 3: Building Features..."
+          dotnet build src/CdCSharp.Pangea.Binding/CdCSharp.Pangea.Binding.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+          
+          dotnet build src/CdCSharp.Pangea.Theming/CdCSharp.Pangea.Theming.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+          
+          dotnet build src/CdCSharp.Pangea.Storage/CdCSharp.Pangea.Storage.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+          
+          dotnet build src/CdCSharp.Pangea.Localization/CdCSharp.Pangea.Localization.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+          echo "🔧 Step 4: Building Main project (will embed analyzers)..."
+          dotnet build src/CdCSharp.Pangea/CdCSharp.Pangea.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+      - name: Test
+        run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal
+
+      - name: Pack Main Project (with embedded analyzers)
+        run: |
+          echo "📦 Packing ONLY main project with embedded analyzers..."
+          
+          # Verificar que los analyzers existen antes de empaquetar
+          echo "🔍 Verifying analyzer DLLs exist..."
+          ls -la src/CdCSharp.Pangea.Binding.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/CdCSharp.Pangea.Binding.CodeGeneration.dll
+          ls -la src/CdCSharp.Pangea.Theming.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/CdCSharp.Pangea.Theming.CodeGeneration.dll
+          
+          dotnet pack src/CdCSharp.Pangea/CdCSharp.Pangea.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+          
+          echo "✅ Main package created with embedded analyzers!"
+
+      - name: Pack Individual Features
+        run: |
+          echo "📦 Packing individual feature packages..."
+          
+          dotnet pack src/CdCSharp.Pangea.Core/CdCSharp.Pangea.Core.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+
+          dotnet pack src/CdCSharp.Pangea.Binding/CdCSharp.Pangea.Binding.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+          
+          dotnet pack src/CdCSharp.Pangea.Storage/CdCSharp.Pangea.Storage.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+          
+          dotnet pack src/CdCSharp.Pangea.Theming/CdCSharp.Pangea.Theming.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+          
+          dotnet pack src/CdCSharp.Pangea.Localization/CdCSharp.Pangea.Localization.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+
+      - name: Verify Main Package Content
+        run: |
+          echo "📦 Generated packages:"
+          ls -la ./artifacts/
+          
+          echo "🔍 Verifying CdCSharp.Pangea package contains analyzers..."
+          MAIN_PKG="./artifacts/CdCSharp.Pangea.${{ steps.version.outputs.version }}.nupkg"
+          
+          if [[ -f "$MAIN_PKG" ]]; then
+            echo "--- Analyzing main package: $MAIN_PKG ---"
+          
+            # Crear directorio temporal
+            mkdir -p temp_extract
+            unzip -q "$MAIN_PKG" -d temp_extract
+          
+            # Verificar estructura general
+            echo "📋 Package structure:"
+            find temp_extract -type f -name "*.dll" | head -20
+          
+            # Verificar analyzers específicamente
+            echo "🔍 Checking analyzers folder..."
+            if [[ -d "temp_extract/analyzers/dotnet/cs" ]]; then
+              echo "✅ Analyzers folder exists!"
+              echo "📁 Analyzer contents:"
+              ls -la temp_extract/analyzers/dotnet/cs/
+          
+              # Verificar analyzers específicos
+              if [[ -f "temp_extract/analyzers/dotnet/cs/CdCSharp.Pangea.Binding.CodeGeneration.dll" ]]; then
+                echo "✅ Binding analyzer found!"
+              else
+                echo "❌ Binding analyzer MISSING!"
+              fi
+          
+              if [[ -f "temp_extract/analyzers/dotnet/cs/CdCSharp.Pangea.Theming.CodeGeneration.dll" ]]; then
+                echo "✅ Theming analyzer found!"
+              else
+                echo "❌ Theming analyzer MISSING!"
+              fi
+            else
+              echo "❌ Analyzers folder NOT found!"
+              echo "Available directories:"
+              find temp_extract -type d | head -10
+          
+              echo "❌ CRITICAL: Analyzers missing from package!"
+              exit 1
+            fi
+          
+            # Verificar dependencies
+            echo "📋 Package dependencies (from nuspec):"
+            if [[ -f "temp_extract/CdCSharp.Pangea.nuspec" ]]; then
+              grep -A 10 "<dependencies>" temp_extract/CdCSharp.Pangea.nuspec || echo "No dependencies section found"
+            fi
+          
+            # Limpiar
+            rm -rf temp_extract
+          else
+            echo "❌ Main package not found: $MAIN_PKG"
+            exit 1
+          fi
+
+      # 🚀 Publish to NuGet
+      - name: Publish to NuGet
+        run: |
+          echo "🚀 Publishing packages to NuGet.org..."
+          
+          # Publicar solo el paquete principal para usuarios finales
+          echo "📤 Publishing main package..."
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          echo "📤 Publishing individual feature packages..."
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Core.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Binding.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Storage.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Theming.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Localization.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          echo "✅ All packages published successfully!"
+
+      - name: Build Summary
+        run: |
+          echo "📋 Build Summary:"
+          echo "  📦 Version: ${{ steps.version.outputs.version }}"
+          echo "  🔧 Configuration: ${{ env.CONFIGURATION }}"
+          echo "  ✅ Main package: CdCSharp.Pangea (with embedded analyzers)"
+          echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization"
+          echo "  🎯 Install command: dotnet add package CdCSharp.Pangea"

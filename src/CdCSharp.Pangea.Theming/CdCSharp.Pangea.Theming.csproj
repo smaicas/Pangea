@@ -1,0 +1,186 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Theming</PackageId>
+        <Description>Theming feature for CdCSharp.Pangea - Dynamic theme switching with Simple UI</Description>
+        <PackageTags>avalonia;theming;themes;ui;simple-ui</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Generator reference as analyzer -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Binding\CdCSharp.Pangea.Binding.csproj"/>
+        <ProjectReference Include="..\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all"
+                          IncludeAssets="runtime; build; native; contentfiles; analyzers"/>
+      <ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" />
+        <ProjectReference Include="..\CdCSharp.Pangea.Theming.CodeGeneration\CdCSharp.Pangea.Theming.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all"
+                          IncludeAssets="runtime; build; native; contentfiles; analyzers"/>
+        <ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.3.2"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaXaml Remove="Resources\Themes\DarkTheme.axaml"/>
+        <AvaloniaXaml Remove="Resources\Themes\InvariantResources.axaml"/>
+        <AvaloniaResource Include="Resources\Themes\InvariantResources.axaml"/>
+        <AvaloniaXaml Remove="Resources\Themes\LightTheme.axaml"/>
+        <AvaloniaXaml Remove="Resources\Themes\Root.axaml"/>
+        <AvaloniaResource Include="Resources\Themes\Root.axaml"/>
+        <None Remove="Resources\Controls\Shared\AdornerLayer.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\AdornerLayer.xaml"/>
+        <None Remove="Resources\Controls\Shared\AutoCompleteBox.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\AutoCompleteBox.xaml"/>
+        <None Remove="Resources\Controls\Shared\Button.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Button.xaml"/>
+        <None Remove="Resources\Controls\Shared\ButtonSpinner.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ButtonSpinner.xaml"/>
+        <None Remove="Resources\Controls\Shared\Calendar.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Calendar.xaml"/>
+        <None Remove="Resources\Controls\Shared\CalendarButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\CalendarButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\CalendarDatePicker.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\CalendarDatePicker.xaml"/>
+        <None Remove="Resources\Controls\Shared\CalendarDayButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\CalendarDayButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\CalendarItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\CalendarItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\CaptionButtons.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\CaptionButtons.xaml"/>
+        <None Remove="Resources\Controls\Shared\Carousel.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Carousel.xaml"/>
+        <None Remove="Resources\Controls\Shared\CheckBox.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\CheckBox.xaml"/>
+        <None Remove="Resources\Controls\Shared\ComboBox.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ComboBox.xaml"/>
+        <None Remove="Resources\Controls\Shared\ComboBoxItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ComboBoxItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\ContextMenu.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ContextMenu.xaml"/>
+        <None Remove="Resources\Controls\Shared\DataValidationErrors.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\DataValidationErrors.xaml"/>
+        <None Remove="Resources\Controls\Shared\DatePicker.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\DatePicker.xaml"/>
+        <None Remove="Resources\Controls\Shared\DateTimePickerShared.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\DateTimePickerShared.xaml"/>
+        <None Remove="Resources\Controls\Shared\DropDownButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\DropDownButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\EmbeddableControlRoot.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\EmbeddableControlRoot.xaml"/>
+        <None Remove="Resources\Controls\Shared\Expander.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Expander.xaml"/>
+        <None Remove="Resources\Controls\Shared\FlyoutPresenter.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\FlyoutPresenter.xaml"/>
+        <None Remove="Resources\Controls\Shared\GridSplitter.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\GridSplitter.xaml"/>
+        <None Remove="Resources\Controls\Shared\HeaderedContentControl.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\HeaderedContentControl.xaml"/>
+        <None Remove="Resources\Controls\Shared\HyperlinkButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\HyperlinkButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\ItemsControl.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ItemsControl.xaml"/>
+        <None Remove="Resources\Controls\Shared\Label.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Label.xaml"/>
+        <None Remove="Resources\Controls\Shared\ListBox.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ListBox.xaml"/>
+        <None Remove="Resources\Controls\Shared\ListBoxItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ListBoxItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\ManagedFileChooser.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ManagedFileChooser.xaml"/>
+        <None Remove="Resources\Controls\Shared\Menu.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Menu.xaml"/>
+        <None Remove="Resources\Controls\Shared\MenuFlyoutPresenter.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\MenuFlyoutPresenter.xaml"/>
+        <None Remove="Resources\Controls\Shared\MenuItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\MenuItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\NotificationCard.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\NotificationCard.xaml"/>
+        <None Remove="Resources\Controls\Shared\NumericUpDown.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\NumericUpDown.xaml"/>
+        <None Remove="Resources\Controls\Shared\OverlayPopupHost.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\OverlayPopupHost.xaml"/>
+        <None Remove="Resources\Controls\Shared\PathIcon.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\PathIcon.xaml"/>
+        <None Remove="Resources\Controls\Shared\PopupRoot.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\PopupRoot.xaml"/>
+        <None Remove="Resources\Controls\Shared\ProgressBar.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ProgressBar.xaml"/>
+        <None Remove="Resources\Controls\Shared\RadioButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\RadioButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\RefreshContainer.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\RefreshContainer.xaml"/>
+        <None Remove="Resources\Controls\Shared\RefreshVisualizer.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\RefreshVisualizer.xaml"/>
+        <Compile Remove="Resources\Controls\Shared\RepeatButton.cs"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\RepeatButton.cs"/>
+        <None Remove="Resources\Controls\Shared\RepeatButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\RepeatButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\ScrollBar.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ScrollBar.xaml"/>
+        <None Remove="Resources\Controls\Shared\ScrollViewer.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ScrollViewer.xaml"/>
+        <None Remove="Resources\Controls\Shared\SelectableTextBlock.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\SelectableTextBlock.xaml"/>
+        <None Remove="Resources\Controls\Shared\Separator.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Separator.xaml"/>
+        <None Remove="Resources\Controls\Shared\SimpleControls.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\SimpleControls.xaml"/>
+        <None Remove="Resources\Controls\Shared\Slider.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Slider.xaml"/>
+        <None Remove="Resources\Controls\Shared\SplitButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\SplitButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\SplitView.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\SplitView.xaml"/>
+        <None Remove="Resources\Controls\Shared\TabControl.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TabControl.xaml"/>
+        <None Remove="Resources\Controls\Shared\TabItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TabItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\TabStrip.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TabStrip.xaml"/>
+        <None Remove="Resources\Controls\Shared\TabStripItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TabStripItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\TextBox.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TextBox.xaml"/>
+        <None Remove="Resources\Controls\Shared\TextSelectionHandle.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TextSelectionHandle.xaml"/>
+        <None Remove="Resources\Controls\Shared\ThemeVariantScope.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ThemeVariantScope.xaml"/>
+        <None Remove="Resources\Controls\Shared\TimePicker.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TimePicker.xaml"/>
+        <None Remove="Resources\Controls\Shared\TitleBar.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TitleBar.xaml"/>
+        <None Remove="Resources\Controls\Shared\ToggleButton.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ToggleButton.xaml"/>
+        <None Remove="Resources\Controls\Shared\ToggleSwitch.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ToggleSwitch.xaml"/>
+        <None Remove="Resources\Controls\Shared\ToolTip.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\ToolTip.xaml"/>
+        <None Remove="Resources\Controls\Shared\TransitioningContentControl.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TransitioningContentControl.xaml"/>
+        <None Remove="Resources\Controls\Shared\TreeView.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TreeView.xaml"/>
+        <None Remove="Resources\Controls\Shared\TreeViewItem.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\TreeViewItem.xaml"/>
+        <None Remove="Resources\Controls\Shared\Window.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\Window.xaml"/>
+        <None Remove="Resources\Controls\Shared\WindowNotificationManager.xaml"/>
+        <AvaloniaResource Include="Resources\Controls\Shared\WindowNotificationManager.xaml"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <AvaloniaResource Include="Resources\Themes\DarkTheme.axaml" />
+      <AvaloniaResource Include="Resources\Themes\LightTheme.axaml" />
+    </ItemGroup>
+</Project>
