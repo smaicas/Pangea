@@ -38,7 +38,6 @@ public abstract class PangeaApplication : Application
             IPangeaApplicationContext applicationContext = new PangeaApplicationContext(Current!, serviceProvider);
             FeatureRegistry.ConfigureAllFeatures(serviceProvider, applicationContext);
             
-            
             IThemeService? themeService = serviceProvider.GetRequiredService<IThemeService>();
             ThemingOptions? themingOptions = serviceProvider.GetRequiredService<IOptions<ThemingOptions>>().Value;
 
@@ -53,9 +52,8 @@ public abstract class PangeaApplication : Application
 
             themeService?.RegisterToolkitUI(toolkitUI);
             
-            
-            IWindowManager windowManager = serviceProvider.GetRequiredService<IWindowManager>();
-            windowManager.GetMainWindow().Show();
+            IWindowManager? windowManager = serviceProvider.GetService<IWindowManager>();
+            windowManager?.GetMainWindow().Show();
         }
 
         base.OnFrameworkInitializationCompleted();
