@@ -1,110 +1,361 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
-using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
+using CdCSharp.Pangea.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 
 namespace CdCSharp.Pangea.Windows;
 
-
 public interface IWindowManager : IDisposable
 {
-    Task<TWindow> ShowWindowAsync<TWindow, TViewModel>(NavigationParameter? navigationParameter = null)
+    Task<TWindow> ShowWindowAsync<TWindow, TViewModel>()
         where TWindow : Window, new() where TViewModel : class;
-    TWindow CreateWindow<TWindow, TViewModel>() where TWindow : Window, new() where TViewModel : class;
-    TWindow CreateWindow<TWindow>() where TWindow : Window, new();
+    
+    TWindow GetOrCreateWindow<TWindow, TViewModel>()
+        where TWindow : Window, new() where TViewModel : class;
+    
+    TWindow GetOrCreateWindow<TWindow>() where TWindow : Window, new();
+    
     void CloseWindow<TWindow>() where TWindow : Window;
-    bool IsWindowOpen<TWindow>() where TWindow : Window;
-    TWindow? GetWindow<TWindow>() where TWindow : Window;
-    Window GetMainWindow();
+    void CloseAllWindows();
+    
+    Window? GetMainWindow();
     void SetMainWindow<TWindow, TViewModel>() where TWindow : Window, new() where TViewModel : class;
     void SetMainWindow(Window window);
+    void Initialize();
 }
-
 
 public class WindowManager : IWindowManager, IDisposable
 {
-    private readonly IWindowManagerCore _core;
-    private readonly IMainWindowManager _mainWindowManager;
-    private bool _disposed;
+    private readonly ConcurrentDictionary<Type, WeakReference<Window>> _windowCache = new();
+    private readonly SemaphoreSlim _creationSemaphore = new(1, 1);
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IApplicationLifetime _applicationLifetime;
+    private readonly PangeaOptions _options;
+    private Window? _mainWindow;
+    private bool _initialized;
+    private volatile bool _disposed;
 
-    public WindowManager(IWindowManagerCore core, IMainWindowManager mainWindowManager)
+    public WindowManager(
+        IServiceProvider serviceProvider,
+        IApplicationLifetime applicationLifetime,
+        IOptions<PangeaOptions> options)
     {
-        _core = core;
-        _mainWindowManager = mainWindowManager;
+        _serviceProvider = serviceProvider;
+        _applicationLifetime = applicationLifetime;
+        _options = options.Value;
     }
 
-    // IWindowManagerCore delegation
-    public Task<TWindow> ShowWindowAsync<TWindow, TViewModel>(NavigationParameter? navigationParameter = null)
-        where TWindow : Window, new() where TViewModel : class
-    {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        return _core.ShowWindowAsync<TWindow, TViewModel>(navigationParameter);
-    }
-
-    public TWindow CreateWindow<TWindow, TViewModel>() where TWindow : Window, new() where TViewModel : class
-    {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        return _core.CreateWindow<TWindow, TViewModel>();
-    }
-
-    public TWindow CreateWindow<TWindow>() where TWindow : Window, new()
+    public void Initialize()
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        return _core.CreateWindow<TWindow>();
+        
+        if (_initialized) return;
+        _initialized = true;
+
+        if (_options.Window.AutoDiscoverMainWindow)
+        {
+            TryAutoInitializeMainWindow();
+        }
     }
 
-    public void CloseWindow<TWindow>() where TWindow : Window
-    {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        _core.CloseWindow<TWindow>();
-    }
-
-    public bool IsWindowOpen<TWindow>() where TWindow : Window
-    {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        return _core.IsWindowOpen<TWindow>();
-    }
-
-    public TWindow? GetWindow<TWindow>() where TWindow : Window
-    {
-        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        return _core.GetWindow<TWindow>();
-    }
-
-    // IMainWindowManager delegation
     public Window? GetMainWindow()
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        return _mainWindowManager.GetMainWindow();
+        Initialize();
+        return _mainWindow;
     }
 
-    public void SetMainWindow<TWindow, TViewModel>() where TWindow : Window, new() where TViewModel : class
+    public void SetMainWindow<TWindow, TViewModel>() 
+        where TWindow : Window, new() 
+        where TViewModel : class
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        _mainWindowManager.SetMainWindow<TWindow, TViewModel>();
+        
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            SetMainWindowInternal<TWindow, TViewModel>();
+        }
+        else
+        {
+            Dispatcher.UIThread.Invoke(() => SetMainWindowInternal<TWindow, TViewModel>());
+        }
     }
 
     public void SetMainWindow(Window window)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
-        _mainWindowManager.SetMainWindow(window);
+        ArgumentNullException.ThrowIfNull(window);
+        
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            SetMainWindowInternal(window);
+        }
+        else
+        {
+            Dispatcher.UIThread.Invoke(() => SetMainWindowInternal(window));
+        }
     }
 
-    // IDisposable implementation
+    public TWindow GetOrCreateWindow<TWindow, TViewModel>()
+        where TWindow : Window, new()
+        where TViewModel : class
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+        
+        if (TryGetCachedWindow<TWindow>(out TWindow? existingWindow))
+            return existingWindow;
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return CreateWindowWithViewModel<TWindow, TViewModel>();
+        }
+        else
+        {
+            return Dispatcher.UIThread.Invoke(() => CreateWindowWithViewModel<TWindow, TViewModel>());
+        }
+    }
+
+    public TWindow GetOrCreateWindow<TWindow>() where TWindow : Window, new()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+
+        if (TryGetCachedWindow<TWindow>(out TWindow? existingWindow))
+            return existingWindow;
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return CreateWindow<TWindow>();
+        }
+        else
+        {
+            return Dispatcher.UIThread.Invoke(() => CreateWindow<TWindow>());
+        }
+    }
+
+    public async Task<TWindow> ShowWindowAsync<TWindow, TViewModel>()
+        where TWindow : Window, new()
+        where TViewModel : class
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+
+        // Obtener o crear la ventana primero (thread-safe)
+        TWindow window = GetOrCreateWindow<TWindow, TViewModel>();
+        
+        // Mostrar ventana usando Dispatcher thread-safe
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ShowWindowSafe(window);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => ShowWindowSafe(window));
+        }
+
+        return window;
+    }
+
+    private static void ShowWindowSafe(Window window)
+    {
+        if (window.IsVisible)
+        {
+            window.Activate();
+        }
+        else
+        {
+            window.Show();
+        }
+    }
+
+    public void CloseWindow<TWindow>() where TWindow : Window
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+
+        if (!TryGetCachedWindow<TWindow>(out TWindow? window))
+            return;
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            window.Close();
+        }
+        else
+        {
+            Dispatcher.UIThread.InvokeAsync(() => window.Close());
+        }
+    }
+
+    public void CloseAllWindows()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+
+        List<Window> windowsToClose = new();
+        
+        foreach (KeyValuePair<Type, WeakReference<Window>> kvp in _windowCache)
+        {
+            if (kvp.Value.TryGetTarget(out Window? window) && window != _mainWindow)
+            {
+                windowsToClose.Add(window);
+            }
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            foreach (Window window in windowsToClose)
+            {
+                window.Close();
+            }
+        }
+        else
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (Window window in windowsToClose)
+                {
+                    window.Close();
+                }
+            });
+        }
+    }
+
+    private bool TryGetCachedWindow<TWindow>(out TWindow? window) where TWindow : Window
+    {
+        window = null;
+        
+        if (!_windowCache.TryGetValue(typeof(TWindow), out WeakReference<Window>? weakRef))
+            return false;
+
+        if (!weakRef.TryGetTarget(out Window? cachedWindow))
+        {
+            _windowCache.TryRemove(typeof(TWindow), out _);
+            return false;
+        }
+
+        window = cachedWindow as TWindow;
+        return window != null;
+    }
+
+    private TWindow CreateWindowWithViewModel<TWindow, TViewModel>()
+        where TWindow : Window, new()
+        where TViewModel : class
+    {
+        TViewModel viewModel = _serviceProvider.GetRequiredService<TViewModel>();
+        TWindow window = new() { DataContext = viewModel };
+        
+        CacheWindow(window);
+        return window;
+    }
+
+    private TWindow CreateWindow<TWindow>() where TWindow : Window, new()
+    {
+        TWindow window = new();
+        CacheWindow(window);
+        return window;
+    }
+
+    private void CacheWindow<TWindow>(TWindow window) where TWindow : Window
+    {
+        WeakReference<Window> weakRef = new(window);
+        _windowCache.AddOrUpdate(typeof(TWindow), weakRef, (_, _) => weakRef);
+        
+        // Remover del cache cuando se cierre la ventana
+        window.Closed += (_, _) => _windowCache.TryRemove(typeof(TWindow), out _);
+    }
+
+    private void TryAutoInitializeMainWindow()
+    {
+        Type? windowType = _options.Window.MainWindowType;
+        Type? viewModelType = _options.Window.MainViewModelType;
+
+        if (windowType == null || viewModelType == null)
+        {
+            windowType ??= TypeRegistry.Instance.GetType("MainWindow");
+            viewModelType ??= TypeRegistry.Instance.GetType("MainWindowViewModel");
+            
+            if (windowType == null)
+            {
+                Type[] windowTypes = TypeRegistry.Instance.FindTypes("Window").ToArray();
+                windowType = windowTypes.FirstOrDefault(t => t.Name.Contains("Main"));
+            }
+            
+            if (viewModelType == null)
+            {
+                Type[] viewModelTypes = TypeRegistry.Instance.GetTypesDerivedFrom<ViewModelBase>().ToArray();
+                viewModelType = viewModelTypes.FirstOrDefault(vm => vm.Name.Contains("Main"));
+            }
+        }
+
+        if (windowType != null && viewModelType != null)
+        {
+            try
+            {
+                object viewModel = _serviceProvider.GetRequiredService(viewModelType);
+                
+                Window window = (Window?)Activator.CreateInstance(windowType) ??
+                               throw new InvalidOperationException($"Unable to instantiate Window of type {windowType.Name}");
+                window.DataContext = viewModel;
+                
+                SetMainWindowInternal(window);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to auto-initialize main window: {ex.Message}");
+            }
+        }
+    }
+
+    private void SetMainWindowInternal<TWindow, TViewModel>() 
+        where TWindow : Window, new() 
+        where TViewModel : class
+    {
+        TViewModel viewModel = _serviceProvider.GetRequiredService<TViewModel>();
+        TWindow window = new() { DataContext = viewModel };
+        SetMainWindowInternal(window);
+    }
+
+    private void SetMainWindowInternal(Window window)
+    {
+        _mainWindow = window;
+        SetMainWindowForLifetime(_applicationLifetime, _mainWindow);
+    }
+
+    private static void SetMainWindowForLifetime(IApplicationLifetime applicationLifetime, Window mainWindow)
+    {
+        switch (applicationLifetime)
+        {
+            case IClassicDesktopStyleApplicationLifetime desktop:
+                desktop.MainWindow = mainWindow;
+                break;
+
+            case ISingleViewApplicationLifetime singleView:
+                if (mainWindow.Content is Control content)
+                    singleView.MainView = content;
+                else
+                    throw new InvalidOperationException(
+                        "For SingleView lifetime, MainWindow must have Content that inherits from Control");
+                break;
+
+            default:
+                throw new InvalidOperationException($"Unsupported application lifetime: {applicationLifetime.GetType().Name}");
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
 
-        // Dispose the core component if it implements IDisposable
-        if (_core is IDisposable disposableCore)
-            disposableCore.Dispose();
-
-        // MainWindowManager doesn't need disposal as it doesn't hold disposable resources
+        try
+        {
+            _creationSemaphore.Dispose();
+        }
+        catch
+        {
+            // Ignore disposal errors
+        }
         
         GC.SuppressFinalize(this);
     }

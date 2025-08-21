@@ -26,18 +26,19 @@ public abstract class PangeaApplication : Application
         if (ApplicationLifetime != null)
         {
             IServiceProvider serviceProvider = GetServiceProvider();
- 
-            #if DEBUG
+
+#if DEBUG
             bool isValid = ServiceValidation.ValidateSameInstance(serviceProvider);
             if (!isValid)
             {
                 throw new InvalidOperationException("❌ Static Services is NOT using the same ServiceProvider instance as PangeaApplication!");
             }
             System.Diagnostics.Debug.WriteLine("✅ ServiceProvider instance validation passed");
-            #endif
+#endif
+        
             IPangeaApplicationContext applicationContext = new PangeaApplicationContext(Current!, serviceProvider);
             FeatureRegistry.ConfigureAllFeatures(serviceProvider, applicationContext);
-            
+        
             IThemeService? themeService = serviceProvider.GetRequiredService<IThemeService>();
             ThemingOptions? themingOptions = serviceProvider.GetRequiredService<IOptions<ThemingOptions>>().Value;
 
@@ -51,15 +52,20 @@ public abstract class PangeaApplication : Application
             }
 
             themeService?.RegisterToolkitUI(toolkitUI);
-            
+        
+            // WindowManager unificado - inicialización y show de MainWindow
             IWindowManager? windowManager = serviceProvider.GetService<IWindowManager>();
-            windowManager?.GetMainWindow().Show();
+            if (windowManager != null)
+            {
+                windowManager.Initialize();
+                windowManager.GetMainWindow()?.Show();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
     
-    
     public virtual PangeaOptions ConfigurePangeaOptions(PangeaOptions options) => options;
     public virtual void Configure(IServiceCollection services) { }
+
 }
