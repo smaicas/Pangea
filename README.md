@@ -4,9 +4,8 @@
 
 [![NuGet Version](https://img.shields.io/nuget/v/CdCSharp.Pangea?style=flat-square&logo=nuget&logoColor=white&label=NuGet&color=004880)](https://www.nuget.org/packages/CdCSharp.Pangea)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/CdCSharp.Pangea?style=flat-square&logo=nuget&logoColor=white&label=Downloads&color=004880)](https://www.nuget.org/packages/CdCSharp.Pangea)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/smaicas/CdCSharp.Pangea/.github/nuget-publish.yml?style=flat-square&logo=github&label=Build)](https://github.com/smaicas/CdCSharp.Pangea/actions)
-[![License](https://img.shields.io/github/license/smaicas/CdCSharp.Pangea?style=flat-square&logo=opensourceinitiative&logoColor=white&label=License&color=green)](https://github.com/smaicas/CdCSharp.Pangea/blob/master/LICENSE)
-
+[![Build Status](https://img.shields.io/github/actions/workflow/status/smaicas/CdCSharp.Pangea/.github/workflows/nuget-publish.yml?style=flat-square&logo=github&label=Build)](https://github.com/smaicas/CdCSharp.Pangea/actions)
+[![License](https://img.shields.io/github/license/smaicas/CdCSharp.Pangea?style=flat-square&logo=opensourceinitiative&logoColor=white&label=License&color=green)](https://github.com/smaicas/CdCSharp.Pangea/blob/main/LICENSE)
 [![.NET Version](https://img.shields.io/badge/.NET-9.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
 [![Avalonia](https://img.shields.io/badge/Avalonia-11.3.2-663399?style=flat-square&logo=avalonia)](https://avaloniaui.net/)
 [![C# Language](https://img.shields.io/badge/C%23-12.0-239120?style=flat-square&logo=csharp)](https://docs.microsoft.com/en-us/dotnet/csharp/)

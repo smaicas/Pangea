@@ -57,15 +57,7 @@ public static class PangeaExtensions
     private static void RegisterCoreServices(IServiceCollection services)
     {
         services.AddSingleton<IRelayCommandFactory, RelayCommandFactory>();
-
-        // WindowManager unificado - elimina la separación anterior
-        services.AddSingleton<IWindowManager>(serviceProvider =>
-        {
-            IApplicationLifetime applicationLifetime = GetApplicationLifetime();
-            IOptions<PangeaOptions> options = serviceProvider.GetRequiredService<IOptions<PangeaOptions>>();
-            return new WindowManager(serviceProvider, applicationLifetime, options);
-        });
-
+        services.AddSingleton<IApplicationLifetime>(GetApplicationLifetime());
         services.AddSingleton<IWindowManager, WindowManager>();
     }
 
