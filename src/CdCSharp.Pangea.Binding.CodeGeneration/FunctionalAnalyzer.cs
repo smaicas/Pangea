@@ -6,6 +6,10 @@ using System.Linq;
 
 namespace CdCSharp.Pangea.Binding.CodeGeneration;
 
+/// <summary>
+/// Analizador funcional profesional que detecta todas las dependencias entre propiedades,
+/// computed properties, métodos CanExecute y comandos para generar notificaciones automáticas
+/// </summary>
 public class FunctionalAnalyzer
 {
     public ViewModelAnalysis AnalyzeViewModel(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
@@ -16,18 +20,21 @@ public class FunctionalAnalyzer
             Namespace = GetNamespace(classDeclaration)
         };
 
-        // Phase 1: Inventory - Detect all functional elements
+        // Phase 1: Inventory - Detectar todos los elementos funcionales
         InventoryBindingFields(classDeclaration, semanticModel, analysis);
         InventoryComputedProperties(classDeclaration, analysis);
+        InventoryCanExecuteElements(classDeclaration, analysis);
         InventoryCommands(classDeclaration, analysis);
-        InventoryCanExecuteMethods(classDeclaration, analysis);
         InventoryPartialVoidMethods(classDeclaration, analysis);
         InventoryCollectionModifyingMethods(classDeclaration, analysis);
 
-        // Phase 2: Dependency Analysis - Build dependency graph
-        AnalyzeDependencies(analysis);
+        // Phase 2: Dependency Analysis - Construir grafo completo de dependencias
+        BuildCompleteDependencyGraph(analysis);
 
-        // Phase 3: Generate notification requirements
+        // Phase 3: Command Analysis - Analizar dependencias de comandos hacia binding fields
+        AnalyzeCommandDependencies(analysis);
+
+        // Phase 4: Generate notification requirements
         CalculateNotificationRequirements(analysis);
 
         return analysis;
@@ -58,44 +65,28 @@ public class FunctionalAnalyzer
     {
         IEnumerable<PropertyDeclarationSyntax> computedProperties = classDeclaration.Members
             .OfType<PropertyDeclarationSyntax>()
-            .Where(p => p.ExpressionBody != null && !IsCommand(p));
+            .Where(p => (p.ExpressionBody != null || HasComputedPropertyBody(p)) && 
+                       !IsCommand(p) && 
+                       !IsBindingProperty(p, analysis));
 
         foreach (PropertyDeclarationSyntax property in computedProperties)
         {
+            List<string> dependencies = ExtractPropertiesFromProperty(property);
+
             ComputedPropertyInfo computedInfo = new ComputedPropertyInfo
             {
                 PropertyName = property.Identifier.ValueText,
-                Expression = property.ExpressionBody.Expression,
-                DirectDependencies = ExtractPropertiesFromExpression(property.ExpressionBody.Expression)
+                Expression = property.ExpressionBody?.Expression,
+                DirectDependencies = dependencies
             };
 
             analysis.ComputedProperties.Add(computedInfo);
         }
     }
 
-    private void InventoryCommands(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
+    private void InventoryCanExecuteElements(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
     {
-        IEnumerable<PropertyDeclarationSyntax> commandProperties = classDeclaration.Members
-            .OfType<PropertyDeclarationSyntax>()
-            .Where(p => IsCommand(p) && p.ExpressionBody?.Expression is InvocationExpressionSyntax);
-
-        foreach (PropertyDeclarationSyntax property in commandProperties)
-        {
-            if (property.ExpressionBody?.Expression is InvocationExpressionSyntax invocation)
-            {
-                CommandInfo commandInfo = new CommandInfo
-                {
-                    PropertyName = property.Identifier.ValueText,
-                    DirectDependencies = ExtractCommandDependencies(invocation)
-                };
-
-                analysis.Commands.Add(commandInfo);
-            }
-        }
-    }
-
-    private void InventoryCanExecuteMethods(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
-    {
+        // Métodos CanExecute
         IEnumerable<MethodDeclarationSyntax> canExecuteMethods = classDeclaration.Members
             .OfType<MethodDeclarationSyntax>()
             .Where(m => m.Identifier.ValueText.StartsWith("Can") && 
@@ -103,17 +94,225 @@ public class FunctionalAnalyzer
 
         foreach (MethodDeclarationSyntax method in canExecuteMethods)
         {
-            if (method.Body != null)
-            {
-                CanExecuteMethodInfo methodInfo = new CanExecuteMethodInfo
-                {
-                    MethodName = method.Identifier.ValueText,
-                    DirectDependencies = ExtractPropertiesFromStatement(method.Body)
-                };
+            List<string> dependencies = ExtractPropertiesFromMethod(method);
 
-                analysis.CanExecuteMethods.Add(methodInfo);
+            CanExecuteMethodInfo methodInfo = new CanExecuteMethodInfo
+            {
+                MethodName = method.Identifier.ValueText,
+                DirectDependencies = dependencies
+            };
+
+            analysis.CanExecuteMethods.Add(methodInfo);
+        }
+
+        // Propiedades CanExecute
+        IEnumerable<PropertyDeclarationSyntax> canExecuteProperties = classDeclaration.Members
+            .OfType<PropertyDeclarationSyntax>()
+            .Where(p => p.Identifier.ValueText.StartsWith("Can") && 
+                        p.Type.ToString() == "bool" &&
+                        !IsCommand(p) &&
+                        !IsBindingProperty(p, analysis));
+
+        foreach (PropertyDeclarationSyntax property in canExecuteProperties)
+        {
+            List<string> dependencies = ExtractPropertiesFromProperty(property);
+
+            CanExecuteMethodInfo methodInfo = new CanExecuteMethodInfo
+            {
+                MethodName = property.Identifier.ValueText,
+                DirectDependencies = dependencies
+            };
+
+            analysis.CanExecuteMethods.Add(methodInfo);
+        }
+    }
+
+    private void InventoryCommands(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
+    {
+        // Obtener todas las propiedades de comando
+        IEnumerable<string> commandPropertyNames = classDeclaration.Members
+            .OfType<PropertyDeclarationSyntax>()
+            .Where(p => IsCommand(p))
+            .Select(p => p.Identifier.ValueText);
+        
+        HashSet<string> commandProperties = new HashSet<string>(commandPropertyNames);
+
+        // Buscar asignaciones de comandos en constructores
+        IEnumerable<ConstructorDeclarationSyntax> constructors = classDeclaration.Members
+            .OfType<ConstructorDeclarationSyntax>();
+
+        foreach (ConstructorDeclarationSyntax constructor in constructors)
+        {
+            if (constructor.Body != null)
+            {
+                foreach (StatementSyntax statement in constructor.Body.Statements)
+                {
+                    if (statement is ExpressionStatementSyntax expressionStatement &&
+                        expressionStatement.Expression is AssignmentExpressionSyntax assignment)
+                    {
+                        AnalyzeCommandAssignment(assignment, analysis, commandProperties);
+                    }
+                }
             }
         }
+
+        // Comandos como propiedades con ExpressionBody
+        IEnumerable<PropertyDeclarationSyntax> commandPropertiesDecl = classDeclaration.Members
+            .OfType<PropertyDeclarationSyntax>()
+            .Where(p => IsCommand(p) && p.ExpressionBody?.Expression is InvocationExpressionSyntax);
+
+        foreach (PropertyDeclarationSyntax property in commandPropertiesDecl)
+        {
+            if (property.ExpressionBody?.Expression is InvocationExpressionSyntax invocation)
+            {
+                CommandInfo commandInfo = new CommandInfo
+                {
+                    PropertyName = property.Identifier.ValueText,
+                    CanExecuteReferences = ExtractCanExecuteReferences(invocation)
+                };
+
+                analysis.Commands.Add(commandInfo);
+            }
+        }
+    }
+
+    private void AnalyzeCommandAssignment(AssignmentExpressionSyntax assignment, ViewModelAnalysis analysis, HashSet<string> commandProperties)
+    {
+        if (assignment.Left is IdentifierNameSyntax commandProperty &&
+            commandProperties.Contains(commandProperty.Identifier.ValueText) &&
+            assignment.Right is InvocationExpressionSyntax invocation &&
+            invocation.Expression is IdentifierNameSyntax methodName &&
+            methodName.Identifier.ValueText == "CreateCommand")
+        {
+            List<string> canExecuteRefs = ExtractCanExecuteReferences(invocation);
+            
+            CommandInfo commandInfo = new CommandInfo
+            {
+                PropertyName = commandProperty.Identifier.ValueText,
+                CanExecuteReferences = canExecuteRefs
+            };
+
+            // Analisis específico para lambdas que referencian propiedades CanExecute
+            AnalyzeLambdaCanExecuteReferences(invocation, commandInfo, analysis);
+
+            analysis.Commands.Add(commandInfo);
+        }
+    }
+
+    private void AnalyzeLambdaCanExecuteReferences(InvocationExpressionSyntax invocation, CommandInfo commandInfo, ViewModelAnalysis analysis)
+    {
+        ArgumentSyntax[] arguments = invocation.ArgumentList.Arguments.ToArray();
+        
+        // Buscar específicamente el segundo argumento (CanExecute)
+        if (arguments.Length > 1)
+        {
+            ArgumentSyntax canExecuteArg = arguments[1];
+            
+            if (canExecuteArg.Expression is SimpleLambdaExpressionSyntax lambda &&
+                lambda.Body is IdentifierNameSyntax identifier)
+            {
+                string identifierName = identifier.Identifier.ValueText;
+                
+                // Si es una propiedad CanExecute, agregarla
+                if (identifierName.StartsWith("Can"))
+                {
+                    if (!commandInfo.CanExecuteReferences.Contains(identifierName))
+                    {
+                        commandInfo.CanExecuteReferences.Add(identifierName);
+                    }
+                }
+                // Si no es un CanExecute explícito pero parece ser una propiedad de estado,
+                // intentar mapear por convención
+                else
+                {
+                    string commandName = commandInfo.PropertyName;
+                    if (commandName.EndsWith("Command"))
+                    {
+                        string baseName = commandName.Substring(0, commandName.Length - 7);
+                        string expectedCanExecute = $"Can{baseName}";
+                        
+                        // Verificar si existe la propiedad CanExecute correspondiente
+                        bool hasCorrespondingCanExecute = analysis.CanExecuteMethods
+                            .Any(cem => cem.MethodName == expectedCanExecute);
+                            
+                        if (hasCorrespondingCanExecute)
+                        {
+                            commandInfo.CanExecuteReferences.Add(expectedCanExecute);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private List<string> ExtractCanExecuteReferences(InvocationExpressionSyntax invocation)
+    {
+        List<string> references = new List<string>();
+
+        // Analizar argumentos del CreateCommand buscando CanExecute
+        // El CanExecute siempre es el SEGUNDO argumento (después del Execute)
+        ArgumentSyntax[] arguments = invocation.ArgumentList.Arguments.ToArray();
+        
+        for (int i = 1; i < arguments.Length; i++) // Empezar desde índice 1 (segundo argumento)
+        {
+            ArgumentSyntax argument = arguments[i];
+            
+            if (argument.Expression is SimpleLambdaExpressionSyntax lambda)
+            {
+                // Caso: () => CanExecuteMethod o () => Property
+                if (lambda.Body is IdentifierNameSyntax identifier)
+                {
+                    string identifierName = identifier.Identifier.ValueText;
+                    if (identifierName.StartsWith("Can"))
+                    {
+                        references.Add(identifierName);
+                    }
+                }
+                // Caso: () => complex expression like !IsLoading && HasItems
+                else if (lambda.Body is ExpressionSyntax expression)
+                {
+                    List<string> expressionIdentifiers = ExtractIdentifiersFromExpression(expression);
+                    // Solo agregar si parece ser una expresión CanExecute
+                    if (expressionIdentifiers.Any(id => IsLikelyCanExecuteIdentifier(id)))
+                    {
+                        references.AddRange(expressionIdentifiers);
+                    }
+                }
+            }
+            else if (argument.Expression is IdentifierNameSyntax directIdentifier)
+            {
+                // Caso: CreateCommand(Execute, CanExecuteMethod)
+                string identifierName = directIdentifier.Identifier.ValueText;
+                if (identifierName.StartsWith("Can"))
+                {
+                    references.Add(identifierName);
+                }
+            }
+        }
+
+        return references.Distinct().ToList();
+    }
+
+    private bool IsCanExecuteExpression(ExpressionSyntax expression)
+    {
+        // Verificar si la expresión contiene propiedades típicas de CanExecute
+        List<string> identifiers = ExtractIdentifiersFromExpression(expression);
+        return identifiers.Any(id => IsLikelyCanExecuteIdentifier(id));
+    }
+
+    private bool IsLikelyCanExecuteIdentifier(string identifier)
+    {
+        return identifier.StartsWith("Can") || 
+               identifier.StartsWith("Is") ||
+               identifier.StartsWith("Has") ||
+               identifier == "Age" ||
+               identifier == "ItemCount" ||
+               identifier == "Email" ||
+               identifier.Contains("Loading") ||
+               identifier.Contains("Error") ||
+               identifier.Contains("Online") ||
+               identifier.Contains("Authenticated") ||
+               identifier.Contains("Enabled");
     }
 
     private void InventoryPartialVoidMethods(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
@@ -168,78 +367,212 @@ public class FunctionalAnalyzer
 
     #endregion
 
-    #region Phase 2: Dependency Analysis
+    #region Phase 2: Complete Dependency Graph
 
-    private void AnalyzeDependencies(ViewModelAnalysis analysis)
+    private void BuildCompleteDependencyGraph(ViewModelAnalysis analysis)
     {
+        // Construir mapa de todas las propiedades/métodos y sus dependencias directas
+        Dictionary<string, HashSet<string>> directDependencies = new Dictionary<string, HashSet<string>>();
+
+        // Agregar binding fields (sin dependencias)
         foreach (BindingFieldInfo binding in analysis.BindingFields)
         {
-            List<string> allDependents = new List<string>();
+            directDependencies[binding.PropertyName] = new HashSet<string>();
+        }
 
-            IEnumerable<string> directComputedDependents = analysis.ComputedProperties
-                .Where(cp => cp.DirectDependencies.Contains(binding.PropertyName))
-                .Select(cp => cp.PropertyName);
-            allDependents.AddRange(directComputedDependents);
+        // Agregar computed properties
+        foreach (ComputedPropertyInfo computed in analysis.ComputedProperties)
+        {
+            directDependencies[computed.PropertyName] = new HashSet<string>(computed.DirectDependencies);
+        }
 
-            List<string> transitiveDependents = GetTransitiveDependents(binding.PropertyName, analysis);
-            allDependents.AddRange(transitiveDependents);
+        // Agregar CanExecute methods/properties
+        foreach (CanExecuteMethodInfo canExecute in analysis.CanExecuteMethods)
+        {
+            directDependencies[canExecute.MethodName] = new HashSet<string>(canExecute.DirectDependencies);
+        }
 
-            IEnumerable<string> commandDependents = analysis.Commands
-                .Where(cmd => DependsOn(cmd, binding.PropertyName, analysis))
-                .Select(cmd => cmd.PropertyName);
-            allDependents.AddRange(commandDependents);
-
-            List<string> collectionDependents = GetCollectionDependentProperties(binding.PropertyName, analysis);
-            allDependents.AddRange(collectionDependents);
-
-            analysis.DependencyGraph[binding.PropertyName] = allDependents.Distinct().ToList();
+        // Resolver dependencias transitivas usando algoritmo de cierre transitivo
+        foreach (string property in directDependencies.Keys.ToList())
+        {
+            HashSet<string> allDependencies = ComputeTransitiveDependencies(property, directDependencies, new HashSet<string>());
+            analysis.TransitiveDependencies[property] = allDependencies.ToList();
         }
     }
 
-    private List<string> GetTransitiveDependents(string propertyName, ViewModelAnalysis analysis)
+    private HashSet<string> ComputeTransitiveDependencies(string property, Dictionary<string, HashSet<string>> directDependencies, HashSet<string> visited)
     {
-        List<string> result = new List<string>();
-        HashSet<string> visited = new HashSet<string>();
+        if (visited.Contains(property))
+            return new HashSet<string>(); // Evitar ciclos
 
-        void FindTransitiveDependents(string prop)
+        visited.Add(property);
+        HashSet<string> result = new HashSet<string>();
+
+        if (directDependencies.TryGetValue(property, out HashSet<string>? directDeps))
         {
-            if (visited.Contains(prop)) return;
-            visited.Add(prop);
-
-            IEnumerable<string> dependents = analysis.ComputedProperties
-                .Where(cp => cp.DirectDependencies.Contains(prop))
-                .Select(cp => cp.PropertyName);
-
-            foreach (string dependent in dependents)
+            foreach (string directDep in directDeps)
             {
-                result.Add(dependent);
-                FindTransitiveDependents(dependent);
+                result.Add(directDep);
+                
+                // Agregar dependencias transitivas
+                HashSet<string> transitiveDeps = ComputeTransitiveDependencies(directDep, directDependencies, visited);
+                result.UnionWith(transitiveDeps);
             }
         }
 
-        FindTransitiveDependents(propertyName);
+        visited.Remove(property);
         return result;
     }
 
-    private bool DependsOn(CommandInfo command, string propertyName, ViewModelAnalysis analysis)
+    #endregion
+
+    #region Phase 3: Command Dependencies Analysis
+
+    private void AnalyzeCommandDependencies(ViewModelAnalysis analysis)
     {
-        if (command.DirectDependencies.Contains(propertyName))
-            return true;
-
-        foreach (string dependency in command.DirectDependencies)
+        foreach (CommandInfo command in analysis.Commands)
         {
-            ComputedPropertyInfo? computedProp = analysis.ComputedProperties
-                .FirstOrDefault(cp => cp.PropertyName == dependency);
+            HashSet<string> bindingDependencies = new HashSet<string>();
 
-            if (computedProp != null && 
-                (computedProp.DirectDependencies.Contains(propertyName) ||
-                 GetTransitiveDependents(propertyName, analysis).Contains(dependency)))
+            foreach (string canExecuteRef in command.CanExecuteReferences)
             {
-                return true;
+                // Encontrar todas las binding properties de las que depende este CanExecute
+                HashSet<string> dependencies = GetAllBindingDependencies(canExecuteRef, analysis);
+                bindingDependencies.UnionWith(dependencies);
+            }
+
+            // Si no se detectaron CanExecute explícitos, intentar mapear por convención de nombres
+            if (!command.CanExecuteReferences.Any() || !bindingDependencies.Any())
+            {
+                TryMapCommandByConvention(command, analysis, bindingDependencies);
+            }
+
+            command.DirectDependencies = bindingDependencies.ToList();
+        }
+    }
+
+    private void TryMapCommandByConvention(CommandInfo command, ViewModelAnalysis analysis, HashSet<string> bindingDependencies)
+    {
+        // Intentar mapear comandos por convención de nombres
+        // SaveCommand -> CanSave, SubmitCommand -> CanSubmit, etc.
+        
+        string commandName = command.PropertyName;
+        if (commandName.EndsWith("Command"))
+        {
+            string baseName = commandName.Substring(0, commandName.Length - 7); // Remover "Command"
+            string canExecuteName = $"Can{baseName}";
+            
+            // Buscar CanExecute method/property correspondiente
+            CanExecuteMethodInfo? canExecuteMethod = analysis.CanExecuteMethods
+                .FirstOrDefault(cem => cem.MethodName == canExecuteName);
+                
+            if (canExecuteMethod != null)
+            {
+                command.CanExecuteReferences.Add(canExecuteName);
+                HashSet<string> dependencies = GetAllBindingDependencies(canExecuteName, analysis);
+                bindingDependencies.UnionWith(dependencies);
+            }
+        }
+    }
+
+    private HashSet<string> GetAllBindingDependencies(string element, ViewModelAnalysis analysis)
+    {
+        HashSet<string> result = new HashSet<string>();
+
+        // Si el elemento es directamente una binding property
+        if (analysis.BindingFields.Any(b => b.PropertyName == element))
+        {
+            result.Add(element);
+            return result;
+        }
+
+        // Si el elemento tiene dependencias transitivas calculadas
+        if (analysis.TransitiveDependencies.TryGetValue(element, out List<string>? transitiveDeps))
+        {
+            foreach (string dep in transitiveDeps)
+            {
+                if (analysis.BindingFields.Any(b => b.PropertyName == dep))
+                {
+                    result.Add(dep);
+                }
             }
         }
 
-        return false;
+        // Buscar dependencias directas si no se encontraron transitivas
+        if (!result.Any())
+        {
+            // Buscar en computed properties
+            ComputedPropertyInfo? computedProp = analysis.ComputedProperties
+                .FirstOrDefault(cp => cp.PropertyName == element);
+            
+            if (computedProp != null)
+            {
+                foreach (string directDep in computedProp.DirectDependencies)
+                {
+                    result.UnionWith(GetAllBindingDependencies(directDep, analysis));
+                }
+            }
+
+            // Buscar en CanExecute methods
+            CanExecuteMethodInfo? canExecuteMethod = analysis.CanExecuteMethods
+                .FirstOrDefault(cem => cem.MethodName == element);
+            
+            if (canExecuteMethod != null)
+            {
+                foreach (string directDep in canExecuteMethod.DirectDependencies)
+                {
+                    result.UnionWith(GetAllBindingDependencies(directDep, analysis));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    #endregion
+
+    #region Phase 4: Notification Requirements
+
+    private void CalculateNotificationRequirements(ViewModelAnalysis analysis)
+    {
+        foreach (BindingFieldInfo binding in analysis.BindingFields)
+        {
+            NotificationRequirements requirements = new NotificationRequirements
+            {
+                PropertyName = binding.PropertyName
+            };
+
+            // Computed properties que dependen de esta binding property
+            requirements.ComputedPropertyNotifications = analysis.ComputedProperties
+                .Where(cp => DependsOnBinding(cp.PropertyName, binding.PropertyName, analysis))
+                .Select(cp => cp.PropertyName)
+                .ToList();
+
+            // Comandos que dependen de esta binding property
+            requirements.CommandNotifications = analysis.Commands
+                .Where(cmd => cmd.DirectDependencies.Contains(binding.PropertyName))
+                .Select(cmd => cmd.PropertyName)
+                .ToList();
+
+            // Collection-dependent notifications
+            requirements.CollectionDependentNotifications = GetCollectionDependentProperties(binding.PropertyName, analysis);
+
+            analysis.NotificationRequirements[binding.PropertyName] = requirements;
+        }
+    }
+
+    private bool DependsOnBinding(string element, string bindingProperty, ViewModelAnalysis analysis)
+    {
+        if (analysis.TransitiveDependencies.TryGetValue(element, out List<string>? deps))
+        {
+            return deps.Contains(bindingProperty);
+        }
+
+        // Fallback: buscar dependencias directas
+        ComputedPropertyInfo? computedProp = analysis.ComputedProperties
+            .FirstOrDefault(cp => cp.PropertyName == element);
+        
+        return computedProp?.DirectDependencies.Contains(bindingProperty) == true;
     }
 
     private List<string> GetCollectionDependentProperties(string propertyName, ViewModelAnalysis analysis)
@@ -277,36 +610,6 @@ public class FunctionalAnalyzer
 
     #endregion
 
-    #region Phase 3: Notification Requirements
-
-    private void CalculateNotificationRequirements(ViewModelAnalysis analysis)
-    {
-        foreach (BindingFieldInfo binding in analysis.BindingFields)
-        {
-            NotificationRequirements requirements = new NotificationRequirements
-            {
-                PropertyName = binding.PropertyName
-            };
-
-            if (analysis.DependencyGraph.TryGetValue(binding.PropertyName, out List<string>? dependents))
-            {
-                requirements.ComputedPropertyNotifications = dependents
-                    .Where(d => analysis.ComputedProperties.Any(cp => cp.PropertyName == d))
-                    .ToList();
-
-                requirements.CommandNotifications = dependents
-                    .Where(d => analysis.Commands.Any(cmd => cmd.PropertyName == d))
-                    .ToList();
-
-                requirements.CollectionDependentNotifications = GetCollectionDependentProperties(binding.PropertyName, analysis);
-            }
-
-            analysis.NotificationRequirements[binding.PropertyName] = requirements;
-        }
-    }
-
-    #endregion
-
     #region Helper Methods
 
     private bool HasBindingAttribute(FieldDeclarationSyntax field)
@@ -320,10 +623,141 @@ public class FunctionalAnalyzer
         return property.Type.ToString().Contains("RelayCommand");
     }
 
+    private bool IsBindingProperty(PropertyDeclarationSyntax property, ViewModelAnalysis analysis)
+    {
+        return analysis.BindingFields.Any(bf => bf.PropertyName == property.Identifier.ValueText);
+    }
+
+    private bool HasComputedPropertyBody(PropertyDeclarationSyntax property)
+    {
+        return property.AccessorList?.Accessors.Any(a => 
+            a.Keyword.ValueText == "get" && 
+            (a.Body != null || a.ExpressionBody != null)) == true;
+    }
+
+    private List<string> ExtractPropertiesFromProperty(PropertyDeclarationSyntax property)
+    {
+        List<string> properties = new List<string>();
+        
+        if (property.ExpressionBody != null)
+        {
+            properties.AddRange(ExtractIdentifiersFromExpression(property.ExpressionBody.Expression));
+        }
+        else if (property.AccessorList != null)
+        {
+            AccessorDeclarationSyntax? getter = property.AccessorList.Accessors
+                .FirstOrDefault(a => a.Keyword.ValueText == "get");
+                
+            if (getter != null)
+            {
+                properties.AddRange(ExtractPropertiesFromAccessor(getter));
+            }
+        }
+        
+        return properties.Where(p => IsValidPropertyReference(p)).Distinct().ToList();
+    }
+
+    private List<string> ExtractPropertiesFromMethod(MethodDeclarationSyntax method)
+    {
+        List<string> properties = new List<string>();
+        
+        if (method.Body != null)
+        {
+            properties.AddRange(ExtractIdentifiersFromStatement(method.Body));
+        }
+        else if (method.ExpressionBody != null)
+        {
+            properties.AddRange(ExtractIdentifiersFromExpression(method.ExpressionBody.Expression));
+        }
+        
+        return properties.Where(p => IsValidPropertyReference(p)).Distinct().ToList();
+    }
+
+    private List<string> ExtractPropertiesFromAccessor(AccessorDeclarationSyntax accessor)
+    {
+        List<string> properties = new List<string>();
+        
+        if (accessor.Body != null)
+        {
+            properties.AddRange(ExtractIdentifiersFromStatement(accessor.Body));
+        }
+        else if (accessor.ExpressionBody != null)
+        {
+            properties.AddRange(ExtractIdentifiersFromExpression(accessor.ExpressionBody.Expression));
+        }
+        
+        return properties;
+    }
+
+    private List<string> ExtractIdentifiersFromExpression(ExpressionSyntax expression)
+    {
+        List<string> identifiers = new List<string>();
+
+        foreach (SyntaxNode node in expression.DescendantNodes().OfType<IdentifierNameSyntax>())
+        {
+            if (node is IdentifierNameSyntax identifier)
+            {
+                string name = identifier.Identifier.ValueText;
+                if (IsValidPropertyReference(name) && !IsMethodCall(node))
+                {
+                    identifiers.Add(name);
+                }
+            }
+        }
+
+        return identifiers;
+    }
+
+    private List<string> ExtractIdentifiersFromStatement(BlockSyntax block)
+    {
+        List<string> identifiers = new List<string>();
+
+        foreach (SyntaxNode node in block.DescendantNodes().OfType<IdentifierNameSyntax>())
+        {
+            if (node is IdentifierNameSyntax identifier)
+            {
+                string name = identifier.Identifier.ValueText;
+                if (IsValidPropertyReference(name) && !IsMethodCall(node))
+                {
+                    identifiers.Add(name);
+                }
+            }
+        }
+
+        return identifiers;
+    }
+
+    private bool IsValidPropertyReference(string name)
+    {
+        return !string.IsNullOrEmpty(name) && 
+               char.IsUpper(name[0]) && 
+               !IsSystemType(name) &&
+               !IsKeyword(name);
+    }
+
+    private bool IsMethodCall(SyntaxNode node)
+    {
+        return node.Parent is InvocationExpressionSyntax ||
+               (node.Parent is MemberAccessExpressionSyntax memberAccess && 
+                memberAccess.Name == node &&
+                memberAccess.Parent is InvocationExpressionSyntax);
+    }
+
+    private bool IsSystemType(string name)
+    {
+        return name is "String" or "Int32" or "Boolean" or "Object" or "DateTime" or "Task" or 
+               "Count" or "Length" or "Empty" or "True" or "False" or "Guid";
+    }
+
+    private bool IsKeyword(string name)
+    {
+        return name is "true" or "false" or "null" or "this" or "base" or "return" or "if" or "else";
+    }
+
+    // Otros métodos helper...
     private List<string> ExtractMethodCalls(MethodDeclarationSyntax method)
     {
         List<string> methodCalls = new List<string>();
-
         SyntaxNode? body = method.Body ?? (SyntaxNode?)method.ExpressionBody?.Expression;
         if (body == null) return methodCalls;
 
@@ -413,6 +847,18 @@ public class FunctionalAnalyzer
         return notifications;
     }
 
+    private string GetNamespace(ClassDeclarationSyntax classDeclaration)
+    {
+        SyntaxNode? parent = classDeclaration.Parent;
+        while (parent != null)
+        {
+            if (parent is BaseNamespaceDeclarationSyntax namespaceDecl)
+                return namespaceDecl.Name.ToString();
+            parent = parent.Parent;
+        }
+        return "";
+    }
+
     private BindingFieldInfo ExtractBindingInfo(IFieldSymbol fieldSymbol)
     {
         AttributeData? attribute = fieldSymbol.GetAttributes()
@@ -432,119 +878,40 @@ public class FunctionalAnalyzer
         };
     }
 
-    private List<string> ExtractPropertiesFromExpression(ExpressionSyntax expression)
+    private (string? propertyName, bool readOnly) GetBindingConfiguration(AttributeData? attribute)
     {
-        List<string> properties = new List<string>();
+        if (attribute == null) return (null, false);
 
-        foreach (SyntaxNode node in expression.DescendantNodes())
-        {
-            if (node is IdentifierNameSyntax identifier)
-            {
-                string name = identifier.Identifier.ValueText;
-                if (char.IsUpper(name[0]) && !IsSystemType(name))
-                {
-                    properties.Add(name);
-                }
-            }
-        }
-
-        return properties.Distinct().ToList();
-    }
-
-    private List<string> ExtractPropertiesFromStatement(BlockSyntax block)
-    {
-        List<string> properties = new List<string>();
-
-        foreach (SyntaxNode node in block.DescendantNodes())
-        {
-            if (node is IdentifierNameSyntax identifier)
-            {
-                string name = identifier.Identifier.ValueText;
-                if (char.IsUpper(name[0]) && !IsSystemType(name))
-                {
-                    properties.Add(name);
-                }
-            }
-        }
-
-        return properties.Distinct().ToList();
-    }
-
-    private List<string> ExtractCommandDependencies(InvocationExpressionSyntax invocation)
-    {
-        if (invocation.ArgumentList.Arguments.Count < 2) return new List<string>();
-
-        ExpressionSyntax canExecuteArg = invocation.ArgumentList.Arguments[1].Expression;
-            
-        return canExecuteArg switch
-        {
-            LambdaExpressionSyntax lambda => ExtractPropertiesFromLambda(lambda),
-            IdentifierNameSyntax identifier => new List<string> { identifier.Identifier.ValueText },
-            _ => new List<string>()
-        };
-    }
-
-    private List<string> ExtractPropertiesFromLambda(LambdaExpressionSyntax lambda)
-    {
-        return lambda.Body switch
-        {
-            ExpressionSyntax expression => ExtractPropertiesFromExpression(expression),
-            BlockSyntax block => ExtractPropertiesFromStatement(block),
-            _ => new List<string>()
-        };
-    }
-
-    private string GetNamespace(SyntaxNode node)
-    {
-        while (node != null)
-        {
-            if (node is NamespaceDeclarationSyntax namespaceDecl)
-                return namespaceDecl.Name.ToString();
-            if (node is FileScopedNamespaceDeclarationSyntax fileScopedNamespace)
-                return fileScopedNamespace.Name.ToString();
-            node = node.Parent;
-        }
-        return "";
-    }
-
-    private (string? PropertyName, bool ReadOnly) GetBindingConfiguration(AttributeData? bindingAttribute)
-    {
-        if (bindingAttribute == null) return (null, false);
-
-        string? customPropertyName = null;
+        string? propertyName = null;
         bool readOnly = false;
 
-        foreach (KeyValuePair<string, TypedConstant> namedArg in bindingAttribute.NamedArguments)
+        foreach (KeyValuePair<string, TypedConstant> namedArg in attribute.NamedArguments)
+        {
             switch (namedArg.Key)
             {
-                case "PropertyName" when namedArg.Value.Value != null:
-                    customPropertyName = namedArg.Value.Value.ToString();
+                case "PropertyName":
+                    propertyName = namedArg.Value.Value?.ToString();
                     break;
-                case "ReadOnly" when namedArg.Value.Value != null:
-                    readOnly = (bool)namedArg.Value.Value;
+                case "ReadOnly":
+                    readOnly = namedArg.Value.Value is true;
                     break;
             }
+        }
 
-        return (customPropertyName, readOnly);
+        return (propertyName, readOnly);
     }
 
     private string GeneratePropertyName(string fieldName)
     {
-        if (fieldName.StartsWith("_"))
-            fieldName = fieldName.Substring(1);
-
-        return fieldName.Length > 0 ? char.ToUpperInvariant(fieldName[0]) + fieldName.Substring(1) : fieldName;
-    }
-
-    private bool IsSystemType(string name)
-    {
-        return name is "String" or "Int32" or "Boolean" or "Object" or "DateTime";
+        string baseName = fieldName.StartsWith("_") ? fieldName.Substring(1) : fieldName;
+        return baseName.Length > 0 ? 
+            char.ToUpperInvariant(baseName[0]) + baseName.Substring(1) : baseName;
     }
 
     #endregion
 }
 
-#region Analysis Data Structures
+#region Enhanced Analysis Data Structures
 
 public class ViewModelAnalysis
 {
@@ -559,6 +926,7 @@ public class ViewModelAnalysis
     public List<CollectionModifyingMethodInfo> CollectionModifyingMethods { get; set; } = new List<CollectionModifyingMethodInfo>();
         
     public Dictionary<string, List<string>> DependencyGraph { get; set; } = new Dictionary<string, List<string>>();
+    public Dictionary<string, List<string>> TransitiveDependencies { get; set; } = new Dictionary<string, List<string>>();
     public Dictionary<string, NotificationRequirements> NotificationRequirements { get; set; } = new Dictionary<string, NotificationRequirements>();
 }
 
@@ -582,6 +950,7 @@ public class ComputedPropertyInfo
 public class CommandInfo
 {
     public string PropertyName { get; set; } = "";
+    public List<string> CanExecuteReferences { get; set; } = new List<string>();
     public List<string> DirectDependencies { get; set; } = new List<string>();
 }
 
