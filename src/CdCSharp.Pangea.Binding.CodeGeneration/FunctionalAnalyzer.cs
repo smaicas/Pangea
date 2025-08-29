@@ -156,7 +156,7 @@ public class FunctionalAnalyzer
             }
         }
 
-        // Comandos como propiedades con ExpressionBody
+        // Comandos como propiedades con ExpressionBody (como ToggleRecordingCommand)
         IEnumerable<PropertyDeclarationSyntax> commandPropertiesDecl = classDeclaration.Members
             .OfType<PropertyDeclarationSyntax>()
             .Where(p => IsCommand(p) && p.ExpressionBody?.Expression is InvocationExpressionSyntax);
@@ -165,10 +165,12 @@ public class FunctionalAnalyzer
         {
             if (property.ExpressionBody?.Expression is InvocationExpressionSyntax invocation)
             {
+                List<string> canExecuteRefs = ExtractCanExecuteReferences(invocation);
+                
                 CommandInfo commandInfo = new CommandInfo
                 {
                     PropertyName = property.Identifier.ValueText,
-                    CanExecuteReferences = ExtractCanExecuteReferences(invocation)
+                    CanExecuteReferences = canExecuteRefs
                 };
 
                 analysis.Commands.Add(commandInfo);
@@ -259,25 +261,9 @@ public class FunctionalAnalyzer
             
             if (argument.Expression is SimpleLambdaExpressionSyntax lambda)
             {
-                // Caso: () => CanExecuteMethod o () => Property
-                if (lambda.Body is IdentifierNameSyntax identifier)
-                {
-                    string identifierName = identifier.Identifier.ValueText;
-                    if (identifierName.StartsWith("Can"))
-                    {
-                        references.Add(identifierName);
-                    }
-                }
-                // Caso: () => complex expression like !IsLoading && HasItems
-                else if (lambda.Body is ExpressionSyntax expression)
-                {
-                    List<string> expressionIdentifiers = ExtractIdentifiersFromExpression(expression);
-                    // Solo agregar si parece ser una expresión CanExecute
-                    if (expressionIdentifiers.Any(id => IsLikelyCanExecuteIdentifier(id)))
-                    {
-                        references.AddRange(expressionIdentifiers);
-                    }
-                }
+                // Extraer TODAS las referencias de la lambda, sin filtrar por "Can"
+                List<string> lambdaReferences = ExtractAllReferencesFromLambda(lambda);
+                references.AddRange(lambdaReferences);
             }
             else if (argument.Expression is IdentifierNameSyntax directIdentifier)
             {
@@ -293,26 +279,43 @@ public class FunctionalAnalyzer
         return references.Distinct().ToList();
     }
 
-    private bool IsCanExecuteExpression(ExpressionSyntax expression)
+    private List<string> ExtractAllReferencesFromLambda(SimpleLambdaExpressionSyntax lambda)
     {
-        // Verificar si la expresión contiene propiedades típicas de CanExecute
-        List<string> identifiers = ExtractIdentifiersFromExpression(expression);
-        return identifiers.Any(id => IsLikelyCanExecuteIdentifier(id));
+        List<string> references = new List<string>();
+        
+        if (lambda.Body is ExpressionSyntax lambdaBody)
+        {
+            // Usar el método mejorado para extraer todas las referencias
+            List<string> allIdentifiers = ExtractIdentifiersFromExpression(lambdaBody);
+            
+            // Filtrar para incluir solo referencias relevantes de CanExecute
+            foreach (string identifier in allIdentifiers)
+            {
+                if (IsCanExecuteReference(identifier))
+                {
+                    references.Add(identifier);
+                }
+            }
+        }
+        
+        return references;
     }
 
-    private bool IsLikelyCanExecuteIdentifier(string identifier)
+    private bool IsCanExecuteReference(string identifier)
     {
-        return identifier.StartsWith("Can") || 
-               identifier.StartsWith("Is") ||
-               identifier.StartsWith("Has") ||
-               identifier == "Age" ||
+        // Identificar referencias típicas de CanExecute
+        return identifier.StartsWith("Can") ||          // CanSave, CanSubmit, etc.
+               identifier.StartsWith("Is") ||           // IsLoading, IsEnabled, etc.
+               identifier.StartsWith("Has") ||          // HasErrors, HasItems, etc.
+               identifier == "Age" ||                   // Propiedades específicas usadas en CanExecute
                identifier == "ItemCount" ||
                identifier == "Email" ||
                identifier.Contains("Loading") ||
                identifier.Contains("Error") ||
                identifier.Contains("Online") ||
                identifier.Contains("Authenticated") ||
-               identifier.Contains("Enabled");
+               identifier.Contains("Enabled") ||
+               identifier.Contains("Recording");
     }
 
     private void InventoryPartialVoidMethods(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
@@ -693,7 +696,8 @@ public class FunctionalAnalyzer
     {
         List<string> identifiers = new List<string>();
 
-        foreach (SyntaxNode node in expression.DescendantNodes().OfType<IdentifierNameSyntax>())
+        // Usar DescendantNodes para obtener TODOS los nodos, incluyendo dentro de expresiones binarias
+        foreach (SyntaxNode node in expression.DescendantNodesAndSelf())
         {
             if (node is IdentifierNameSyntax identifier)
             {
@@ -705,14 +709,15 @@ public class FunctionalAnalyzer
             }
         }
 
-        return identifiers;
+        return identifiers.Distinct().ToList();
     }
 
     private List<string> ExtractIdentifiersFromStatement(BlockSyntax block)
     {
         List<string> identifiers = new List<string>();
 
-        foreach (SyntaxNode node in block.DescendantNodes().OfType<IdentifierNameSyntax>())
+        // Usar DescendantNodes para obtener TODOS los nodos
+        foreach (SyntaxNode node in block.DescendantNodesAndSelf())
         {
             if (node is IdentifierNameSyntax identifier)
             {
@@ -724,7 +729,7 @@ public class FunctionalAnalyzer
             }
         }
 
-        return identifiers;
+        return identifiers.Distinct().ToList();
     }
 
     private bool IsValidPropertyReference(string name)

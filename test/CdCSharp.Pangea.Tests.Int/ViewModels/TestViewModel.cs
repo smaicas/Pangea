@@ -41,6 +41,7 @@ public partial class TestViewModel : ViewModelBase
 
     [Binding] private ObservableCollection<string> _items;
     [Binding] private ObservableCollection<TestItem> _testItems;
+    [Binding] private bool _isRecording;
 
     #endregion
 
@@ -115,6 +116,10 @@ public partial class TestViewModel : ViewModelBase
     // CanExecute que depende de computed properties
     public bool CanDelete => HasItems && IsAuthenticated && !IsLoading;
 
+    // CanExecute con OR logic (caso crítico del AutomationViewModel)
+    public bool CanRecord => !IsLoading && IsOnline && !IsRecording;
+    public bool CanStopRecording => IsRecording;
+
     // CanExecute con lógica compleja (método)
     public bool CanExecuteComplexOperation()
     {
@@ -146,6 +151,9 @@ public partial class TestViewModel : ViewModelBase
     public RelayCommand<string> AddItemCommand { get; }
     public RelayCommand<int> RemoveItemCommand { get; }
     public RelayCommand ClearCommand { get; }
+    
+    // Comando con lambda compleja (caso del AutomationViewModel)
+    public RelayCommand ToggleRecordingCommand { get; }
 
     #endregion
 
@@ -172,6 +180,9 @@ public partial class TestViewModel : ViewModelBase
         // Comando sin CanExecute
         RefreshCommand = CreateCommand(RefreshAsync);
         ClearCommand = CreateCommand(ClearItems);
+        
+        // Caso crítico: Comando con lambda compleja OR (como ToggleRecordingCommand del AutomationViewModel)
+        ToggleRecordingCommand = CreateCommand(ToggleRecordingAsync, () => CanRecord || CanStopRecording);
 
         // Inicializar algunos datos
         Age = 25;
@@ -319,6 +330,22 @@ public partial class TestViewModel : ViewModelBase
         TestItems.Clear();
         UpdateItemCount();
         NotifyItemsChanged();
+    }
+
+    private async Task ToggleRecordingAsync()
+    {
+        IsRecording = !IsRecording;
+        
+        if (IsRecording)
+        {
+            IsLoading = true;
+            await SimulateNetworkCall();
+            IsLoading = false;
+        }
+        else
+        {
+            await SimulateNetworkCall();
+        }
     }
 
     #endregion
