@@ -5,41 +5,48 @@ namespace CdCSharp.Pangea.Core.Base;
 
 public class RelayCommandFactory : IRelayCommandFactory
 {
+    private readonly IUIDispatcher? _dispatcher;
+
+    public RelayCommandFactory(IUIDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher;
+    }
+
     public RelayCommand Create(Action execute, Func<bool>? canExecute = null, Action<Exception>? onError = null) =>
-        new(ExecuteWithLogging(execute, onError), canExecute);
+        new(ExecuteWithLogging(execute, onError), canExecute, _dispatcher);
 
     public RelayCommand Create(Func<Task> executeAsync, Func<bool>? canExecute = null, Action<Exception>? onError = null) =>
-        new(ExecuteWithLoggingAsync(executeAsync, onError), canExecute);
+        new(ExecuteWithLoggingAsync(executeAsync, onError), canExecute, _dispatcher);
 
     public RelayCommand<T> Create<T>(Action<T?> execute, Func<T?, bool>? canExecute = null, Action<Exception>? onError = null) =>
-        new(ExecuteWithLogging(execute, onError), canExecute);
+        new(ExecuteWithLogging(execute, onError), canExecute, _dispatcher);
 
     public RelayCommand<T> Create<T>(Func<T?, Task> executeAsync, Func<T?, bool>? canExecute = null, Action<Exception>? onError = null) =>
-        new(ExecuteWithLoggingAsync(executeAsync, onError), canExecute);
+        new(ExecuteWithLoggingAsync(executeAsync, onError), canExecute, _dispatcher);
 
     // Nuevas sobrecargas para soportar expresiones de propiedades
     public RelayCommand Create<TViewModel>(Action execute, Expression<Func<TViewModel, bool>> canExecuteProperty, Action<Exception>? onError = null)
     {
         Func<bool> canExecuteFunc = CreateCanExecuteFunc(canExecuteProperty);
-        return new(ExecuteWithLogging(execute, onError), canExecuteFunc);
+        return new(ExecuteWithLogging(execute, onError), canExecuteFunc, _dispatcher);
     }
 
     public RelayCommand Create<TViewModel>(Func<Task> executeAsync, Expression<Func<TViewModel, bool>> canExecuteProperty, Action<Exception>? onError = null)
     {
         Func<bool> canExecuteFunc = CreateCanExecuteFunc(canExecuteProperty);
-        return new(ExecuteWithLoggingAsync(executeAsync, onError), canExecuteFunc);
+        return new(ExecuteWithLoggingAsync(executeAsync, onError), canExecuteFunc, _dispatcher);
     }
 
     public RelayCommand<T> Create<T, TViewModel>(Action<T?> execute, Expression<Func<TViewModel, bool>> canExecuteProperty, Action<Exception>? onError = null)
     {
         Func<T?, bool> canExecuteFunc = CreateCanExecuteFunc<T, TViewModel>(canExecuteProperty);
-        return new(ExecuteWithLogging(execute, onError), canExecuteFunc);
+        return new(ExecuteWithLogging(execute, onError), canExecuteFunc, _dispatcher);
     }
 
     public RelayCommand<T> Create<T, TViewModel>(Func<T?, Task> executeAsync, Expression<Func<TViewModel, bool>> canExecuteProperty, Action<Exception>? onError = null)
     {
         Func<T?, bool> canExecuteFunc = CreateCanExecuteFunc<T, TViewModel>(canExecuteProperty);
-        return new(ExecuteWithLoggingAsync(executeAsync, onError), canExecuteFunc);
+        return new(ExecuteWithLoggingAsync(executeAsync, onError), canExecuteFunc, _dispatcher);
     }
 
     private static Func<bool> CreateCanExecuteFunc<TViewModel>(Expression<Func<TViewModel, bool>> canExecuteProperty)

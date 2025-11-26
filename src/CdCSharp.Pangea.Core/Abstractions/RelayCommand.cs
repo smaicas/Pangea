@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using CdCSharp.Pangea.Core.Abstractions;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 
@@ -8,24 +9,28 @@ public class RelayCommand : ICommand, INotifyPropertyChanged
 {
     private readonly Func<object?, bool>? _canExecute;
     private readonly Func<object?, Task>? _executeAsync;
+    private readonly IUIDispatcher? _dispatcher;
     private volatile bool _isExecuting;
+    private volatile bool _updateScheduled;
 
-    public RelayCommand(Action execute, Func<bool>? canExecute = null)
+    public RelayCommand(Action execute, Func<bool>? canExecute = null, IUIDispatcher? dispatcher = null)
         : this(execute != null ? _ => Task.Run(execute) : throw new ArgumentNullException(nameof(execute)),
-            canExecute != null ? _ => canExecute() : null)
+            canExecute != null ? _ => canExecute() : null, dispatcher)
     {
     }
 
-    public RelayCommand(Func<Task> executeAsync, Func<bool>? canExecute = null)
+    public RelayCommand(Func<Task> executeAsync, Func<bool>? canExecute = null, IUIDispatcher? dispatcher = null)
         : this(executeAsync != null ? _ => executeAsync() : throw new ArgumentNullException(nameof(executeAsync)),
-            canExecute != null ? _ => canExecute() : null)
+            canExecute != null ? _ => canExecute() : null, dispatcher)
     {
     }
 
-    public RelayCommand(Func<object?, Task> executeAsync, Func<object?, bool>? canExecute = null)
+    public RelayCommand(Func<object?, Task> executeAsync, Func<object?, bool>? canExecute = null,
+        IUIDispatcher? dispatcher = null)
     {
         _executeAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
         _canExecute = canExecute;
+        _dispatcher = dispatcher;
     }
 
     public bool IsExecuting
@@ -42,7 +47,23 @@ public class RelayCommand : ICommand, INotifyPropertyChanged
         }
     }
 
-    public event EventHandler? CanExecuteChanged;
+    private EventHandler? _canExecuteChanged;
+
+    public event EventHandler? CanExecuteChanged
+    {
+        add
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[RelayCommand] CanExecuteChanged SUSCRITO por: {value?.Target?.GetType().Name}");
+            _canExecuteChanged += value;
+        }
+        remove
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[RelayCommand] CanExecuteChanged DESUSCRITO por: {value?.Target?.GetType().Name}");
+            _canExecuteChanged -= value;
+        }
+    }
 
     public virtual bool CanExecute(object? parameter)
     {
@@ -90,29 +111,50 @@ public class RelayCommand : ICommand, INotifyPropertyChanged
 
     public void RaiseCanExecuteChanged()
     {
-        try
+        if (_updateScheduled) return;
+
+        _updateScheduled = true;
+
+        System.Diagnostics.Debug.WriteLine(
+            $"[RelayCommand] RaiseCanExecuteChanged iniciado. Suscriptores: {_canExecuteChanged?.GetInvocationList()?.Length ?? 0}");
+
+        if (_dispatcher != null)
         {
-            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            _dispatcher.Post(() =>
+            {
+                _updateScheduled = false;
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[RelayCommand] Ejecutando CanExecuteChanged en UI Thread. Suscriptores: {_canExecuteChanged?.GetInvocationList()?.Length ?? 0}");
+                    _canExecuteChanged?.Invoke(this, EventArgs.Empty);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[RelayCommand] ERROR en CanExecuteChanged: {ex.Message}");
+                }
+            });
         }
-        catch
+        else
         {
-            // Ignore notification errors
+            _updateScheduled = false;
+            try
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RelayCommand] Ejecutando CanExecuteChanged SIN dispatcher. Suscriptores: {_canExecuteChanged?.GetInvocationList()?.Length ?? 0}");
+                _canExecuteChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RelayCommand] ERROR en CanExecuteChanged: {ex.Message}");
+            }
         }
     }
 
     public void RaiseCanExecuteChangedSafe()
     {
-        try
-        {
-            if (SynchronizationContext.Current != null)
-                SynchronizationContext.Current.Post(_ => RaiseCanExecuteChanged(), null);
-            else
-                Task.Run(RaiseCanExecuteChanged);
-        }
-        catch
-        {
-            // Ignore notification errors
-        }
+        // Método legacy mantenido para compatibilidad
+        RaiseCanExecuteChanged();
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -132,20 +174,24 @@ public class RelayCommand<T> : ICommand, INotifyPropertyChanged
 {
     private readonly Func<T?, bool>? _canExecute;
     private readonly Func<T?, Task>? _executeAsync;
+    private readonly IUIDispatcher? _dispatcher;
     private volatile bool _isExecuting;
+    private volatile bool _updateScheduled;
 
-    public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+    public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null, IUIDispatcher? dispatcher = null)
         : this(
             execute != null
                 ? param => Task.Run(() => execute(param))
-                : throw new ArgumentNullException(nameof(execute)), canExecute)
+                : throw new ArgumentNullException(nameof(execute)), canExecute, dispatcher)
     {
     }
 
-    public RelayCommand(Func<T?, Task> executeAsync, Func<T?, bool>? canExecute = null)
+    public RelayCommand(Func<T?, Task> executeAsync, Func<T?, bool>? canExecute = null,
+        IUIDispatcher? dispatcher = null)
     {
         _executeAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
         _canExecute = canExecute;
+        _dispatcher = dispatcher;
     }
 
     public bool IsExecuting
@@ -213,29 +259,45 @@ public class RelayCommand<T> : ICommand, INotifyPropertyChanged
 
     public void RaiseCanExecuteChanged()
     {
-        try
+        if (_updateScheduled) return;
+
+        _updateScheduled = true;
+
+        if (_dispatcher != null)
         {
-            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            // Con dispatcher: batching inteligente en UI Thread
+            _dispatcher.Post(() =>
+            {
+                _updateScheduled = false;
+                try
+                {
+                    CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+                }
+                catch
+                {
+                    // Ignore notification errors to prevent UI crashes
+                }
+            });
         }
-        catch
+        else
         {
-            // Ignore notification errors
+            // Sin dispatcher: comportamiento actual (fallback para tests/otros frameworks)
+            _updateScheduled = false;
+            try
+            {
+                CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch
+            {
+                // Ignore notification errors
+            }
         }
     }
 
     public void RaiseCanExecuteChangedSafe()
     {
-        try
-        {
-            if (SynchronizationContext.Current != null)
-                SynchronizationContext.Current.Post(_ => RaiseCanExecuteChanged(), null);
-            else
-                Task.Run(RaiseCanExecuteChanged);
-        }
-        catch
-        {
-            // Ignore notification errors
-        }
+        // Método legacy mantenido para compatibilidad
+        RaiseCanExecuteChanged();
     }
 
     private T? CastParameter(object? parameter)

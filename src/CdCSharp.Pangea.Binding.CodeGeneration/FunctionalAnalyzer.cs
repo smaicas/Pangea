@@ -133,14 +133,66 @@ public class FunctionalAnalyzer
     private void InventoryCommands(ClassDeclarationSyntax classDeclaration, ViewModelAnalysis analysis)
     {
         // Obtener todas las propiedades de comando
-        IEnumerable<PropertyDeclarationSyntax> commandPropertyDeclarations = classDeclaration.Members
+        IEnumerable<PropertyDeclarationSyntax> commandProperties = classDeclaration.Members
             .OfType<PropertyDeclarationSyntax>()
             .Where(p => IsCommand(p));
 
-        HashSet<string> commandProperties = new HashSet<string>(
-            commandPropertyDeclarations.Select(p => p.Identifier.ValueText));
+        foreach (PropertyDeclarationSyntax commandProperty in commandProperties)
+        {
+            string commandName = commandProperty.Identifier.ValueText;
+            CommandInfo commandInfo = new CommandInfo
+            {
+                PropertyName = commandName,
+                CanExecuteReferences = new List<string>(),
+                DirectDependencies = new List<string>()
+            };
 
-        // Buscar asignaciones de comandos en constructores
+            // CASO 1: Propiedades de expresión (expression-bodied properties)
+            // public RelayCommand SaveMacroCommand => CreateCommand(SaveMacro, () => CanSaveMacro);
+            if (commandProperty.ExpressionBody?.Expression != null)
+            {
+                AnalyzeCommandAssignment(commandProperty.ExpressionBody.Expression, commandInfo, analysis);
+            }
+            // CASO 2: Propiedades con inicializador
+            // public RelayCommand SaveCommand { get; } = CreateCommand(...);
+            else if (commandProperty.Initializer?.Value != null)
+            {
+                AnalyzeCommandAssignment(commandProperty.Initializer.Value, commandInfo, analysis);
+            }
+            // CASO 3: Propiedades con getter que retorna CreateCommand
+            else if (commandProperty.AccessorList?.Accessors.Any() == true)
+            {
+                foreach (AccessorDeclarationSyntax accessor in commandProperty.AccessorList.Accessors)
+                {
+                    if (accessor.Keyword.ValueText == "get")
+                    {
+                        if (accessor.ExpressionBody?.Expression != null)
+                        {
+                            AnalyzeCommandAssignment(accessor.ExpressionBody.Expression, commandInfo, analysis);
+                        }
+                        else if (accessor.Body?.Statements.Any() == true)
+                        {
+                            // Buscar return statements en el getter
+                            foreach (StatementSyntax statement in accessor.Body.Statements)
+                            {
+                                if (statement is ReturnStatementSyntax returnStatement &&
+                                    returnStatement.Expression != null)
+                                {
+                                    AnalyzeCommandAssignment(returnStatement.Expression, commandInfo, analysis);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            analysis.Commands.Add(commandInfo);
+        }
+
+        // CASO 4: Comandos asignados en constructor (compatibilidad con TestViewModel)
+        HashSet<string> existingCommandNames = new HashSet<string>(
+            analysis.Commands.Select(c => c.PropertyName));
+
         IEnumerable<ConstructorDeclarationSyntax> constructors = classDeclaration.Members
             .OfType<ConstructorDeclarationSyntax>();
 
@@ -150,32 +202,46 @@ public class FunctionalAnalyzer
             {
                 foreach (StatementSyntax statement in constructor.Body.Statements)
                 {
-                    AnalyzeConstructorStatement(statement, commandProperties, analysis);
+                    AnalyzeConstructorStatement(statement, existingCommandNames, analysis);
                 }
             }
         }
     }
 
-    private void AnalyzeConstructorStatement(StatementSyntax statement, HashSet<string> commandProperties,
+    private void AnalyzeConstructorStatement(StatementSyntax statement, HashSet<string> existingCommandNames,
         ViewModelAnalysis analysis)
     {
         if (statement is ExpressionStatementSyntax exprStatement &&
             exprStatement.Expression is AssignmentExpressionSyntax assignment &&
-            assignment.Left is IdentifierNameSyntax identifier &&
-            commandProperties.Contains(identifier.Identifier.ValueText))
+            assignment.Left is IdentifierNameSyntax identifier)
         {
             string commandName = identifier.Identifier.ValueText;
-            CommandInfo commandInfo = new CommandInfo
+
+            // Verificar si es un comando y si ya existe
+            if (commandName.EndsWith("Command") && !existingCommandNames.Contains(commandName))
             {
-                PropertyName = commandName,
-                CanExecuteReferences = new List<string>(),
-                DirectDependencies = new List<string>()
-            };
+                CommandInfo commandInfo = new CommandInfo
+                {
+                    PropertyName = commandName,
+                    CanExecuteReferences = new List<string>(),
+                    DirectDependencies = new List<string>()
+                };
 
-            // Analizar el lado derecho de la asignación
-            AnalyzeCommandAssignment(assignment.Right, commandInfo, analysis);
-
-            analysis.Commands.Add(commandInfo);
+                // Analizar el lado derecho de la asignación
+                AnalyzeCommandAssignment(assignment.Right, commandInfo, analysis);
+                analysis.Commands.Add(commandInfo);
+                existingCommandNames.Add(commandName);
+            }
+            // Si ya existe, analizar asignación adicional
+            else if (existingCommandNames.Contains(commandName))
+            {
+                CommandInfo? existingCommand = analysis.Commands
+                    .FirstOrDefault(c => c.PropertyName == commandName);
+                if (existingCommand != null)
+                {
+                    AnalyzeCommandAssignment(assignment.Right, existingCommand, analysis);
+                }
+            }
         }
     }
 
@@ -301,14 +367,14 @@ public class FunctionalAnalyzer
         {
             HashSet<string> bindingDependencies = new HashSet<string>();
 
+            // Procesar todas las referencias de CanExecute
             foreach (string canExecuteRef in command.CanExecuteReferences)
             {
-                // Encontrar todas las binding properties de las que depende este CanExecute
                 HashSet<string> dependencies = GetAllBindingDependencies(canExecuteRef, analysis);
                 bindingDependencies.UnionWith(dependencies);
             }
 
-            // Si no hay CanExecute explícito, analizar el método Execute para inferir dependencias implícitas
+            // Si no hay CanExecute explícito, analizar método execute para dependencias implícitas
             if (!command.CanExecuteReferences.Any())
             {
                 AnalyzeExecuteMethodForImplicitDependencies(command, analysis, bindingDependencies);
@@ -405,31 +471,29 @@ public class FunctionalAnalyzer
 
     private HashSet<string> GetAllBindingDependencies(string element, ViewModelAnalysis analysis)
     {
+        return GetAllBindingDependencies(element, analysis, new HashSet<string>());
+    }
+
+    private HashSet<string> GetAllBindingDependencies(string element, ViewModelAnalysis analysis, HashSet<string> visited)
+    {
         HashSet<string> result = new HashSet<string>();
 
-        // Si el elemento es directamente una binding property
-        if (analysis.BindingFields.Any(b => b.PropertyName == element))
-        {
-            result.Add(element);
+        // Evitar ciclos recursivos
+        if (visited.Contains(element))
             return result;
-        }
 
-        // Si el elemento tiene dependencias transitivas calculadas
-        if (analysis.TransitiveDependencies.TryGetValue(element, out List<string>? transitiveDeps))
+        visited.Add(element);
+
+        try
         {
-            foreach (string dep in transitiveDeps)
+            // Si el elemento es directamente una binding property
+            if (analysis.BindingFields.Any(b => b.PropertyName == element))
             {
-                if (analysis.BindingFields.Any(b => b.PropertyName == dep))
-                {
-                    result.Add(dep);
-                }
+                result.Add(element);
+                return result;
             }
-        }
 
-        // Buscar dependencias directas si no se encontraron transitivas
-        if (!result.Any())
-        {
-            // Buscar en computed properties
+            // Si el elemento es una computed property
             ComputedPropertyInfo? computedProp = analysis.ComputedProperties
                 .FirstOrDefault(cp => cp.PropertyName == element);
 
@@ -437,11 +501,13 @@ public class FunctionalAnalyzer
             {
                 foreach (string directDep in computedProp.DirectDependencies)
                 {
-                    result.UnionWith(GetAllBindingDependencies(directDep, analysis));
+                    result.UnionWith(GetAllBindingDependencies(directDep, analysis, visited));
                 }
+
+                return result;
             }
 
-            // Buscar en CanExecute methods
+            // Si el elemento es un método CanExecute
             CanExecuteMethodInfo? canExecuteMethod = analysis.CanExecuteMethods
                 .FirstOrDefault(cem => cem.MethodName == element);
 
@@ -449,12 +515,19 @@ public class FunctionalAnalyzer
             {
                 foreach (string directDep in canExecuteMethod.DirectDependencies)
                 {
-                    result.UnionWith(GetAllBindingDependencies(directDep, analysis));
+                    result.UnionWith(GetAllBindingDependencies(directDep, analysis, visited));
                 }
-            }
-        }
 
-        return result;
+                return result;
+            }
+
+            return result;
+        }
+        finally
+        {
+            // IMPORTANTE: Remover el elemento del visited para permitir otros caminos de análisis
+            visited.Remove(element);
+        }
     }
 
     #endregion
@@ -517,28 +590,40 @@ public class FunctionalAnalyzer
         {
             bool shouldNotify = false;
 
-            // Si el comando depende directamente de esta propiedad
+            // CASO 1: Dependencia directa - el comando depende directamente de la propiedad
             if (command.DirectDependencies.Contains(propertyName))
             {
                 shouldNotify = true;
             }
-            else
+
+            // CASO 2: Dependencia a través de computed properties o CanExecute methods
+            if (!shouldNotify)
             {
-                // Si alguna de las CanExecute referencias depende de esta propiedad
                 foreach (string canExecuteRef in command.CanExecuteReferences)
                 {
-                    if (analysis.TransitiveDependencies.TryGetValue(canExecuteRef, out List<string>? deps) &&
-                        deps.Contains(propertyName))
+                    // Verificar si el CanExecute es una computed property que depende de esta propiedad
+                    ComputedPropertyInfo? computedProp = analysis.ComputedProperties
+                        .FirstOrDefault(cp => cp.PropertyName == canExecuteRef);
+
+                    if (computedProp != null && computedProp.DirectDependencies.Contains(propertyName))
                     {
                         shouldNotify = true;
                         break;
                     }
 
-                    // Verificar dependencias directas también
+                    // Verificar si el CanExecute es un método que depende de esta propiedad
                     CanExecuteMethodInfo? canExecuteMethod = analysis.CanExecuteMethods
                         .FirstOrDefault(cem => cem.MethodName == canExecuteRef);
 
                     if (canExecuteMethod != null && canExecuteMethod.DirectDependencies.Contains(propertyName))
+                    {
+                        shouldNotify = true;
+                        break;
+                    }
+
+                    // Verificar dependencias transitivas
+                    if (analysis.TransitiveDependencies.TryGetValue(canExecuteRef, out List<string>? transitiveDeps) &&
+                        transitiveDeps.Contains(propertyName))
                     {
                         shouldNotify = true;
                         break;
@@ -611,8 +696,20 @@ public class FunctionalAnalyzer
                 }
                 else if (arguments.Arguments.Count == 1)
                 {
-                    // Solo ExecuteMethod - analizar para dependencias implícitas
-                    AnalyzeExecuteMethodForImplicitDependencies(commandInfo, analysis, new HashSet<string>());
+                    // Solo ExecuteMethod - comando siempre habilitado
+                    // No hay dependencias que agregar
+                }
+            }
+            // CASO ADICIONAL: new RelayCommand(execute, canExecute)
+            else if (invocation.Expression is IdentifierNameSyntax constructor &&
+                     (constructor.Identifier.ValueText == "RelayCommand" ||
+                      constructor.Identifier.ValueText.Contains("Command")))
+            {
+                ArgumentListSyntax arguments = invocation.ArgumentList;
+                if (arguments.Arguments.Count >= 2)
+                {
+                    ExpressionSyntax canExecuteArg = arguments.Arguments[1].Expression;
+                    AnalyzeCanExecuteArgument(canExecuteArg, commandInfo, analysis);
                 }
             }
         }
@@ -623,7 +720,7 @@ public class FunctionalAnalyzer
     {
         switch (canExecuteArg)
         {
-            // Caso: () => CanSave
+            // Caso: () => CanSaveMacro, () => true, () => CanRecord || CanStopRecording
             case ParenthesizedLambdaExpressionSyntax lambda:
                 if (lambda.ExpressionBody != null)
                 {
@@ -649,9 +746,19 @@ public class FunctionalAnalyzer
 
                 break;
 
-            // Caso: Referencia directa a método - CanExecuteComplexOperation
+            // Caso: Referencia directa a método/propiedad - CanExecuteComplexOperation, CanSaveMacro
             case IdentifierNameSyntax identifier:
-                commandInfo.CanExecuteReferences.Add(identifier.Identifier.ValueText);
+                string referenceName = identifier.Identifier.ValueText;
+                if (!commandInfo.CanExecuteReferences.Contains(referenceName))
+                {
+                    commandInfo.CanExecuteReferences.Add(referenceName);
+                }
+
+                break;
+
+            // Caso: Literal true/false
+            case LiteralExpressionSyntax:
+                // Para casos como () => true, no hay dependencias
                 break;
         }
     }
@@ -661,9 +768,14 @@ public class FunctionalAnalyzer
     {
         switch (expression)
         {
-            // Caso simple: CanSave
+            // Caso simple: CanSaveMacro, IsLoading, CanExecuteMacro
             case IdentifierNameSyntax identifier:
-                commandInfo.CanExecuteReferences.Add(identifier.Identifier.ValueText);
+                string identifierName = identifier.Identifier.ValueText;
+                if (!commandInfo.CanExecuteReferences.Contains(identifierName))
+                {
+                    commandInfo.CanExecuteReferences.Add(identifierName);
+                }
+
                 break;
 
             // Caso complejo: CanRecord || CanStopRecording, !IsLoading && IsEnabled
@@ -671,19 +783,36 @@ public class FunctionalAnalyzer
                 AnalyzeBinaryExpression(binaryExpression, commandInfo, analysis);
                 break;
 
-            // Caso: !IsLoading
+            // Caso: !IsLoading, !HasErrors
             case PrefixUnaryExpressionSyntax prefixUnary:
-                AnalyzePrefixUnaryExpression(prefixUnary, commandInfo, analysis);
+                AnalyzeLambdaExpression(prefixUnary.Operand, commandInfo, analysis);
                 break;
 
-            // Caso: string.IsNullOrEmpty(item) - llamada a método
+            // Caso: string.IsNullOrEmpty(item), HasRecordedActions
             case InvocationExpressionSyntax invocation:
                 AnalyzeInvocationInLambda(invocation, commandInfo, analysis);
                 break;
 
-            // Caso: Items.Count, item.Length
+            // Caso: Items.Count, RecordedActions.Count > 0
             case MemberAccessExpressionSyntax memberAccess:
                 AnalyzeMemberAccessInLambda(memberAccess, commandInfo, analysis);
+                break;
+
+            // Caso: Literal true/false, números, strings
+            case LiteralExpressionSyntax:
+                // No hay dependencias para literales
+                break;
+
+            // Caso: Expresiones condicionales ?: 
+            case ConditionalExpressionSyntax conditionalExpression:
+                AnalyzeLambdaExpression(conditionalExpression.Condition, commandInfo, analysis);
+                AnalyzeLambdaExpression(conditionalExpression.WhenTrue, commandInfo, analysis);
+                AnalyzeLambdaExpression(conditionalExpression.WhenFalse, commandInfo, analysis);
+                break;
+
+            // Caso: Paréntesis (CanSaveMacro)
+            case ParenthesizedExpressionSyntax parenthesized:
+                AnalyzeLambdaExpression(parenthesized.Expression, commandInfo, analysis);
                 break;
         }
     }
@@ -692,42 +821,31 @@ public class FunctionalAnalyzer
         ViewModelAnalysis analysis)
     {
         // Para casos como !IsLoading, !HasErrors
-        if (prefixUnary.Operand is IdentifierNameSyntax identifier)
-        {
-            commandInfo.CanExecuteReferences.Add(identifier.Identifier.ValueText);
-        }
-        else if (prefixUnary.Operand is MemberAccessExpressionSyntax memberAccess)
-        {
-            AnalyzeMemberAccessInLambda(memberAccess, commandInfo, analysis);
-        }
-        else
-        {
-            // Analizar recursivamente operandos complejos
-            AnalyzeLambdaExpression(prefixUnary.Operand, commandInfo, analysis);
-        }
+        AnalyzeLambdaExpression(prefixUnary.Operand, commandInfo, analysis);
     }
 
     private void AnalyzeInvocationInLambda(InvocationExpressionSyntax invocation, CommandInfo commandInfo,
         ViewModelAnalysis analysis)
     {
-        // Para casos como string.IsNullOrEmpty(item), Email.Contains("@")
+        // Analizar argumentos de la invocación
         foreach (ArgumentSyntax argument in invocation.ArgumentList.Arguments)
         {
-            if (argument.Expression is IdentifierNameSyntax argIdentifier)
-            {
-                // Solo agregar si es una propiedad conocida del ViewModel
-                if (analysis.BindingFields.Any(bf => bf.PropertyName == argIdentifier.Identifier.ValueText) ||
-                    analysis.ComputedProperties.Any(cp => cp.PropertyName == argIdentifier.Identifier.ValueText))
-                {
-                    commandInfo.CanExecuteReferences.Add(argIdentifier.Identifier.ValueText);
-                }
-            }
+            AnalyzeLambdaExpression(argument.Expression, commandInfo, analysis);
         }
 
-        // También analizar la expresión de la invocación (el método que se llama)
+        // Analizar la expresión de la invocación
         if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
         {
             AnalyzeMemberAccessInLambda(memberAccess, commandInfo, analysis);
+        }
+        else if (invocation.Expression is IdentifierNameSyntax methodIdentifier)
+        {
+            // Para métodos directos como CanExecuteComplexOperation()
+            string methodName = methodIdentifier.Identifier.ValueText;
+            if (!commandInfo.CanExecuteReferences.Contains(methodName))
+            {
+                commandInfo.CanExecuteReferences.Add(methodName);
+            }
         }
     }
 
@@ -735,16 +853,18 @@ public class FunctionalAnalyzer
     private void AnalyzeMemberAccessInLambda(MemberAccessExpressionSyntax memberAccess, CommandInfo commandInfo,
         ViewModelAnalysis analysis)
     {
-        // Para casos como Items.Count, Email.Length
+        // Para casos como Items.Count, Email.Contains, RecordedActions.Count
         if (memberAccess.Expression is IdentifierNameSyntax identifier)
         {
             string propertyName = identifier.Identifier.ValueText;
 
-            // Verificar si es una propiedad conocida del ViewModel
-            if (analysis.BindingFields.Any(bf => bf.PropertyName == propertyName) ||
-                analysis.ComputedProperties.Any(cp => cp.PropertyName == propertyName))
+            // Solo agregar si es una propiedad conocida del ViewModel
+            if (IsKnownViewModelProperty(propertyName, analysis))
             {
-                commandInfo.CanExecuteReferences.Add(propertyName);
+                if (!commandInfo.CanExecuteReferences.Contains(propertyName))
+                {
+                    commandInfo.CanExecuteReferences.Add(propertyName);
+                }
             }
         }
     }
@@ -752,7 +872,7 @@ public class FunctionalAnalyzer
     private void AnalyzeBinaryExpression(BinaryExpressionSyntax binaryExpression, CommandInfo commandInfo,
         ViewModelAnalysis analysis)
     {
-        // Analizar recursivamente ambos lados de la expresión binaria
+        // Analizar AMBOS lados de la expresión binaria
         AnalyzeLambdaExpression(binaryExpression.Left, commandInfo, analysis);
         AnalyzeLambdaExpression(binaryExpression.Right, commandInfo, analysis);
     }
@@ -769,18 +889,30 @@ public class FunctionalAnalyzer
 
     private void AnalyzeLambdaBlock(BlockSyntax block, CommandInfo commandInfo, ViewModelAnalysis analysis)
     {
+        // Para lambdas con cuerpo de bloque { ... }
         foreach (StatementSyntax statement in block.Statements)
         {
-            if (statement is ReturnStatementSyntax returnStatement &&
-                returnStatement.Expression != null)
+            // Analizar todas las expresiones dentro del bloque
+            foreach (SyntaxNode node in statement.DescendantNodesAndSelf())
             {
-                AnalyzeLambdaExpression(returnStatement.Expression, commandInfo, analysis);
-            }
-            else if (statement is ExpressionStatementSyntax exprStatement)
-            {
-                AnalyzeLambdaExpression(exprStatement.Expression, commandInfo, analysis);
+                if (node is IdentifierNameSyntax identifier)
+                {
+                    string identifierName = identifier.Identifier.ValueText;
+                    if (IsKnownViewModelProperty(identifierName, analysis) &&
+                        !commandInfo.CanExecuteReferences.Contains(identifierName))
+                    {
+                        commandInfo.CanExecuteReferences.Add(identifierName);
+                    }
+                }
             }
         }
+    }
+
+    private bool IsKnownViewModelProperty(string propertyName, ViewModelAnalysis analysis)
+    {
+        return analysis.BindingFields.Any(bf => bf.PropertyName == propertyName) ||
+               analysis.ComputedProperties.Any(cp => cp.PropertyName == propertyName) ||
+               analysis.CanExecuteMethods.Any(cem => cem.MethodName == propertyName);
     }
 
     private void AnalyzeInvocationExpression(InvocationExpressionSyntax invocation, CommandInfo commandInfo,
@@ -813,7 +945,10 @@ public class FunctionalAnalyzer
 
     private bool IsCommand(PropertyDeclarationSyntax property)
     {
-        return property.Type.ToString().Contains("RelayCommand");
+        string typeName = property.Type.ToString();
+        return typeName.Contains("RelayCommand") ||
+               typeName.Contains("ICommand") ||
+               typeName.EndsWith("Command");
     }
 
     private bool IsBindingProperty(PropertyDeclarationSyntax property, ViewModelAnalysis analysis)

@@ -9,7 +9,6 @@ using CdCSharp.Pangea.Services;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using System.Reflection;
 
 namespace CdCSharp.Pangea;
 
@@ -56,7 +55,13 @@ public static class PangeaExtensions
     
     private static void RegisterCoreServices(IServiceCollection services)
     {
+        // Register UI dispatcher first (required by RelayCommandFactory)
+        services.AddSingleton<IUIDispatcher, AvaloniaUIDispatcher>();
+        
+        // Register command factory with dispatcher
         services.AddSingleton<IRelayCommandFactory, RelayCommandFactory>();
+        
+        // Other core services
         services.AddSingleton<IApplicationLifetime>(GetApplicationLifetime());
         services.AddSingleton<IWindowManager, WindowManager>();
     }

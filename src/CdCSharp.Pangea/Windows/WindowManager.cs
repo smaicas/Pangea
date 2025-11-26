@@ -27,6 +27,14 @@ public interface IWindowManager : IDisposable
     void SetMainWindow<TWindow, TViewModel>() where TWindow : Window, new() where TViewModel : class;
     void SetMainWindow(Window window);
     void Initialize();
+        Task<TResult> ShowDialogAsync<TWindow, TViewModel, TResult>(
+        Func<TViewModel, Task<TResult>> dialogAction)
+        where TWindow : Window, new() 
+        where TViewModel : class;
+        
+    Task<bool?> ShowDialogAsync<TWindow, TViewModel>()
+        where TWindow : Window, new() 
+        where TViewModel : class;
 }
 
 public class WindowManager : IWindowManager, IDisposable
@@ -159,6 +167,99 @@ public class WindowManager : IWindowManager, IDisposable
         return window;
     }
 
+    public async Task<TResult> ShowDialogAsync<TWindow, TViewModel, TResult>(
+        Func<TViewModel, Task<TResult>> dialogAction)
+        where TWindow : Window, new() 
+        where TViewModel : class
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+        ArgumentNullException.ThrowIfNull(dialogAction);
+
+        // Crear una nueva instancia para diálogos (no usar caché)
+        TViewModel viewModel;
+        TWindow window;
+        
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            (window, viewModel) = CreateDialogWindow<TWindow, TViewModel>();
+        }
+        else
+        {
+            (window, viewModel) = await Dispatcher.UIThread.InvokeAsync(() => 
+                CreateDialogWindow<TWindow, TViewModel>());
+        }
+
+        try
+        {
+            // Configurar como modal
+            await ConfigureAsModalDialog(window);
+
+            // Ejecutar la acción del diálogo en paralelo con el ShowDialog
+            Task<TResult> dialogTask = dialogAction(viewModel);
+            
+            // Mostrar el diálogo modal
+            Task<bool?> showDialogTask = ShowDialogInternal(window);
+
+            // Esperar a que termine la acción del diálogo
+            TResult result = await dialogTask;
+
+            // Cerrar el diálogo si aún está abierto
+            if (window.IsVisible)
+            {
+                await CloseDialogSafe(window);
+            }
+
+            return result;
+        }
+        catch (Exception)
+        {
+            // Asegurar que el diálogo se cierre en caso de error
+            if (window.IsVisible)
+            {
+                await CloseDialogSafe(window);
+            }
+            throw;
+        }
+    }
+
+    public async Task<bool?> ShowDialogAsync<TWindow, TViewModel>()
+        where TWindow : Window, new() 
+        where TViewModel : class
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
+
+        // Crear una nueva instancia para diálogos (no usar caché)
+        TWindow window;
+        
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            (window, _) = CreateDialogWindow<TWindow, TViewModel>();
+        }
+        else
+        {
+            (window, _) = await Dispatcher.UIThread.InvokeAsync(() => 
+                CreateDialogWindow<TWindow, TViewModel>());
+        }
+
+        try
+        {
+            // Configurar como modal
+            await ConfigureAsModalDialog(window);
+
+            // Mostrar el diálogo modal y devolver el resultado
+            return await ShowDialogInternal(window);
+        }
+        catch (Exception)
+        {
+            // Asegurar que el diálogo se cierre en caso de error
+            if (window.IsVisible)
+            {
+                await CloseDialogSafe(window);
+            }
+            throw;
+        }
+    }
+
     private static void ShowWindowSafe(Window window)
     {
         if (window.IsVisible)
@@ -168,6 +269,67 @@ public class WindowManager : IWindowManager, IDisposable
         else
         {
             window.Show();
+        }
+    }
+
+    private (TWindow window, TViewModel viewModel) CreateDialogWindow<TWindow, TViewModel>()
+        where TWindow : Window, new()
+        where TViewModel : class
+    {
+        TViewModel viewModel = _serviceProvider.GetRequiredService<TViewModel>();
+        TWindow window = new() { DataContext = viewModel };
+        
+        // No cachear ventanas de diálogo ya que son de un solo uso
+        return (window, viewModel);
+    }
+
+    private async Task ConfigureAsModalDialog(Window window)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ConfigureModalWindow(window);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => ConfigureModalWindow(window));
+        }
+    }
+
+    private void ConfigureModalWindow(Window window)
+    {
+        // Configurar propiedades del diálogo modal
+        window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        
+        // Establecer la ventana padre si existe una ventana principal
+        if (_mainWindow != null && _mainWindow.IsVisible)
+        {
+            // Note: En Avalonia, ShowDialog automáticamente maneja el owner
+            // si se llama desde una ventana padre
+        }
+    }
+
+    private async Task<bool?> ShowDialogInternal(Window window)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return await window.ShowDialog<bool?>(_mainWindow);
+        }
+        else
+        {
+            return await Dispatcher.UIThread.InvokeAsync(async () => 
+                await window.ShowDialog<bool?>(_mainWindow));
+        }
+    }
+
+    private async Task CloseDialogSafe(Window window)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            window.Close();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => window.Close());
         }
     }
 

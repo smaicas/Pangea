@@ -1,15 +1,19 @@
 ﻿using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Binding.Attributes;
+using CdCSharp.Pangea.Tests.Int.Views;
 using CdCSharp.Pangea.Theming.Controls;
 using CdCSharp.Pangea.Theming.Abstractions;
+using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Threading.Tasks;
 
 namespace CdCSharp.Pangea.Tests.Int.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IThemeService _themeService;
+    private readonly IWindowManager _windowManager;
 
     [Binding] private string _greeting = "🎨 Pangea UI Showcase";
     [Binding(ReadOnly = true)] private string _statusMessage = "Theme system ready ✨";
@@ -20,12 +24,14 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(IServiceProvider serviceProvider) : base(serviceProvider)
     {
         _themeService = serviceProvider.GetRequiredService<IThemeService>();
+        _windowManager = serviceProvider.GetRequiredService<IWindowManager>();
         ThemeSelector = serviceProvider.GetRequiredService<ThemeSelectorViewModel>();
-        
+
         UpdateStatusMessage();
     }
 
     public RelayCommand UpdateStatusCommand => CreateCommand(ExecuteUpdateStatus);
+    public RelayCommand OpenCommandTestCommand => CreateCommand(OpenCommandTest);
 
     public string ProgressText => $"Demo Progress: {ProgressValue}%";
 
@@ -33,12 +39,9 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         string[] messages = new[]
         {
-            "✨ Theme switching demonstration active",
-            "🎨 All controls synchronized with theme",
-            "🔄 Dynamic resource bindings working",
-            "📱 Responsive theme adaptation complete",
-            "🌟 Color palette showcase updated",
-            "🚀 Pangea UI theme system operational"
+            "✨ Theme switching demonstration active", "🎨 All controls synchronized with theme",
+            "🔄 Dynamic resource bindings working", "📱 Responsive theme adaptation complete",
+            "🌟 Color palette showcase updated", "🚀 Pangea UI theme system operational"
         };
 
         Random random = new Random();
@@ -47,6 +50,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Update progress with smooth animation simulation
         ProgressValue = random.Next(45, 100);
+    }
+
+    private async Task OpenCommandTest()
+    {
+        await _windowManager.ShowWindowAsync<CommandTestWindow, CommandTestViewModel>();
     }
 
     partial void OnProgressValueChanged()

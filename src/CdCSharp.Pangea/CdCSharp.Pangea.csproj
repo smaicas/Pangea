@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<IncludeAnalyzerReferences>true</IncludeAnalyzerReferences>
@@ -16,10 +16,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Avalonia" Version="11.3.2" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.8" />
+		<PackageReference Include="Avalonia" Version="11.3.9" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -32,37 +32,21 @@
 
 	<ItemGroup>
 		<!-- Binding CodeGeneration Analyzer -->
-		<None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll"
-			  Pack="true"
-			  PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.dll"
-			  Visible="false" />
+		<None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll" Pack="true" PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.dll" Visible="false" />
 
 		<!-- Theming CodeGeneration Analyzer -->
-		<None Include="..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.dll"
-			  Pack="true"
-			  PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Theming.CodeGeneration.dll"
-			  Visible="false" />
+		<None Include="..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.dll" Pack="true" PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Theming.CodeGeneration.dll" Visible="false" />
 
 		<!-- Incluir PDBs para debugging si existen -->
-		<None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb"
-			  Pack="true"
-			  PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.pdb"
-			  Visible="false"
-			  Condition="Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb')" />
+		<None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb" Pack="true" PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.pdb" Visible="false" Condition="Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb')" />
 
-		<None Include="..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.pdb"
-			  Pack="true"
-			  PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Theming.CodeGeneration.pdb"
-			  Visible="false"
-			  Condition="Exists('..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.pdb')" />
+		<None Include="..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.pdb" Pack="true" PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Theming.CodeGeneration.pdb" Visible="false" Condition="Exists('..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.pdb')" />
 	</ItemGroup>
 
 	<Target Name="EnsureAnalyzersExistBeforePack" BeforeTargets="GenerateNuspec;Pack">
-		<Error Text="❌ Binding analyzer not found: ..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll&#xA;Build CdCSharp.Pangea.Binding.CodeGeneration first."
-			   Condition="!Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll')" />
+		<Error Text="❌ Binding analyzer not found: ..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll&#xA;Build CdCSharp.Pangea.Binding.CodeGeneration first." Condition="!Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll')" />
 
-		<Error Text="❌ Theming analyzer not found: ..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.dll&#xA;Build CdCSharp.Pangea.Theming.CodeGeneration first."
-			   Condition="!Exists('..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.dll')" />
+		<Error Text="❌ Theming analyzer not found: ..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.dll&#xA;Build CdCSharp.Pangea.Theming.CodeGeneration first." Condition="!Exists('..\CdCSharp.Pangea.Theming.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Theming.CodeGeneration.dll')" />
 
 		<Message Text="✅ All required analyzers found and ready for packaging:" Importance="high" />
 		<Message Text="  → CdCSharp.Pangea.Binding.CodeGeneration.dll" Importance="high" />
