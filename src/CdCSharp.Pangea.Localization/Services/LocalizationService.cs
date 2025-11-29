@@ -10,7 +10,6 @@ public class LocalizationService : ILocalizationService
 {
     private readonly IOptions<LocalizationOptions> _options;
     private readonly List<ResourceManager> _resourceManagers = new();
-    private CultureInfo _currentCulture;
 
     public LocalizationService(IOptions<LocalizationOptions> options)
     {
@@ -20,8 +19,8 @@ public class LocalizationService : ILocalizationService
         InitializeCulture();
     }
 
-    public CultureInfo CurrentCulture => _currentCulture;
-    
+    public CultureInfo CurrentCulture { get; private set; }
+
     public IEnumerable<CultureInfo> SupportedCultures => 
         _options.Value.SupportedCultures.Select(c => new CultureInfo(c));
 
@@ -36,7 +35,7 @@ public class LocalizationService : ILocalizationService
         {
             try
             {
-                string? value = resourceManager.GetString(key, _currentCulture);
+                string? value = resourceManager.GetString(key, CurrentCulture);
                 if (!string.IsNullOrEmpty(value))
                     return value;
             }
@@ -58,12 +57,12 @@ public class LocalizationService : ILocalizationService
             throw new NotSupportedException($"Culture '{cultureName}' is not supported. Supported cultures: {string.Join(", ", opts.SupportedCultures)}");
         }
 
-        CultureInfo oldCulture = _currentCulture;
-        _currentCulture = new CultureInfo(cultureName);
-        CultureInfo.CurrentCulture = _currentCulture;
-        CultureInfo.CurrentUICulture = _currentCulture;
+        CultureInfo oldCulture = CurrentCulture;
+        CurrentCulture = new CultureInfo(cultureName);
+        CultureInfo.CurrentCulture = CurrentCulture;
+        CultureInfo.CurrentUICulture = CurrentCulture;
 
-        CultureChanged?.Invoke(this, new CultureChangedEventArgs(oldCulture, _currentCulture));
+        CultureChanged?.Invoke(this, new CultureChangedEventArgs(oldCulture, CurrentCulture));
     }
 
     private void InitializeResourceManagers()
@@ -101,15 +100,15 @@ public class LocalizationService : ILocalizationService
     private void InitializeCulture()
     {
         LocalizationOptions opts = _options.Value;
-        _currentCulture = new CultureInfo(opts.DefaultCulture);
+        CurrentCulture = new CultureInfo(opts.DefaultCulture);
         
         if (opts.AutoDetectCulture)
         {
             DetectSystemCulture();
         }
         
-        CultureInfo.CurrentCulture = _currentCulture;
-        CultureInfo.CurrentUICulture = _currentCulture;
+        CultureInfo.CurrentCulture = CurrentCulture;
+        CultureInfo.CurrentUICulture = CurrentCulture;
     }
 
     private void DetectSystemCulture()
@@ -119,7 +118,7 @@ public class LocalizationService : ILocalizationService
         
         if (opts.SupportedCultures.Contains(systemCulture))
         {
-            _currentCulture = new CultureInfo(systemCulture);
+            CurrentCulture = new CultureInfo(systemCulture);
         }
     }
 }

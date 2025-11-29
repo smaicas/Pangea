@@ -1,6 +1,6 @@
-namespace CdCSharp.Pangea.Localization.Resources;
-
 using System.Globalization;
+
+namespace CdCSharp.Pangea.Localization.Resources;
 
 public static class CultureHelper
 {
