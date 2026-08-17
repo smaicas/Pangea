@@ -1,153 +1,158 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:win="using:CdCSharp.Pangea.Windows"
         xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels"
         x:Class="CdCSharp.Pangea.Tests.Int.Views.CommandTestWindow"
         x:DataType="vm:CommandTestViewModel"
         Title="RelayCommand CanExecute Test"
         Width="600" Height="500"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        win:WindowBehavior.CloseOnEscape="True">
 
-    <Design.DataContext>
-        <vm:CommandTestViewModel />
-    </Design.DataContext>
-
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <TextBlock Grid.Row="0" 
-                   Text="RelayCommand CanExecute Test" 
-                   FontSize="24" 
-                   FontWeight="Bold" 
-                   Margin="0,0,0,20" />
-
-        <!-- Control Panel -->
-        <Border Grid.Row="1" 
-                Padding="15"
-                CornerRadius="8"
-                Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-            
-            <StackPanel Spacing="10">
-                <TextBlock Text="Control Panel" FontWeight="SemiBold" FontSize="16" />
-                
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <!-- IsEnabled Toggle -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Is Enabled:" VerticalAlignment="Center" Margin="0,0,10,0" />
-                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                        <CheckBox IsChecked="{Binding IsEnabled}" Content="Enabled" />
-                        <Button Content="Toggle" Command="{Binding ToggleEnabledCommand}" />
-                    </StackPanel>
-
-                    <!-- IsLoading State -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Is Loading:" VerticalAlignment="Center" Margin="0,10,10,0" />
-                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
-                        <CheckBox IsChecked="{Binding IsLoading}" IsEnabled="False" Content="Loading" />
-                        <TextBlock Text="(Controlled by Loading Command)" FontStyle="Italic" VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <!-- Text Input -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Text Input:" VerticalAlignment="Center" Margin="0,10,10,0" />
-                    <TextBox Grid.Row="2" Grid.Column="1" 
-                             Text="{Binding TextInput}" 
-                             PlaceholderText="Enter text to enable Text Command"
-                             Margin="0,10,0,0" />
-
-                    <!-- Counter -->
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Counter:" VerticalAlignment="Center" Margin="0,10,10,0" />
-                    <TextBlock Grid.Row="3" Grid.Column="1" 
-                               Text="{Binding Counter}" 
-                               FontWeight="Bold"
-                               Margin="0,10,0,0" />
-                </Grid>
-            </StackPanel>
-        </Border>
-
-        <!-- Command Test Area -->
-        <Border Grid.Row="2" 
-                Margin="0,20,0,0"
-                Padding="15"
-                CornerRadius="8"
-                Background="{DynamicResource SystemControlBackgroundAltMediumBrush}">
-            
-            <StackPanel Spacing="15">
-                <TextBlock Text="Command Tests" FontWeight="SemiBold" FontSize="16" />
+    <ScrollViewer>
+        <Design.DataContext>
+            <vm:CommandTestViewModel />
+        </Design.DataContext>
+    
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+    
+            <!-- Header -->
+            <TextBlock Grid.Row="0" 
+                       Text="RelayCommand CanExecute Test" 
+                       FontSize="24" 
+                       FontWeight="Bold" 
+                       Margin="0,0,0,20" />
+    
+            <!-- Control Panel -->
+            <Border Grid.Row="1" 
+                    Padding="15"
+                    CornerRadius="8"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
                 
                 <StackPanel Spacing="10">
+                    <TextBlock Text="Control Panel" FontWeight="SemiBold" FontSize="16" />
                     
-                    <!-- Basic Command -->
-                    <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-                        <StackPanel>
-                            <TextBlock Text="Basic Command" FontWeight="SemiBold" />
-                            <TextBlock Text="CanExecute: IsEnabled AND NOT IsLoading" FontSize="12" Opacity="0.7" />
-                            <Button Content="Execute Basic Command" 
-                                    Command="{Binding BasicCommand}"
-                                    Margin="0,5,0,0" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+    
+                        <!-- IsEnabled Toggle -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Is Enabled:" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                            <CheckBox IsChecked="{Binding IsEnabled}" Content="Enabled" />
+                            <Button Content="Toggle" Command="{Binding ToggleEnabledCommand}" />
                         </StackPanel>
-                    </Border>
-
-                    <!-- Text Command -->
-                    <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-                        <StackPanel>
-                            <TextBlock Text="Text Command" FontWeight="SemiBold" />
-                            <TextBlock Text="CanExecute: TextInput NOT empty AND NOT IsLoading" FontSize="12" Opacity="0.7" />
-                            <Button Content="Execute Text Command" 
-                                    Command="{Binding TextCommand}"
-                                    Margin="0,5,0,0" />
+    
+                        <!-- IsLoading State -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Is Loading:" VerticalAlignment="Center" Margin="0,10,10,0" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                            <CheckBox IsChecked="{Binding IsLoading}" IsEnabled="False" Content="Loading" />
+                            <TextBlock Text="(Controlled by Loading Command)" FontStyle="Italic" VerticalAlignment="Center" />
                         </StackPanel>
-                    </Border>
-
-                    <!-- Loading Command -->
-                    <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-                        <StackPanel>
-                            <TextBlock Text="Loading Command" FontWeight="SemiBold" />
-                            <TextBlock Text="CanExecute: NOT IsLoading (async operation)" FontSize="12" Opacity="0.7" />
-                            <Button Content="Execute Loading Command (2s)" 
-                                    Command="{Binding LoadingCommand}"
-                                    Margin="0,5,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Reset Command -->
-                    <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-                        <StackPanel>
-                            <TextBlock Text="Reset Command" FontWeight="SemiBold" />
-                            <TextBlock Text="CanExecute: Counter > 0 OR TextInput not empty" FontSize="12" Opacity="0.7" />
-                            <Button Content="Reset All" 
-                                    Command="{Binding ResetCommand}"
-                                    Margin="0,5,0,0" />
-                        </StackPanel>
-                    </Border>
-
+    
+                        <!-- Text Input -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Text Input:" VerticalAlignment="Center" Margin="0,10,10,0" />
+                        <TextBox Grid.Row="2" Grid.Column="1" 
+                                 Text="{Binding TextInput}" 
+                                 PlaceholderText="Enter text to enable Text Command"
+                                 Margin="0,10,0,0" />
+    
+                        <!-- Counter -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Counter:" VerticalAlignment="Center" Margin="0,10,10,0" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" 
+                                   Text="{Binding Counter}" 
+                                   FontWeight="Bold"
+                                   Margin="0,10,0,0" />
+                    </Grid>
                 </StackPanel>
-            </StackPanel>
-        </Border>
+            </Border>
+    
+            <!-- Command Test Area -->
+            <Border Grid.Row="2" 
+                    Margin="0,20,0,0"
+                    Padding="15"
+                    CornerRadius="8"
+                    Background="{DynamicResource SystemControlBackgroundAltMediumBrush}">
+                
+                <StackPanel Spacing="15">
+                    <TextBlock Text="Command Tests" FontWeight="SemiBold" FontSize="16" />
+                    
+                    <StackPanel Spacing="10">
+                        
+                        <!-- Basic Command -->
+                        <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+                            <StackPanel>
+                                <TextBlock Text="Basic Command" FontWeight="SemiBold" />
+                                <TextBlock Text="CanExecute: IsEnabled AND NOT IsLoading" FontSize="12" Opacity="0.7" />
+                                <Button Content="Execute Basic Command" 
+                                        Command="{Binding BasicCommand}"
+                                        Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Border>
+    
+                        <!-- Text Command -->
+                        <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+                            <StackPanel>
+                                <TextBlock Text="Text Command" FontWeight="SemiBold" />
+                                <TextBlock Text="CanExecute: TextInput NOT empty AND NOT IsLoading" FontSize="12" Opacity="0.7" />
+                                <Button Content="Execute Text Command" 
+                                        Command="{Binding TextCommand}"
+                                        Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Border>
+    
+                        <!-- Loading Command -->
+                        <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+                            <StackPanel>
+                                <TextBlock Text="Loading Command" FontWeight="SemiBold" />
+                                <TextBlock Text="CanExecute: NOT IsLoading (async operation)" FontSize="12" Opacity="0.7" />
+                                <Button Content="Execute Loading Command (2s)" 
+                                        Command="{Binding LoadingCommand}"
+                                        Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Border>
+    
+                        <!-- Reset Command -->
+                        <Border Padding="10" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+                            <StackPanel>
+                                <TextBlock Text="Reset Command" FontWeight="SemiBold" />
+                                <TextBlock Text="CanExecute: Counter > 0 OR TextInput not empty" FontSize="12" Opacity="0.7" />
+                                <Button Content="Reset All" 
+                                        Command="{Binding ResetCommand}"
+                                        Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Border>
+    
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+    
+            <!-- Status Bar -->
+            <Border Grid.Row="3" 
+                    Margin="0,20,0,0"
+                    Padding="10"
+                    CornerRadius="4"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                <TextBlock Text="{Binding StatusMessage}" 
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center" />
+            </Border>
+    
+        </Grid>
+    </ScrollViewer>
 
-        <!-- Status Bar -->
-        <Border Grid.Row="3" 
-                Margin="0,20,0,0"
-                Padding="10"
-                CornerRadius="4"
-                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
-            <TextBlock Text="{Binding StatusMessage}" 
-                       FontWeight="SemiBold"
-                       HorizontalAlignment="Center" />
-        </Border>
-
-    </Grid>
 </Window>

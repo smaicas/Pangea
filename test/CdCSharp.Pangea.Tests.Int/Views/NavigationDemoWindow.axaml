@@ -1,16 +1,20 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:win="using:CdCSharp.Pangea.Windows"
         xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels"
         xmlns:pangea="using:CdCSharp.Pangea.Navigation"
         x:Class="CdCSharp.Pangea.Tests.Int.Views.NavigationDemoWindow"
         x:DataType="vm:NavigationDemoViewModel"
         Title="Navigation"
         Width="820" Height="520"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        win:WindowBehavior.CloseOnEscape="True">
 
     <DockPanel>
         <Border DockPanel.Dock="Left" Width="240" Padding="16" BorderThickness="0,0,1,0"
                 BorderBrush="{DynamicResource BorderBrush}">
+            <!-- Only the menu scrolls: the host beside it must keep filling the rest. -->
+            <ScrollViewer>
             <StackPanel Spacing="10">
                 <TextBlock Text="🧭 Navigation" FontSize="18" FontWeight="Bold" />
                 <TextBlock Text="Each button calls INavigationService. The host on the right follows on its own."
@@ -30,6 +34,7 @@
                 <TextBlock Text="{Binding CurrentScreen, StringFormat=Showing: {0}}" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding LastResult}" TextWrapping="Wrap" Opacity="0.7" />
             </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- No Service or Locator set: both come from what the navigation feature published on the

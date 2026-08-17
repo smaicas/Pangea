@@ -263,11 +263,11 @@ public class WindowManager : IWindowManager, IDisposable
         if (window.IsVisible)
         {
             window.Activate();
+            return;
         }
-        else
-        {
-            window.Show();
-        }
+
+        WindowFocus.PlaceInitialFocus(window);
+        window.Show();
     }
 
     private (TWindow window, TViewModel viewModel) CreateDialogWindow<TWindow, TViewModel>()

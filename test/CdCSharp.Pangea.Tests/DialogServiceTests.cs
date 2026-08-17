@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
 using CdCSharp.Pangea.Dialogs;
@@ -302,6 +303,38 @@ public class DialogServiceTests
 
         Button button = Assert.IsType<Button>(focused);
         Assert.Equal("OK", button.Content);
+        owner.Close();
+    }
+
+    /// <summary>
+    /// A long message must not push the buttons off the screen.
+    /// </summary>
+    /// <remarks>
+    /// The dialog sizes itself to its content and cannot be resized, so without a cap a long enough
+    /// message grew it past the screen: no scroll, no resize, and the buttons somewhere unreachable.
+    /// A dialog nobody can answer is worse than an ugly one.
+    /// </remarks>
+    [AvaloniaFact]
+    public void ALongMessage_ScrollsInsteadOfGrowingWithoutEnd()
+    {
+        (DialogService dialogs, Window owner) = Arrange();
+
+        string wall = string.Join(" ", Enumerable.Repeat("This message goes on and on.", 200));
+
+        (_, MessageDialogWindow? dialog) = Ask(
+            () => dialogs.ConfirmAsync("Long", wall),
+            shown => shown.Close(false),
+            out _);
+
+        Assert.NotNull(dialog);
+        Assert.True(dialog!.Height <= dialog.MaxHeight,
+            $"The dialog grew to {dialog.Height}, past its cap of {dialog.MaxHeight}.");
+
+        // The message is what scrolls, and the buttons sit outside it.
+        Assert.NotNull(dialog.MessageScroller);
+        Assert.DoesNotContain(dialog.ConfirmButton,
+            dialog.MessageScroller.GetVisualDescendants().OfType<Button>());
+
         owner.Close();
     }
 

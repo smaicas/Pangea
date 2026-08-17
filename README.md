@@ -458,6 +458,16 @@ For a dialog with its own fields, or a result that is not a bool, write a view m
 and show it with `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>` — `IDialogService`
 is deliberately only these two questions.
 
+**Keyboard.** Windows and dialogs both get focus placed on their first control when they open,
+unless they focused something themselves. Escape closes a dialog; it does not close a window, which
+is the platform convention rather than an oversight — Alt+F4 closes windows, and Escape destroying
+one holding unsaved work is a keystroke away from losing it. A secondary window can ask for it:
+
+```xml
+<Window xmlns:win="using:CdCSharp.Pangea.Windows"
+        win:WindowBehavior.CloseOnEscape="True">
+```
+
 ---
 
 ## 🧭 Navigation
@@ -511,6 +521,11 @@ Put a host where the content belongs and it follows along:
 | `OnNavigatedToAsync` | The screen became current. A request arrives through `INavigationAware<TRequest>` instead |
 
 Going back returns the same view model instance and does **not** replay the request.
+
+**Arriving at a screen moves keyboard focus into it** — the first control that can take it, or the
+host itself when the screen has none, so Tab always has somewhere to start. Set
+`MovesFocusOnNavigation="False"` on a host that is not the main subject of the screen, such as a
+detail pane beside a list where taking focus off the list on every selection would be maddening.
 
 **Views are found by name**, through the same type scan the rest of the toolkit uses:
 `OrderViewModel` is displayed by `OrderView`, and `MainWindowViewModel` by `MainWindow`. Register

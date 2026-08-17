@@ -1,5 +1,8 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CdCSharp.Pangea.Navigation.Abstractions;
 using System.ComponentModel;
 
@@ -31,6 +34,18 @@ public class NavigationHost : ContentControl
     public static readonly StyledProperty<IViewLocator?> LocatorProperty =
         AvaloniaProperty.Register<NavigationHost, IViewLocator?>(nameof(Locator));
 
+    /// <summary>
+    /// Whether arriving at a screen moves keyboard focus into it. On by default.
+    /// </summary>
+    /// <remarks>
+    /// Without it a navigation strands anyone not using a mouse: the element they were on is
+    /// removed from the tree and nothing takes over, so the next Tab starts from the top of the
+    /// window. Turn it off for a host that is not the main subject of the screen - a detail pane beside
+    /// a list, where taking focus off the list is the wrong thing to do.
+    /// </remarks>
+    public static readonly StyledProperty<bool> MovesFocusOnNavigationProperty =
+        AvaloniaProperty.Register<NavigationHost, bool>(nameof(MovesFocusOnNavigation), defaultValue: true);
+
     private INavigationService? _subscribed;
     private bool _attached;
 
@@ -46,6 +61,13 @@ public class NavigationHost : ContentControl
     {
         get => GetValue(LocatorProperty);
         set => SetValue(LocatorProperty, value);
+    }
+
+    /// <inheritdoc cref="MovesFocusOnNavigationProperty"/>
+    public bool MovesFocusOnNavigation
+    {
+        get => GetValue(MovesFocusOnNavigationProperty);
+        set => SetValue(MovesFocusOnNavigationProperty, value);
     }
 
     public static void SetApplicationService(Application application, INavigationService? value) =>
@@ -121,6 +143,38 @@ public class NavigationHost : ContentControl
         _subscribed = null;
     }
 
+    /// <summary>
+    /// Puts keyboard focus on the first thing the user can act on in the screen just shown.
+    /// </summary>
+    /// <remarks>
+    /// Queued rather than done inline: the content has only just been assigned and has no visual
+    /// children to search until a layout pass has run. Falls back to the host itself so there is
+    /// always somewhere for focus to land, and therefore somewhere for Tab to start.
+    /// </remarks>
+    private void MoveFocusIntoTheNewScreen()
+    {
+        if (!MovesFocusOnNavigation || !_attached) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_attached || Content is not Visual shown) return;
+
+            InputElement? target = shown.GetVisualDescendants()
+                .OfType<InputElement>()
+                .FirstOrDefault(candidate =>
+                    candidate.Focusable && candidate.IsEffectivelyEnabled && candidate.IsEffectivelyVisible);
+
+            if (target is not null)
+            {
+                target.Focus();
+                return;
+            }
+
+            Focusable = true;
+            Focus();
+        }, DispatcherPriority.Loaded);
+    }
+
     private void OnServiceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(INavigationService.CurrentViewModel))
@@ -157,5 +211,7 @@ public class NavigationHost : ContentControl
         }
 
         Content = locator.Locate(viewModel);
+
+        MoveFocusIntoTheNewScreen();
     }
 }

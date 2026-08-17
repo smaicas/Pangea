@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -14,7 +15,7 @@ namespace CdCSharp.Pangea.Dialogs;
 /// </remarks>
 internal sealed class MessageDialogWindow : Window
 {
-    private MessageDialogWindow(string title, string message, string confirmText, string? cancelText)
+    private MessageDialogWindow(string title, string text, string confirmText, string? cancelText)
     {
         Title = title;
         SizeToContent = SizeToContent.WidthAndHeight;
@@ -61,28 +62,43 @@ internal sealed class MessageDialogWindow : Window
 
         buttons.Children.Add(ConfirmButton);
 
-        StackPanel content = new()
+        // The buttons are docked first so they keep their place whatever the message does; the
+        // message fills what is left and scrolls inside it. Sized to content but capped: a long
+        // message used to grow the window past the screen, and with no scroll and no resize the
+        // buttons ended up somewhere unreachable - a dialog nobody could answer.
+        MaxHeight = 520;
+
+        buttons.Margin = new Avalonia.Thickness(0, 20, 0, 0);
+
+        ScrollViewer message = new()
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.Wrap
+            }
+        };
+
+        DockPanel content = new()
         {
             Margin = new Avalonia.Thickness(24),
-            Spacing = 20,
             MaxWidth = 480
         };
 
-        content.Children.Add(new TextBlock
-        {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap
-        });
-
+        DockPanel.SetDock(buttons, Dock.Bottom);
         content.Children.Add(buttons);
+        content.Children.Add(message);
 
+        MessageScroller = message;
         Content = content;
 
-        // Something has to hold focus for the keyboard to work at all: Enter and Escape are routed
-        // by IsDefault and IsCancel regardless, but Space acts on the focused control and Tab needs
-        // somewhere to start. Focusing on Opened rather than here, because a control cannot take
-        // focus before the window it lives in exists.
-        Opened += (_, _) => ConfirmButton.Focus();
+        // Enter and Escape are routed by IsDefault and IsCancel whatever holds focus, but Space acts
+        // on the focused control and Tab needs somewhere to start. The default button is named
+        // explicitly: left to the general rule it would be Cancel, which is simply the first one in
+        // the row.
+        Windows.WindowFocus.PlaceInitialFocus(this, () => ConfirmButton);
 
         Created?.Invoke(this);
     }
@@ -92,6 +108,9 @@ internal sealed class MessageDialogWindow : Window
     /// enumerate windows from.
     /// </summary>
     internal static event Action<MessageDialogWindow>? Created;
+
+    /// <summary>Where the message lives, so a test can prove it is the part that scrolls.</summary>
+    internal ScrollViewer MessageScroller { get; }
 
     internal Button ConfirmButton { get; }
 

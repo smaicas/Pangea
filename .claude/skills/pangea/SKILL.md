@@ -237,91 +237,14 @@ public partial class SafeViewModel : ViewModelBase
 
 ## Theming
 
-Two **independent** axes. Do not conflate them:
+A theme is a `PangeaTheme` built from two `PangeaPalette` classes, one per variant. Inherit
+`PangeaPalette` or `DarkPalette`, override the colours you want, and every brush derived from them
+follows. Register it through `ThemingOptions.Themes`, and override the entry named
+`PangeaTheme.DefaultName` to restyle the toolkit's own look.
 
-- **Theme** — a pair of palettes, one light and one dark. `SetTheme("Corporate")`.
-- **Variant** — which of the two is showing. `SetVariant(ThemeVariant.Dark)`.
-
-Switching theme keeps the variant, and switching variant keeps the theme.
-
-### Declaring a theme
-
-Inherit a palette and override only the colours you care about. **Never edit the XAML under
-`Resources/`** — that is Avalonia's Simple theme vendored into the toolkit, and a test guards it
-against drift.
-
-```csharp
-using Avalonia.Media;
-using CdCSharp.Pangea.Theming.Palettes;
-
-// PangeaPalette carries the light values, so a light palette overrides from the base.
-public sealed class CorporateLight : PangeaPalette
-{
-    public override Color ThemeAccentColor => Color.Parse("#FF1B6EC2");
-    public override Color ThemeBackgroundColor => Color.Parse("#FFFAFAFA");
-}
-
-public sealed class CorporateDark : DarkPalette
-{
-    public override Color ThemeAccentColor => Color.Parse("#FF4F9DDE");
-}
-```
-
-Each colour property name **is** its resource key, and every colour also produces a brush with
-`Color` swapped for `Brush`. Overriding `ThemeAccentColor` updates `ThemeAccentColor`,
-`ThemeAccentBrush`, and everything derived from them — including brushes derived at reduced opacity.
-
-### Registering it
-
-```csharp
-using Avalonia.Styling;
-using CdCSharp.Pangea.Theming;
-using CdCSharp.Pangea.Theming.Palettes;
-using Microsoft.Extensions.DependencyInjection;
-
-public static class ThemeRegistration
-{
-    public static void AddThemes(IServiceCollection services) =>
-        services.Configure<ThemingOptions>(options =>
-        {
-            // Restyle the whole application by replacing the default entry...
-            options.Themes[PangeaTheme.DefaultName] =
-                new PangeaTheme(new CorporateLight(), new CorporateDark());
-
-            // ...or add more and let the user pick.
-            options.Themes["HighContrast"] = new PangeaTheme(new CorporateLight(), new CorporateDark());
-
-            options.EnableSystemThemeDetection = true;   // follow the OS preference
-            options.FallbackVariant = ThemeVariant.Dark; // when it has none
-        });
-}
-```
-
-### Switching at runtime
-
-```csharp
-using Avalonia.Styling;
-using CdCSharp.Pangea.Core.Base;
-using CdCSharp.Pangea.Theming.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-
-public partial class AppearanceViewModel : ViewModelBase
-{
-    private readonly IThemeService _themes;
-
-    public AppearanceViewModel(IServiceProvider services) : base(services) =>
-        _themes = services.GetRequiredService<IThemeService>();
-
-    public IReadOnlyCollection<string> Themes => _themes.AvailableThemes;
-
-    public RelayCommand UseDarkCommand => CreateCommand(() => _themes.SetVariant(ThemeVariant.Dark));
-    public RelayCommand<string> UseThemeCommand => CreateCommand<string>(name => _themes.SetTheme(name!));
-}
-```
-
-In XAML, bind to the resource keys with `DynamicResource` so the UI follows theme and variant
-changes. Because the palettes are Avalonia theme variants, a `ThemeVariantScope` can render part of
-the UI in the opposite variant.
+The palette classes, the naming rule between colours and brushes, the irregular keys and the full
+worked example are in [references/theming.md](references/theming.md); every resource key is in
+[references/resource-keys.md](references/resource-keys.md).
 
 ---
 
@@ -457,6 +380,9 @@ Put a host where the content belongs:
 - `GoBackAsync()` returns the same view model instance and does **not** replay the request.
 - Views are found by name: `OrderViewModel` is displayed by `OrderView`, `MainWindowViewModel` by
   `MainWindow`. Otherwise call `IViewLocator.Register<TViewModel, TView>()`.
+- Arriving at a screen moves keyboard focus into it - the first control that can take it, or
+  the host itself when the screen has none. Set `MovesFocusOnNavigation="False"` on a host
+  that is not the main subject of the screen, such as a detail pane beside a list.
 - A request whose destination does not implement `INavigationAware<TRequest>` aborts startup. Do
   not declare a request without implementing the matching interface on the view model it names.
 
@@ -502,6 +428,40 @@ public partial class OrdersViewModel : ViewModelBase
 - For a dialog with its own fields or a result that is not a bool, write a view model and a window
   and use `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>`. `IDialogService` is
   deliberately only these two questions.
+
+### Windows have to fit on smaller screens
+
+A window is opened at a size that suits the developer's monitor and then used on someone else's.
+Make the part that holds content scroll, and **choose where the scroll goes** rather than wrapping
+the whole window: inside a `ScrollViewer` the available height becomes infinite, so `*` rows
+collapse and anything that stretches stops stretching.
+
+```xml
+<Grid RowDefinitions="Auto,*">
+  <Border Grid.Row="0"> <!-- header, stays put --> </Border>
+
+  <ScrollViewer Grid.Row="1">   <!-- only the content region scrolls -->
+    <StackPanel> <!-- ... --> </StackPanel>
+  </ScrollViewer>
+</Grid>
+```
+
+For a side panel next to a filling region, scroll the panel alone and leave the region to fill.
+The toolkit does not do this for you, deliberately: only the author knows which part should scroll
+and which should stretch.
+
+### Keyboard, for windows and dialogs alike
+
+- **Both get focus placed for them** when they open, on the first control that can take it - unless
+  the window focused something itself, which is always respected.
+- **Escape closes a dialog. It does not close a window**, and that is the platform convention, not
+  an oversight: Alt+F4 closes windows, and Escape destroying one holding unsaved work would be a
+  keystroke away from losing it. For a secondary window where Alt+F4 feels absurd, ask for it:
+
+```xml
+<Window xmlns:win="using:CdCSharp.Pangea.Windows"
+        win:WindowBehavior.CloseOnEscape="True">
+```
 
 ---
 

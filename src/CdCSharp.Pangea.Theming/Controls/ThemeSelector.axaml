@@ -9,6 +9,7 @@
         IsChecked="{Binding IsDark, Mode=TwoWay}"
         HorizontalAlignment="Left"
         ToolTip.Tip="{Binding VariantTooltip}"
+        AutomationProperties.Name="{Binding VariantTooltip}"
         Width="44"
         Height="44"
         CornerRadius="22"
