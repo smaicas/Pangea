@@ -110,8 +110,11 @@ public partial class OrderViewModel : ViewModelBase
   through chains: `Quantity → Total → CanSubmit`.
 - A **command** whose `CanExecute` reads a property — directly, through a `bool CanX()` method, or
   through a computed property — gets `RaiseCanExecuteChanged()` in that property's setter.
-- If `OnXChanged` calls a method that **mutates a collection**, whatever computed properties read
-  that collection are notified.
+- If a change hook **fills a collection** - in its own body, or through any method it calls,
+  however deep - the computed properties that read that collection are notified. Only that
+  collection: readers of a collection the hook did not touch stay quiet. The collection type does
+  not matter; `List<T>` behaves like `ObservableCollection<T>` here, because what drives the
+  notification is the hook, not the collection.
 
 ### Rules that matter
 
@@ -487,7 +490,11 @@ public partial class LoggingApp : PangeaApplication
 - **`ConfigurePangeaOptions` must return the options.** The return value is what the container uses.
 - **Do not register view models yourself** — `AutoRegisterViewModels` already did.
 - **Do not edit the theme XAML under `Resources/Controls/Shared`.** Declare a palette instead.
-- **`ReadTextAsync` throws, `ReadJsonAsync` returns null.** Pick the one matching the situation.
+- **`ReadTextAsync` throws, `ReadJsonAsync` returns null** for a file that is not there. A file
+  that is there but unreadable throws in both cases: corrupt data is not absent data.
+- **`GetDataFilePath` only names files inside the data folder.** A relative name, subfolders
+  included, is fine; an absolute path or one climbing out with `..` is rejected. Pass a
+  path from outside straight to the read and write methods instead.
 
 ### What the generator reports
 
@@ -497,7 +504,7 @@ code, these are the mistakes it catches:
 | | |
 |---|---|
 | `PGB001` | The class has `[Binding]` fields and is not `partial` |
-| `PGB002` | The class has `[Binding]` fields and does not derive from `ViewModelBase` |
+| `PGB002` | The class has `[Binding]` fields and inherits no `SetProperty`/`OnPropertyChanged` |
 | `PGB003` | Two `[Binding]` fields would generate the same property |
 | `PGB004` | The generated property name is already declared in the class |
 | `PGB005` | `[Binding]` on a `static` field, which is ignored (warning) |

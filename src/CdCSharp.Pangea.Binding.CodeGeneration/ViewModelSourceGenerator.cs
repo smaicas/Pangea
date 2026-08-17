@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using System;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -49,17 +50,65 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
             .Any(p => p.Type.ToString().Contains("RelayCommand"));
     }
 
+    /// <summary>
+    /// Analyses the class this declaration belongs to, once, from all of its declarations.
+    /// </summary>
+    /// <remarks>
+    /// The syntax provider fires per declaration, and a partial class has several. Generating from
+    /// each one produced two files with the same name for one class - which makes Roslyn drop the
+    /// generator for the entire compilation - and each analysis only ever saw its own half of the
+    /// class. One declaration is elected to do the work for all of them.
+    /// </remarks>
     private static ViewModelAnalysis? AnalyzeViewModel(GeneratorSyntaxContext context)
     {
         if (context.Node is not ClassDeclarationSyntax classDeclaration) return null;
 
+        if (context.SemanticModel.GetDeclaredSymbol(classDeclaration) is not INamedTypeSymbol classSymbol)
+        {
+            return null;
+        }
+
+        List<ClassDeclarationSyntax> declarations = classSymbol.DeclaringSyntaxReferences
+            .Select(reference => reference.GetSyntax())
+            .OfType<ClassDeclarationSyntax>()
+            .OrderBy(declaration => declaration.SyntaxTree.FilePath, StringComparer.Ordinal)
+            .ThenBy(declaration => declaration.SpanStart)
+            .ToList();
+
+        if (declarations.Count == 0) declarations.Add(classDeclaration);
+
+        // Only the first declaration that is itself a candidate generates: the others would repeat
+        // the same output. Elected among candidates, because a class can keep its [Binding] fields
+        // in a later file than the one it was opened in.
+        ClassDeclarationSyntax? elected = declarations.FirstOrDefault(IsCandidateViewModel);
+
+        if (elected is null || elected != classDeclaration) return null;
+
+        Compilation compilation = context.SemanticModel.Compilation;
+
+        List<ViewModelPart> parts = declarations
+            .Select(declaration => new ViewModelPart(
+                declaration,
+                declaration.SyntaxTree == context.SemanticModel.SyntaxTree
+                    ? context.SemanticModel
+                    : compilation.GetSemanticModel(declaration.SyntaxTree)))
+            .ToList();
+
         FunctionalAnalyzer analyzer = new FunctionalAnalyzer();
-        return analyzer.AnalyzeViewModel(classDeclaration, context.SemanticModel);
+        return analyzer.AnalyzeViewModel(parts);
     }
 
     private static void GenerateCode(ViewModelAnalysis? analysis, SourceProductionContext context)
     {
-        if (analysis == null || analysis.BindingFields.Count == 0) return;
+        if (analysis == null) return;
+
+        // A class can have nothing of its own to generate and still need the forwarding override:
+        // a screen deriving from a shared view model, computing from what the base declares.
+        bool hasSomethingToEmit = analysis.BindingFields.Count > 0 ||
+                                  analysis.InheritedDependencyNotifications.Count > 0 ||
+                                  analysis.InheritedCommandNotifications.Count > 0;
+
+        if (!hasSomethingToEmit) return;
 
         foreach (Diagnostic diagnostic in analysis.Diagnostics)
         {
@@ -133,6 +182,8 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
             sb.AppendLine($"    partial void On{field.PropertyName}Changed();");
         }
 
+        GenerateInheritedDependencyForwarding(sb, analysis);
+
         sb.AppendLine("}");
 
         // One closing brace per enclosing type opened above.
@@ -142,6 +193,64 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Forwards notifications for properties this class depends on but did not declare.
+    /// </summary>
+    /// <remarks>
+    /// The base class raises its own property; it cannot know that a subclass computed something
+    /// from it. Overriding OnPropertyChanged is where the subclass gets to find out.
+    /// </remarks>
+    private static void GenerateInheritedDependencyForwarding(StringBuilder sb, ViewModelAnalysis analysis)
+    {
+        if (analysis.InheritedDependencyNotifications.Count == 0 &&
+            analysis.InheritedCommandNotifications.Count == 0)
+        {
+            return;
+        }
+
+        IEnumerable<string> inheritedProperties = analysis.InheritedDependencyNotifications.Keys
+            .Concat(analysis.InheritedCommandNotifications.Keys)
+            .Distinct()
+            .OrderBy(name => name, StringComparer.Ordinal);
+
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Raises what this class derives from properties declared by a base class.</summary>");
+        sb.AppendLine("    protected override void OnPropertyChanged(string? propertyName = null)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        base.OnPropertyChanged(propertyName);");
+        sb.AppendLine();
+        sb.AppendLine("        switch (propertyName)");
+        sb.AppendLine("        {");
+
+        foreach (string inherited in inheritedProperties)
+        {
+            sb.AppendLine($"            case nameof({inherited}):");
+
+            if (analysis.InheritedDependencyNotifications.TryGetValue(inherited, out List<string>? dependents))
+            {
+                foreach (string dependent in dependents.OrderBy(name => name, StringComparer.Ordinal))
+                {
+                    // base, not this: the dependent is not itself a base property, so re-entering
+                    // the switch would only look for it and find nothing.
+                    sb.AppendLine($"                base.OnPropertyChanged(nameof({dependent}));");
+                }
+            }
+
+            if (analysis.InheritedCommandNotifications.TryGetValue(inherited, out List<string>? commands))
+            {
+                foreach (string command in commands.OrderBy(name => name, StringComparer.Ordinal))
+                {
+                    sb.AppendLine($"                {command}.RaiseCanExecuteChanged();");
+                }
+            }
+
+            sb.AppendLine("                break;");
+        }
+
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
     }
 
     /// <summary>Turns a qualified type name into something usable as a file name.</summary>

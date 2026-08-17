@@ -193,11 +193,11 @@ partial class ProductViewModel
 | Computed properties | An expression- or getter-bodied property that reads a binding property is notified when it changes |
 | Transitive chains | `Price → DisplayName → Summary` propagates without you listing it |
 | Commands | A command whose `CanExecute` reads a property — directly, through a `CanX` method, or through a computed property — gets `RaiseCanExecuteChanged()` |
-| Collections | If `OnXChanged` calls a method that mutates a collection, whatever reads that collection is notified |
+| Collections | If a change hook fills a collection - in its own body or through anything it calls - whatever reads that collection is notified, and only that collection |
 
 **When it cannot generate**, it says so instead of letting the compiler complain about a file you
-did not write: a class that is not `partial` (`PGB001`), one that does not derive from
-`ViewModelBase` (`PGB002`), two fields that would produce the same property (`PGB003`), a name the
+did not write: a class that is not `partial` (`PGB001`), one whose base supplies no change
+notification (`PGB002`), two fields that would produce the same property (`PGB003`), a name the
 class already declares (`PGB004`), or `[Binding]` on a `static` field (`PGB005`, a warning). A class
 with an error generates nothing, so the symptom is a property that is not there.
 

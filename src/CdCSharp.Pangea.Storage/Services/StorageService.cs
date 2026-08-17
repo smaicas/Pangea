@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Storage.Abstractions;
+﻿using CdCSharp.Pangea.Storage.Abstractions;
 using System.Text.Json;
 
 namespace CdCSharp.Pangea.Storage.Services;
@@ -34,10 +34,48 @@ public class StorageService : IStorageService
 
     public string GetCachePath() => _pathProvider.GetCachePath();
 
+    /// <summary>
+    /// The full path of a file inside the application's data folder. Subfolders are allowed;
+    /// anything that would land outside the folder is rejected.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Path.Combine(string, string)"/> answers an absolute second argument by discarding
+    /// the first, and says nothing about "..", so a file name taken from user input or from a
+    /// document could be written anywhere the process can reach. A method whose whole purpose is to
+    /// place a file in the data folder should not be the way out of it.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="fileName"/> is blank, absolute, or escapes the data folder.
+    /// </exception>
     public string GetDataFilePath(string fileName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
-        return Path.Combine(GetApplicationDataPath(), fileName);
+
+        if (Path.IsPathRooted(fileName))
+        {
+            throw new ArgumentException(
+                $"'{fileName}' is an absolute path. GetDataFilePath names a file inside the " +
+                "application data folder; pass a relative name, or use the absolute path directly.",
+                nameof(fileName));
+        }
+
+        string root = Path.GetFullPath(GetApplicationDataPath());
+        string combined = Path.GetFullPath(Path.Combine(root, fileName));
+
+        // Compared with a trailing separator so that a sibling folder whose name merely starts the
+        // same way - "MyApp.backup" next to "MyApp" - does not read as being inside it.
+        string rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            ? root
+            : root + Path.DirectorySeparatorChar;
+
+        if (!combined.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"'{fileName}' resolves to '{combined}', which is outside the application data folder.",
+                nameof(fileName));
+        }
+
+        return combined;
     }
 
     /// <summary>

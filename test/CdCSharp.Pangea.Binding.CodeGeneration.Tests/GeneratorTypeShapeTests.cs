@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 
 namespace CdCSharp.Pangea.Binding.CodeGeneration.Tests;
 
@@ -156,5 +156,99 @@ public class GeneratorTypeShapeTests
 
         Assert.Contains(result.Sources,
             source => source.HintName.StartsWith("App.Outer.Middle.DeepViewModel", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// One class, two declarations - what <c>partial</c> is for, and what the toolkit requires of
+    /// every view model.
+    /// </summary>
+    /// <remarks>
+    /// Generating per declaration wrote the same file name twice, and Roslyn answers that by
+    /// dropping the generator for the whole compilation.
+    /// </remarks>
+    [Fact]
+    public void APartialClassSplitAcrossDeclarations_IsGeneratedOnce()
+    {
+        GeneratorTestHelper.GeneratorResult result = Generate("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace App;
+
+            public partial class SplitViewModel : ViewModelBase
+            {
+                public SplitViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private int _quantity;
+            }
+
+            public partial class SplitViewModel
+            {
+                [Binding] private decimal _unitPrice;
+            }
+            """);
+
+        Assert.Single(result.Sources, source => source.HintName.EndsWith(".Binding.g.cs", StringComparison.Ordinal));
+
+        string generated = string.Join("\n", result.Sources.Select(source => source.Text));
+
+        // Both halves, in the one file.
+        Assert.Contains("public int Quantity", generated, StringComparison.Ordinal);
+        Assert.Contains("public decimal UnitPrice", generated, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The reason generating per declaration was wrong even before the file names collided: each
+    /// run only saw its own half, so a dependency across the split went unnoticed.
+    /// </summary>
+    [Fact]
+    public void ADependencyAcrossTheSplit_IsStillNoticed()
+    {
+        GeneratorTestHelper.GeneratorResult result = Generate("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace App;
+
+            public partial class OrderViewModel : ViewModelBase
+            {
+                public OrderViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private int _quantity;
+            }
+
+            public partial class OrderViewModel
+            {
+                public int Doubled => Quantity * 2;
+            }
+            """);
+
+        string generated = string.Join("\n", result.Sources.Select(source => source.Text));
+
+        Assert.Contains("OnPropertyChanged(nameof(Doubled))", generated, StringComparison.Ordinal);
+    }
+
+    /// <summary>The fields can live in a later file than the one that opens the class.</summary>
+    [Fact]
+    public void TheBindingFieldsMayBeInTheSecondDeclaration()
+    {
+        GeneratorTestHelper.GeneratorResult result = Generate("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace App;
+
+            public partial class LateViewModel : ViewModelBase
+            {
+                public LateViewModel(IServiceProvider sp) : base(sp) { }
+            }
+
+            public partial class LateViewModel
+            {
+                [Binding] private int _count;
+            }
+            """);
+
+        string generated = string.Join("\n", result.Sources.Select(source => source.Text));
+
+        Assert.Contains("public int Count", generated, StringComparison.Ordinal);
     }
 }

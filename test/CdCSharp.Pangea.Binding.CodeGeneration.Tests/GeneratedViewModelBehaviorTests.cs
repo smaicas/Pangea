@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Core.Base;
+﻿using CdCSharp.Pangea.Core.Base;
 using System.ComponentModel;
 using System.Reflection;
 
@@ -270,6 +270,76 @@ public class GeneratedViewModelBehaviorTests
         Assert.Contains("Query", raised);
         Assert.Contains("HasResults", raised);
         Assert.True((bool)GetProperty(viewModel, "HasResults")!);
+    }
+
+    /// <summary>
+    /// A shared base view model with the common fields, a screen deriving from it and computing
+    /// from them. The setter that raises the inherited property lives in the base class, which
+    /// cannot know what a subclass derived from it.
+    /// </summary>
+    [Fact]
+    public void AComputedPropertyDependingOnAnInheritedBinding_IsStillNotified()
+    {
+        const string source = """
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace Sample;
+
+            public partial class SharedViewModel : ViewModelBase
+            {
+                public SharedViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private int _quantity;
+            }
+
+            public partial class ScreenViewModel : SharedViewModel
+            {
+                public ScreenViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private decimal _unitPrice;
+
+                public decimal Total => Quantity * UnitPrice;
+            }
+            """;
+
+        object viewModel = CreateViewModel(source, "Sample.ScreenViewModel");
+        List<string?> raised = TrackPropertyChanged(viewModel);
+
+        // Declared here: this has always worked.
+        SetProperty(viewModel, "UnitPrice", 5m);
+        Assert.Contains("Total", raised);
+
+        raised.Clear();
+
+        // Declared by the base: silently missed before, because nothing connected the two.
+        SetProperty(viewModel, "Quantity", 3);
+
+        Assert.Contains("Quantity", raised);
+        Assert.Contains("Total", raised);
+        Assert.Equal(15m, GetProperty(viewModel, "Total"));
+    }
+
+    /// <summary>A class that inherits nothing it depends on gets no forwarding at all.</summary>
+    [Fact]
+    public void AViewModelWithNoInheritedDependencies_DoesNotOverrideOnPropertyChanged()
+    {
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.Run("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace Sample;
+
+            public partial class PlainViewModel : ViewModelBase
+            {
+                public PlainViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private int _count;
+
+                public int Doubled => Count * 2;
+            }
+            """);
+
+        string generated = string.Join("\n", result.Sources.Select(source => source.Text));
+
+        Assert.DoesNotContain("override void OnPropertyChanged", generated, StringComparison.Ordinal);
     }
 
     private static object CreateViewModel(string source, string typeName)

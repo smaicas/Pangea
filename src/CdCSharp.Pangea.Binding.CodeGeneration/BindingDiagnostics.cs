@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 
 namespace CdCSharp.Pangea.Binding.CodeGeneration;
 
@@ -26,8 +26,8 @@ internal static class BindingDiagnostics
 
     internal static readonly DiagnosticDescriptor ClassMustDeriveFromViewModelBase = new(
         id: "PGB002",
-        title: "A view model with [Binding] fields must derive from ViewModelBase",
-        messageFormat: "'{0}' has [Binding] fields but does not derive from ViewModelBase, so the generated properties have no SetProperty to call",
+        title: "A view model with [Binding] fields needs a base that raises change notifications",
+        messageFormat: "'{0}' has [Binding] fields but inherits no SetProperty and OnPropertyChanged for the generated properties to call; derive from ViewModelBase, or from a base that provides them",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);

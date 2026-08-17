@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 
 namespace CdCSharp.Pangea.Binding.CodeGeneration.Tests;
 
@@ -106,6 +106,48 @@ public class DiagnosticTests
 
         Assert.Equal(DiagnosticSeverity.Error, reported.Severity);
         Assert.Contains("Total", reported.GetMessage(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// PGB002 is an error, so a false positive breaks a build that was compiling. It asks whether
+    /// the members the generated code calls are inherited, not whether the base is named
+    /// ViewModelBase: an application with its own notifying base is entitled to use [Binding].
+    /// </summary>
+    [Fact]
+    public void AnApplicationsOwnNotifyingBase_IsAccepted()
+    {
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.Run("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using System.Collections.Generic;
+            using System.ComponentModel;
+            using System.Runtime.CompilerServices;
+
+            namespace App;
+
+            public abstract class MyOwnBase : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                protected virtual void OnPropertyChanged([CallerMemberName] string? name = null) =>
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+                protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
+                {
+                    if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+                    field = value;
+                    OnPropertyChanged(name);
+                    return true;
+                }
+            }
+
+            public partial class CustomViewModel : MyOwnBase
+            {
+                [Binding] private int _count;
+            }
+            """);
+
+        Assert.Empty(result.Diagnostics);
+        Assert.NotEmpty(result.Sources);
     }
 
     /// <summary>The one that said nothing at all: the attribute was simply ignored.</summary>

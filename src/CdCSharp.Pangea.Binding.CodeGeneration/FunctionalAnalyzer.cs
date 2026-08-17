@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,30 +14,54 @@ namespace CdCSharp.Pangea.Binding.CodeGeneration;
 /// </summary>
 public class FunctionalAnalyzer
 {
-    private ClassDeclarationSyntax _currentClass = null!;
+    /// <summary>
+    /// Every declaration of the class under analysis. A partial class is one type however many
+    /// files it is written across, and a member lookup that only sees one of them misses the rest.
+    /// </summary>
+    private IReadOnlyList<ClassDeclarationSyntax> _declarations = new List<ClassDeclarationSyntax>();
 
-    public ViewModelAnalysis AnalyzeViewModel(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
+    public ViewModelAnalysis AnalyzeViewModel(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel) =>
+        AnalyzeViewModel(new[] { new ViewModelPart(classDeclaration, semanticModel) });
+
+    /// <summary>
+    /// Analyses a class from all of its declarations at once.
+    /// </summary>
+    /// <remarks>
+    /// The generator used to run once per declaration, which meant a class split across files was
+    /// analysed twice, each time seeing half of itself - and both halves asked to write the same
+    /// output file, which makes Roslyn drop the generator for the whole compilation.
+    /// </remarks>
+    public ViewModelAnalysis AnalyzeViewModel(IReadOnlyList<ViewModelPart> parts)
     {
-        _currentClass = classDeclaration;
+        _declarations = parts.Select(part => part.Declaration).ToList();
+
+        ClassDeclarationSyntax primary = parts[0].Declaration;
 
         ViewModelAnalysis analysis = new ViewModelAnalysis
         {
-            ClassName = classDeclaration.Identifier.ValueText,
-            Namespace = GetNamespace(classDeclaration),
-            TypeParameters = classDeclaration.TypeParameterList?.ToString() ?? "",
-            ContainingTypes = GetContainingTypes(classDeclaration)
+            ClassName = primary.Identifier.ValueText,
+            Namespace = GetNamespace(primary),
+            TypeParameters = primary.TypeParameterList?.ToString() ?? "",
+            ContainingTypes = GetContainingTypes(primary)
         };
 
         // Phase 1: Inventory - Detectar todos los elementos funcionales
-        InventoryBindingFields(classDeclaration, semanticModel, analysis);
+        foreach (ViewModelPart part in parts)
+        {
+            InventoryBindingFields(part.Declaration, part.SemanticModel, analysis);
+        }
 
         // Validation needs the inventory: two of the checks are about the names it produced.
-        Validate(classDeclaration, semanticModel, analysis);
-        InventoryComputedProperties(classDeclaration, analysis);
-        InventoryCanExecuteElements(classDeclaration, analysis);
-        InventoryCommands(classDeclaration, analysis);
-        InventoryPartialVoidMethods(classDeclaration, analysis);
-        InventoryCollectionModifyingMethods(classDeclaration, analysis);
+        Validate(parts, analysis);
+
+        foreach (ViewModelPart part in parts)
+        {
+            InventoryComputedProperties(part.Declaration, analysis);
+            InventoryCanExecuteElements(part.Declaration, analysis);
+            InventoryCommands(part.Declaration, analysis);
+            InventoryPartialVoidMethods(part.Declaration, analysis);
+            InventoryCollectionModifyingMethods(part.Declaration, analysis);
+        }
 
         // Phase 2: Dependency Analysis - Construir grafo completo de dependencias
         BuildCompleteDependencyGraph(analysis);
@@ -46,6 +71,9 @@ public class FunctionalAnalyzer
 
         // Phase 4: Generate notification requirements
         CalculateNotificationRequirements(analysis);
+
+        // Phase 5: dependencies on properties this class did not declare
+        CalculateInheritedDependencies(parts, analysis);
 
         return analysis;
     }
@@ -265,11 +293,15 @@ public class FunctionalAnalyzer
             if (method.Body != null || method.ExpressionBody != null)
             {
                 List<string> methodCalls = ExtractMethodCalls(method);
+                SyntaxNode hookBody = (SyntaxNode?)method.Body ?? method.ExpressionBody!.Expression;
+
                 PartialVoidMethodInfo partialMethodInfo = new PartialVoidMethodInfo
                 {
                     MethodName = method.Identifier.ValueText,
                     CalledMethods = methodCalls,
-                    PropertyName = ExtractPropertyNameFromOnChanged(method.Identifier.ValueText)
+                    PropertyName = ExtractPropertyNameFromOnChanged(method.Identifier.ValueText),
+                    ModifiedCollections = CollectionsModifiedFrom(hookBody, new HashSet<string>()),
+                    ManualNotifications = ManualNotificationsFrom(hookBody, new HashSet<string>())
                 };
 
                 analysis.PartialVoidMethods.Add(partialMethodInfo);
@@ -428,7 +460,7 @@ public class FunctionalAnalyzer
 
             foreach (string pattern in patterns)
             {
-                MethodDeclarationSyntax? method = _currentClass.Members
+                MethodDeclarationSyntax? method = AllMembers()
                     .OfType<MethodDeclarationSyntax>()
                     .FirstOrDefault(m => m.Identifier.ValueText == pattern);
 
@@ -655,24 +687,14 @@ public class FunctionalAnalyzer
 
         if (partialMethod != null)
         {
-            foreach (string calledMethod in partialMethod.CalledMethods)
+            // Everything the hook reaches, in its own body or through what it calls.
+            result.AddRange(partialMethod.ManualNotifications);
+
+            foreach (string modifiedCollection in partialMethod.ModifiedCollections)
             {
-                CollectionModifyingMethodInfo? collectionMethod = analysis.CollectionModifyingMethods
-                    .FirstOrDefault(cmm => cmm.MethodName == calledMethod);
-
-                if (collectionMethod != null)
-                {
-                    result.AddRange(collectionMethod.ManualNotifications);
-
-                    foreach (string modifiedCollection in collectionMethod.ModifiedCollections)
-                    {
-                        IEnumerable<string> dependentProperties = analysis.ComputedProperties
-                            .Where(cp => cp.DirectDependencies.Contains(modifiedCollection))
-                            .Select(cp => cp.PropertyName);
-
-                        result.AddRange(dependentProperties);
-                    }
-                }
+                result.AddRange(analysis.ComputedProperties
+                    .Where(cp => cp.DirectDependencies.Contains(modifiedCollection))
+                    .Select(cp => cp.PropertyName));
             }
         }
 
@@ -953,7 +975,114 @@ public class FunctionalAnalyzer
             }
         }
 
+        // Through the methods it calls, too: a computed property written as Total => Compute() reads
+        // its dependencies just as surely as one written inline, and commands and collections have
+        // always been followed this way.
+        SyntaxNode? body = property.ExpressionBody?.Expression
+                           ?? (SyntaxNode?)property.AccessorList?.Accessors
+                               .FirstOrDefault(a => a.Keyword.ValueText == "get");
+
+        if (body != null)
+        {
+            properties.AddRange(DependenciesThroughCalls(body, new HashSet<string>()));
+        }
+
         return properties.Where(p => IsValidPropertyReference(p)).Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Collections modified starting from <paramref name="body"/>, following what it calls.
+    /// </summary>
+    /// <remarks>
+    /// A change hook mutates a collection directly as often as it delegates, and a helper may call
+    /// another helper. Only the one-hop delegating shape used to be recognised, so the other ways
+    /// of writing the same thing silently notified nothing.
+    /// </remarks>
+    private List<string> CollectionsModifiedFrom(SyntaxNode body, HashSet<string> visitedMethods) =>
+        WalkFrom(body, visitedMethods, DetectCollectionModifications);
+
+    private List<string> ManualNotificationsFrom(SyntaxNode body, HashSet<string> visitedMethods) =>
+        WalkFrom(body, visitedMethods, ExtractManualNotifications);
+
+    /// <summary>Applies <paramref name="collect"/> to a body and to every method it reaches.</summary>
+    private List<string> WalkFrom(SyntaxNode body, HashSet<string> visitedMethods,
+        Func<SyntaxNode, List<string>> collect)
+    {
+        List<string> found = new List<string>(collect(body));
+
+        foreach (MethodDeclarationSyntax method in MethodsCalledFrom(body, visitedMethods))
+        {
+            SyntaxNode? methodBody = (SyntaxNode?)method.Body ?? method.ExpressionBody?.Expression;
+
+            if (methodBody == null) continue;
+
+            found.AddRange(WalkFrom(methodBody, visitedMethods, collect));
+        }
+
+        return found.Distinct().ToList();
+    }
+
+    /// <summary>Methods invoked in <paramref name="body"/> that this class declares.</summary>
+    private IEnumerable<MethodDeclarationSyntax> MethodsCalledFrom(SyntaxNode body, HashSet<string> visitedMethods)
+    {
+        // DescendantNodesAndSelf: an expression-bodied member is the invocation, not its parent.
+        foreach (InvocationExpressionSyntax invocation in body.DescendantNodesAndSelf()
+                     .OfType<InvocationExpressionSyntax>())
+        {
+            string? methodName = invocation.Expression switch
+            {
+                IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                MemberAccessExpressionSyntax { Expression: ThisExpressionSyntax } access =>
+                    access.Name.Identifier.ValueText,
+                _ => null
+            };
+
+            // The visited set also stops a method that calls itself from looping.
+            if (methodName == null || !visitedMethods.Add(methodName)) continue;
+
+            MethodDeclarationSyntax? method = AllMembers()
+                .OfType<MethodDeclarationSyntax>()
+                .FirstOrDefault(candidate => candidate.Identifier.ValueText == methodName);
+
+            if (method != null) yield return method;
+        }
+    }
+
+    /// <summary>Identifiers read by the methods invoked inside <paramref name="body"/>, transitively.</summary>
+    private List<string> DependenciesThroughCalls(SyntaxNode body, HashSet<string> visitedMethods)
+    {
+        List<string> found = new List<string>();
+
+        // DescendantNodesAndSelf: an expression-bodied property is the invocation, not its parent.
+        foreach (InvocationExpressionSyntax invocation in body.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
+        {
+            string? methodName = invocation.Expression switch
+            {
+                IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                MemberAccessExpressionSyntax { Expression: ThisExpressionSyntax } access =>
+                    access.Name.Identifier.ValueText,
+                _ => null
+            };
+
+            // The visited set also stops a method that calls itself from looping.
+            if (methodName == null || !visitedMethods.Add(methodName)) continue;
+
+            MethodDeclarationSyntax? method = AllMembers()
+                .OfType<MethodDeclarationSyntax>()
+                .FirstOrDefault(candidate => candidate.Identifier.ValueText == methodName);
+
+            SyntaxNode? methodBody = (SyntaxNode?)method?.Body ?? method?.ExpressionBody?.Expression;
+
+            if (methodBody == null) continue;
+
+            found.AddRange(methodBody.DescendantNodesAndSelf()
+                .OfType<IdentifierNameSyntax>()
+                .Select(identifier => identifier.Identifier.ValueText));
+
+            found.AddRange(DependenciesThroughCalls(methodBody, visitedMethods));
+        }
+
+        return found;
     }
 
     private List<string> ExtractPropertiesFromMethod(MethodDeclarationSyntax method)
@@ -1187,37 +1316,145 @@ public class FunctionalAnalyzer
     /// Each of these used to surface as a compiler error inside the generated file - about
     /// SetProperty, or a duplicate member - naming code the author never wrote.
     /// </remarks>
-    private void Validate(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel,
-        ViewModelAnalysis analysis)
+    private void Validate(IReadOnlyList<ViewModelPart> parts, ViewModelAnalysis analysis)
     {
         if (analysis.BindingFields.Count == 0) return;
 
-        Location classLocation = classDeclaration.Identifier.GetLocation();
-        string className = classDeclaration.Identifier.ValueText;
+        ViewModelPart primary = parts[0];
+        string className = primary.Declaration.Identifier.ValueText;
 
-        if (!classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
+        // Reported against the declaration that is missing the modifier, not the first one.
+        foreach (ViewModelPart part in parts.Where(p => !p.Declaration.Modifiers.Any(SyntaxKind.PartialKeyword)))
         {
             analysis.Diagnostics.Add(Diagnostic.Create(
-                BindingDiagnostics.ClassMustBePartial, classLocation, className));
+                BindingDiagnostics.ClassMustBePartial, part.Declaration.Identifier.GetLocation(), className));
         }
 
-        INamedTypeSymbol? classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
+        INamedTypeSymbol? classSymbol = primary.SemanticModel.GetDeclaredSymbol(primary.Declaration);
 
-        if (classSymbol != null && !DerivesFromViewModelBase(classSymbol))
+        if (classSymbol != null && !InheritsChangeNotificationMembers(classSymbol))
         {
             analysis.Diagnostics.Add(Diagnostic.Create(
-                BindingDiagnostics.ClassMustDeriveFromViewModelBase, classLocation, className));
+                BindingDiagnostics.ClassMustDeriveFromViewModelBase,
+                primary.Declaration.Identifier.GetLocation(), className));
         }
 
-        ValidateStaticFields(classDeclaration, semanticModel, analysis);
-        ValidateGeneratedNames(classDeclaration, classSymbol, analysis);
+        foreach (ViewModelPart part in parts)
+        {
+            ValidateStaticFields(part.Declaration, part.SemanticModel, analysis);
+        }
+
+        ValidateGeneratedNames(parts, classSymbol, analysis);
     }
 
-    private static bool DerivesFromViewModelBase(INamedTypeSymbol classSymbol)
+    /// <summary>
+    /// Computed properties and commands that depend on a property inherited from a base view model.
+    /// </summary>
+    /// <remarks>
+    /// The setter that raises such a property lives in the base class, which cannot know what a
+    /// subclass derived from it, so nothing here can be emitted into that setter. The subclass
+    /// overrides OnPropertyChanged and forwards instead.
+    /// </remarks>
+    private void CalculateInheritedDependencies(IReadOnlyList<ViewModelPart> parts, ViewModelAnalysis analysis)
+    {
+        ViewModelPart primary = parts[0];
+
+        if (primary.SemanticModel.GetDeclaredSymbol(primary.Declaration) is not INamedTypeSymbol classSymbol)
+        {
+            return;
+        }
+
+        HashSet<string> declaredHere = new HashSet<string>(analysis.BindingFields.Select(f => f.PropertyName));
+
+        foreach (ComputedPropertyInfo computed in analysis.ComputedProperties)
+        {
+            foreach (string dependency in computed.DirectDependencies.Distinct())
+            {
+                if (!IsInheritedDependency(dependency, declaredHere, classSymbol)) continue;
+
+                Record(analysis.InheritedDependencyNotifications, dependency, computed.PropertyName);
+            }
+        }
+
+        // A command reads its CanExecute the same way, and a base class cannot raise it either.
+        foreach (CommandInfo command in analysis.Commands)
+        {
+            IEnumerable<string> references = command.DirectDependencies.Concat(command.CanExecuteReferences);
+
+            foreach (string dependency in references.Distinct())
+            {
+                if (!IsInheritedDependency(dependency, declaredHere, classSymbol)) continue;
+
+                Record(analysis.InheritedCommandNotifications, dependency, command.PropertyName);
+            }
+        }
+    }
+
+    private bool IsInheritedDependency(string dependency, HashSet<string> declaredHere,
+        INamedTypeSymbol classSymbol) =>
+        !declaredHere.Contains(dependency) && IsInheritedProperty(classSymbol, dependency);
+
+    private static void Record(Dictionary<string, List<string>> map, string key, string value)
+    {
+        if (!map.TryGetValue(key, out List<string>? entries))
+        {
+            entries = new List<string>();
+            map[key] = entries;
+        }
+
+        if (!entries.Contains(value)) entries.Add(value);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="propertyName"/> comes from a base class, declared or generated.
+    /// </summary>
+    /// <remarks>
+    /// A base view model's binding properties do not exist as symbols while the generator runs -
+    /// they are what it is about to produce - so asking the base type for a property of that name
+    /// finds nothing. Its [Binding] fields are visible, and the property they will produce is
+    /// derived from them by the same rule used to generate it.
+    /// </remarks>
+    private bool IsInheritedProperty(INamedTypeSymbol classSymbol, string propertyName)
     {
         for (INamedTypeSymbol? current = classSymbol.BaseType; current != null; current = current.BaseType)
         {
-            if (current.Name == "ViewModelBase") return true;
+            if (current.GetMembers(propertyName).OfType<IPropertySymbol>().Any()) return true;
+
+            foreach (IFieldSymbol field in current.GetMembers().OfType<IFieldSymbol>())
+            {
+                AttributeData? binding = field.GetAttributes()
+                    .FirstOrDefault(attribute => attribute.AttributeClass?.Name == "BindingAttribute");
+
+                if (binding == null) continue;
+
+                (string? custom, bool _) = GetBindingConfiguration(binding);
+
+                if ((custom ?? GeneratePropertyName(field.Name)) == propertyName) return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether a base class supplies the two members generated properties call.
+    /// </summary>
+    /// <remarks>
+    /// Asked as "does it have these members", not "is it ViewModelBase". An application with its
+    /// own base implementing INotifyPropertyChanged works perfectly well with the generator, and
+    /// rejecting it by name would break a build that was compiling fine.
+    /// </remarks>
+    private static bool InheritsChangeNotificationMembers(INamedTypeSymbol classSymbol)
+    {
+        bool setProperty = false;
+        bool onPropertyChanged = false;
+
+        for (INamedTypeSymbol? current = classSymbol.BaseType; current != null; current = current.BaseType)
+        {
+            setProperty |= current.GetMembers("SetProperty").OfType<IMethodSymbol>().Any();
+            onPropertyChanged |= current.GetMembers("OnPropertyChanged").OfType<IMethodSymbol>().Any();
+
+            if (setProperty && onPropertyChanged) return true;
         }
 
         return false;
@@ -1243,14 +1480,14 @@ public class FunctionalAnalyzer
     }
 
     /// <summary>Names the generator is about to introduce, against each other and against the class.</summary>
-    private void ValidateGeneratedNames(ClassDeclarationSyntax classDeclaration, INamedTypeSymbol? classSymbol,
+    private void ValidateGeneratedNames(IReadOnlyList<ViewModelPart> parts, INamedTypeSymbol? classSymbol,
         ViewModelAnalysis analysis)
     {
         HashSet<string> seen = new HashSet<string>();
 
         foreach (BindingFieldInfo field in analysis.BindingFields)
         {
-            Location location = FindFieldLocation(classDeclaration, field.FieldName);
+            Location location = FindFieldLocation(parts, field.FieldName);
 
             if (!seen.Add(field.PropertyName))
             {
@@ -1270,13 +1507,14 @@ public class FunctionalAnalyzer
         }
     }
 
-    private static Location FindFieldLocation(ClassDeclarationSyntax classDeclaration, string fieldName)
+    private static Location FindFieldLocation(IReadOnlyList<ViewModelPart> parts, string fieldName)
     {
-        VariableDeclaratorSyntax? declarator = classDeclaration.Members.OfType<FieldDeclarationSyntax>()
+        VariableDeclaratorSyntax? declarator = parts
+            .SelectMany(part => part.Declaration.Members.OfType<FieldDeclarationSyntax>())
             .SelectMany(field => field.Declaration.Variables)
             .FirstOrDefault(variable => variable.Identifier.ValueText == fieldName);
 
-        return declarator?.Identifier.GetLocation() ?? classDeclaration.Identifier.GetLocation();
+        return declarator?.Identifier.GetLocation() ?? parts[0].Declaration.Identifier.GetLocation();
     }
 
     /// <summary>
@@ -1351,10 +1589,13 @@ public class FunctionalAnalyzer
 
     private MethodDeclarationSyntax? FindMethod(string methodName, ViewModelAnalysis analysis)
     {
-        return _currentClass.Members
+        return AllMembers()
             .OfType<MethodDeclarationSyntax>()
             .FirstOrDefault(m => m.Identifier.ValueText == methodName);
     }
+
+    private IEnumerable<MemberDeclarationSyntax> AllMembers() =>
+        _declarations.SelectMany(declaration => declaration.Members);
 
     private HashSet<string> AnalyzeMethodForPropertyModifications(MethodDeclarationSyntax method)
     {
@@ -1381,6 +1622,21 @@ public class FunctionalAnalyzer
 
 #region Enhanced Analysis Data Structures
 
+/// <summary>One declaration of a class, with the semantic model of the file it lives in.</summary>
+public sealed class ViewModelPart
+{
+    public ViewModelPart(ClassDeclarationSyntax declaration, SemanticModel semanticModel)
+    {
+        Declaration = declaration;
+        SemanticModel = semanticModel;
+    }
+
+    public ClassDeclarationSyntax Declaration { get; }
+
+    /// <summary>Semantic models belong to a syntax tree, so each declaration carries its own.</summary>
+    public SemanticModel SemanticModel { get; }
+}
+
 public class ViewModelAnalysis
 {
     public string ClassName { get; set; } = "";
@@ -1394,6 +1650,20 @@ public class ViewModelAnalysis
 
     /// <summary>What the generator has to say about this class before generating anything.</summary>
     public List<Diagnostic> Diagnostics { get; } = new List<Diagnostic>();
+
+    /// <summary>
+    /// Inherited property name to the members of this class that depend on it.
+    /// </summary>
+    /// <remarks>
+    /// A base class raises its own property and knows nothing of what a subclass computed from it,
+    /// so the subclass listens instead: these are forwarded from an OnPropertyChanged override.
+    /// </remarks>
+    public Dictionary<string, List<string>> InheritedDependencyNotifications { get; } =
+        new Dictionary<string, List<string>>();
+
+    /// <summary>Inherited property name to the commands of this class whose CanExecute reads it.</summary>
+    public Dictionary<string, List<string>> InheritedCommandNotifications { get; } =
+        new Dictionary<string, List<string>>();
 
     /// <summary>
     /// Namespace, enclosing types and name: what makes one view model distinguishable from another
@@ -1456,6 +1726,14 @@ public class PartialVoidMethodInfo
     public string MethodName { get; set; } = "";
     public string PropertyName { get; set; } = "";
     public List<string> CalledMethods { get; set; } = new List<string>();
+
+    /// <summary>
+    /// Collections this hook modifies, whether in its own body or through anything it calls.
+    /// </summary>
+    public List<string> ModifiedCollections { get; set; } = new List<string>();
+
+    /// <summary>Notifications raised by hand anywhere the hook reaches.</summary>
+    public List<string> ManualNotifications { get; set; } = new List<string>();
 }
 
 public class CollectionModifyingMethodInfo
