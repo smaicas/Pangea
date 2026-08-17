@@ -43,6 +43,12 @@ internal sealed class FakeUIDispatcher : IUIDispatcher
         action();
     }
 
+    public Task<T> InvokeAsync<T>(Func<Task<T>> callback)
+    {
+        InvokeCount++;
+        return callback();
+    }
+
     public void FlushPosts()
     {
         List<Action> queued = new(PendingPosts);

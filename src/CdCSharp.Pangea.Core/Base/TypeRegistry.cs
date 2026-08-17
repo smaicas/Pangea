@@ -211,6 +211,13 @@ public class TypeRegistry
         foreach (Type interfaceType in type.GetInterfaces())
         {
             Index(_typesByInterface, interfaceType, type);
+
+            // Indexed under the open definition too, so "everything implementing IFoo<>" is a
+            // question that can be asked without knowing the type arguments in advance.
+            if (interfaceType.IsGenericType)
+            {
+                Index(_typesByInterface, interfaceType.GetGenericTypeDefinition(), type);
+            }
         }
     }
 

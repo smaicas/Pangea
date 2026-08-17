@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels"
+        xmlns:pangea="using:CdCSharp.Pangea.Navigation"
+        x:Class="CdCSharp.Pangea.Tests.Int.Views.NavigationDemoWindow"
+        x:DataType="vm:NavigationDemoViewModel"
+        Title="Navigation"
+        Width="820" Height="520"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel>
+        <Border DockPanel.Dock="Left" Width="240" Padding="16" BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource BorderBrush}">
+            <StackPanel Spacing="10">
+                <TextBlock Text="🧭 Navigation" FontSize="18" FontWeight="Bold" />
+                <TextBlock Text="Each button calls INavigationService. The host on the right follows on its own."
+                           TextWrapping="Wrap" Opacity="0.7" />
+
+                <Button Content="🏠 Home" HorizontalAlignment="Stretch" Command="{Binding GoHomeCommand}" />
+                <Button Content="📦 Order (typed request)" HorizontalAlignment="Stretch" Command="{Binding GoToOrderCommand}" />
+                <Button Content="⚙️ Settings" HorizontalAlignment="Stretch" Command="{Binding GoToSettingsCommand}" />
+
+                <Separator Margin="0,6" />
+
+                <Button Content="⬅ Back" HorizontalAlignment="Stretch" Command="{Binding GoBackCommand}" />
+                <TextBlock Text="{Binding CanGoBack, StringFormat=CanGoBack: {0}}" Opacity="0.7" />
+
+                <Separator Margin="0,6" />
+
+                <TextBlock Text="{Binding CurrentScreen, StringFormat=Showing: {0}}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding LastResult}" TextWrapping="Wrap" Opacity="0.7" />
+            </StackPanel>
+        </Border>
+
+        <!-- No Service or Locator set: both come from what the navigation feature published on the
+             application at startup, which is how a real application uses this. -->
+        <pangea:NavigationHost />
+    </DockPanel>
+</Window>

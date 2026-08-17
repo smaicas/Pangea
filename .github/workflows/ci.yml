@@ -41,7 +41,7 @@ jobs:
         run: |
           mapfile -t PROJECTS < <(find test -name '*.Tests.csproj' | sort)
 
-          if [ "${#PROJECTS[@]}" -lt 7 ]; then
+          if [ "${#PROJECTS[@]}" -lt 8 ]; then
             echo "❌ Found only ${#PROJECTS[@]} test projects; discovery is broken"
             find test -name '*.csproj'
             exit 1

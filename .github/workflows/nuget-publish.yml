@@ -63,7 +63,7 @@ jobs:
           # remembering to add it here. The gallery is not a test project and does not match.
           mapfile -t PROJECTS < <(find test -name '*.Tests.csproj' | sort)
 
-          if [ "${#PROJECTS[@]}" -lt 7 ]; then
+          if [ "${#PROJECTS[@]}" -lt 8 ]; then
             echo "❌ Found only ${#PROJECTS[@]} test projects; discovery is broken"
             find test -name '*.csproj'
             exit 1
@@ -119,6 +119,13 @@ jobs:
             -v normal
           
           dotnet build src/CdCSharp.Pangea.Localization/CdCSharp.Pangea.Localization.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+          dotnet build src/CdCSharp.Pangea.Navigation/CdCSharp.Pangea.Navigation.csproj \
             -c ${{ env.CONFIGURATION }} \
             -p:Version=${{ steps.version.outputs.version }} \
             -p:AssemblyVersion=${{ steps.version.outputs.version }} \
@@ -190,6 +197,14 @@ jobs:
             -v normal
           
           dotnet pack src/CdCSharp.Pangea.Localization/CdCSharp.Pangea.Localization.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+
+          dotnet pack src/CdCSharp.Pangea.Navigation/CdCSharp.Pangea.Navigation.csproj \
             -c ${{ env.CONFIGURATION }} \
             -o ./artifacts \
             -p:PackageVersion=${{ steps.version.outputs.version }} \
@@ -328,6 +343,18 @@ jobs:
             --no-symbols
           
           dotnet nuget push "./artifacts/CdCSharp.Pangea.Localization.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+          
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
+
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Navigation.${{ steps.version.outputs.version }}.nupkg" \
             -k ${{ secrets.NUGET_API_KEY }} \
             -s https://api.nuget.org/v3/index.json \
             --skip-duplicate \

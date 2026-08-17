@@ -18,24 +18,34 @@ public class LinuxPlatformPathProvider : IPlatformPathProvider
         if (!string.IsNullOrEmpty(opts.CustomDataPath))
             return opts.CustomDataPath;
 
-        string home = Environment.GetEnvironmentVariable("HOME") ?? "/tmp";
-        return Path.Combine(home, ".config", opts.ApplicationName);
+        return Path.Combine(ResolveHome(), ".config", opts.ApplicationName);
     }
 
-    public string GetUserDataPath()
-    {
-        string home = Environment.GetEnvironmentVariable("HOME") ?? "/tmp";
-        return Path.Combine(home, _options.Value.ApplicationName);
-    }
+    public string GetUserDataPath() =>
+        Path.Combine(ResolveHome(), _options.Value.ApplicationName);
 
-    public string GetTempPath()
-    {
-        return Path.Combine("/tmp", _options.Value.ApplicationName);
-    }
+    public string GetTempPath() =>
+        Path.Combine(Path.GetTempPath(), _options.Value.ApplicationName);
 
-    public string GetCachePath()
+    public string GetCachePath() =>
+        Path.Combine(ResolveHome(), ".cache", _options.Value.ApplicationName);
+
+    /// <summary>
+    /// The user's home, and a fallback that is deliberately not the temp root.
+    /// </summary>
+    /// <remarks>
+    /// Falling back to the temp directory put user data and temporary files in the same place -
+    /// this provider keeps user data directly under home - so clearing temporary files would have
+    /// taken the user's data with it.
+    /// </remarks>
+    private string ResolveHome()
     {
-        string home = Environment.GetEnvironmentVariable("HOME") ?? "/tmp";
-        return Path.Combine(home, ".cache", _options.Value.ApplicationName);
+        string? home = Environment.GetEnvironmentVariable("HOME");
+        if (!string.IsNullOrEmpty(home)) return home;
+
+        home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(home)) return home;
+
+        return Path.Combine(Path.GetTempPath(), _options.Value.ApplicationName + "-home");
     }
 }

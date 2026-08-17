@@ -38,6 +38,96 @@ public class GeneratedViewModelBehaviorTests
         }
         """;
 
+    /// <summary>
+    /// The same view model in the shape the README, the agent skill and every sample use: commands
+    /// as expression-bodied properties.
+    /// </summary>
+    /// <remarks>
+    /// Worth its own fixture because the styles are not equivalent. An expression-bodied property
+    /// is re-evaluated on every read, so a command built there is a different object each time
+    /// unless the base class keeps one - and the whole of CanExecute propagation depends on the
+    /// binding and the generated RaiseCanExecuteChanged call reaching the same instance. The suite
+    /// only ever exercised the constructor style, which is why that gap survived.
+    /// </remarks>
+    private const string ExpressionBodiedOrderViewModel = """
+        using CdCSharp.Pangea.Binding.Attributes;
+        using CdCSharp.Pangea.Core.Base;
+
+        namespace Sample;
+
+        public partial class OrderViewModel : ViewModelBase
+        {
+            public OrderViewModel(IServiceProvider sp) : base(sp) { }
+
+            [Binding] private int _quantity;
+            [Binding] private decimal _unitPrice;
+
+            public decimal Total => Quantity * UnitPrice;
+            public bool CanCheckout => Total > 0;
+
+            public RelayCommand CheckoutCommand => CreateCommand(Checkout, () => CanCheckout);
+            public RelayCommand ResetCommand => CreateCommand(Reset);
+
+            public int CheckoutCount { get; private set; }
+
+            private void Checkout() => CheckoutCount++;
+            private void Reset() { }
+        }
+        """;
+
+    [Fact]
+    public void ExpressionBodiedCommand_IsTheSameInstanceOnEveryRead()
+    {
+        object viewModel = CreateViewModel(ExpressionBodiedOrderViewModel, "Sample.OrderViewModel");
+
+        Assert.Same(GetProperty(viewModel, "CheckoutCommand"), GetProperty(viewModel, "CheckoutCommand"));
+    }
+
+    [Fact]
+    public void ExpressionBodiedCommands_AreNotSharedWithEachOther()
+    {
+        object viewModel = CreateViewModel(ExpressionBodiedOrderViewModel, "Sample.OrderViewModel");
+
+        Assert.NotSame(GetProperty(viewModel, "CheckoutCommand"), GetProperty(viewModel, "ResetCommand"));
+    }
+
+    /// <summary>
+    /// The failure a user sees: a button bound once, and a CanExecute that never refreshes.
+    /// </summary>
+    [Fact]
+    public void ExpressionBodiedCommand_HearsTheGeneratedCanExecuteChanged()
+    {
+        object viewModel = CreateViewModel(ExpressionBodiedOrderViewModel, "Sample.OrderViewModel");
+
+        // Read once, exactly as a binding does, and hold on to it.
+        RelayCommand bound = (RelayCommand)GetProperty(viewModel, "CheckoutCommand")!;
+
+        int raised = 0;
+        bound.CanExecuteChanged += (_, _) => raised++;
+
+        Assert.False(bound.CanExecute(null));
+
+        SetProperty(viewModel, "Quantity", 2);
+        SetProperty(viewModel, "UnitPrice", 5m);
+
+        Assert.True(raised >= 2, $"The bound command was notified {raised} time(s).");
+        Assert.True(bound.CanExecute(null));
+    }
+
+    [Fact]
+    public void ExpressionBodiedCommand_Executes()
+    {
+        object viewModel = CreateViewModel(ExpressionBodiedOrderViewModel, "Sample.OrderViewModel");
+        RelayCommand bound = (RelayCommand)GetProperty(viewModel, "CheckoutCommand")!;
+
+        SetProperty(viewModel, "Quantity", 1);
+        SetProperty(viewModel, "UnitPrice", 3m);
+
+        bound.Execute(null);
+
+        Assert.Equal(1, GetProperty(viewModel, "CheckoutCount"));
+    }
+
     [Fact]
     public void GeneratedCode_Compiles()
     {

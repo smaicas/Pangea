@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public RelayCommand UpdateStatusCommand => CreateCommand(ExecuteUpdateStatus);
     public RelayCommand OpenCommandTestCommand => CreateCommand(OpenCommandTest);
     public RelayCommand OpenControlGalleryCommand => CreateCommand(OpenControlGallery);
+    public RelayCommand OpenNavigationDemoCommand => CreateCommand(OpenNavigationDemo);
 
     public string ProgressText => $"Demo Progress: {ProgressValue}%";
 
@@ -57,6 +58,11 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task OpenCommandTest()
     {
         await _windowManager.ShowWindowAsync<CommandTestWindow, CommandTestViewModel>();
+    }
+
+    private async Task OpenNavigationDemo()
+    {
+        await _windowManager.ShowWindowAsync<NavigationDemoWindow, NavigationDemoViewModel>();
     }
 
     private void OpenControlGallery()

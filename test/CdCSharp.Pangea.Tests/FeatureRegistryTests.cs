@@ -1,4 +1,5 @@
-﻿using CdCSharp.Pangea.Core.Abstractions;
+﻿using Avalonia.Headless.XUnit;
+using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -94,11 +95,23 @@ public class FeatureRegistryTests
         Assert.Empty(second.Features);
     }
 
-    [Fact]
+    /// <summary>
+    /// Runs on the UI thread: configuring an application writes Avalonia properties on it, and the
+    /// real features discovered alongside the fixtures do exactly that.
+    /// </summary>
+    [AvaloniaFact]
     public void AFeatureThatFailsToConfigure_AbortsStartupAndNamesItself()
     {
-        FeatureRegistry registry = Discover(new ServiceCollection());
-        ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        ServiceCollection services = [];
+        FeatureRegistry registry = Discover(services);
+
+        // The real features are configured too, and some legitimately require services. The
+        // provider is built from what discovery itself registered plus what startup would add, so
+        // the only thing that fails here is the fixture that means to.
+        ServiceProvider provider = services
+            .AddSingleton(new TypeRegistry())
+            .AddSingleton<IUIDispatcher, AvaloniaUIDispatcher>()
+            .BuildServiceProvider();
 
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(
             () => registry.ConfigureApplication(provider, new StubApplicationContext()));

@@ -122,7 +122,8 @@ public class AgentGuideCompilesTests
         foreach (Type anchor in new[]
                  {
                      typeof(PangeaApplication), typeof(ViewModelBase), typeof(PangeaPalette),
-                     typeof(IStorageService), typeof(Avalonia.Application), typeof(Avalonia.Media.Color)
+                     typeof(IStorageService), typeof(Avalonia.Application), typeof(Avalonia.Media.Color),
+                     typeof(CdCSharp.Pangea.Navigation.Abstractions.INavigationService)
                  })
         {
             string location = anchor.Assembly.Location;

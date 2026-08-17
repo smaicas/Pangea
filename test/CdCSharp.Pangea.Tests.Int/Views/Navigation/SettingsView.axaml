@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels.Navigation"
+             x:Class="CdCSharp.Pangea.Tests.Int.Views.Navigation.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <StackPanel Margin="20" Spacing="12">
+        <TextBlock Text="⚙️ Settings" FontSize="22" FontWeight="Bold" />
+        <CheckBox Content="Pretend there are unsaved changes" IsChecked="{Binding HasUnsavedChanges}" />
+        <TextBlock Text="While that is ticked, CanNavigateAwayAsync returns false and every navigation is cancelled."
+                   TextWrapping="Wrap" Opacity="0.7" />
+        <TextBlock Text="{Binding LastRefusal}" Foreground="#c0392b" TextWrapping="Wrap" />
+    </StackPanel>
+</UserControl>

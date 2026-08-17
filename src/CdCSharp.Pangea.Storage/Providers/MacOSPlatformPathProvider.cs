@@ -18,24 +18,31 @@ public class MacOSPlatformPathProvider : IPlatformPathProvider
         if (!string.IsNullOrEmpty(opts.CustomDataPath))
             return opts.CustomDataPath;
 
-        string home = Environment.GetEnvironmentVariable("HOME") ?? "/tmp";
-        return Path.Combine(home, "Library", "Application Support", opts.ApplicationName);
+        return Path.Combine(ResolveHome(), "Library", "Application Support", opts.ApplicationName);
     }
 
-    public string GetUserDataPath()
-    {
-        string home = Environment.GetEnvironmentVariable("HOME") ?? "/tmp";
-        return Path.Combine(home, "Documents", _options.Value.ApplicationName);
-    }
+    public string GetUserDataPath() =>
+        Path.Combine(ResolveHome(), "Documents", _options.Value.ApplicationName);
 
-    public string GetTempPath()
-    {
-        return Path.Combine("/tmp", _options.Value.ApplicationName);
-    }
+    /// <remarks>
+    /// Through the runtime rather than a hard-coded "/tmp", so TMPDIR is honoured - on macOS that
+    /// is a per-user directory, which is where temporary files belong.
+    /// </remarks>
+    public string GetTempPath() =>
+        Path.Combine(Path.GetTempPath(), _options.Value.ApplicationName);
 
-    public string GetCachePath()
+    public string GetCachePath() =>
+        Path.Combine(ResolveHome(), "Library", "Caches", _options.Value.ApplicationName);
+
+    /// <summary>The user's home, and a fallback that is deliberately not the temp root.</summary>
+    private string ResolveHome()
     {
-        string home = Environment.GetEnvironmentVariable("HOME") ?? "/tmp";
-        return Path.Combine(home, "Library", "Caches", _options.Value.ApplicationName);
+        string? home = Environment.GetEnvironmentVariable("HOME");
+        if (!string.IsNullOrEmpty(home)) return home;
+
+        home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(home)) return home;
+
+        return Path.Combine(Path.GetTempPath(), _options.Value.ApplicationName + "-home");
     }
 }

@@ -340,6 +340,81 @@ raises `CultureChanged`. It throws `NotSupportedException` for a culture outside
 
 ---
 
+## Navigation
+
+A navigation request declares where it goes. The call site infers the destination, and the
+compiler still checks the data.
+
+```csharp
+using CdCSharp.Pangea.Binding.Attributes;
+using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Core.Base;
+using CdCSharp.Pangea.Navigation.Abstractions;
+
+namespace MyApp.Navigation;
+
+public sealed record ShowInvoice(Guid Id) : INavigationRequest<InvoiceViewModel>;
+
+public partial class InvoiceViewModel : ViewModelBase, INavigationAware<ShowInvoice>
+{
+    public InvoiceViewModel(IServiceProvider services) : base(services) { }
+
+    [Binding] private Guid _invoiceId;
+
+    public Task OnNavigatedToAsync(ShowInvoice request)
+    {
+        InvoiceId = request.Id;   // typed, no cast
+        return Task.CompletedTask;
+    }
+}
+```
+
+Navigate with the request; the destination comes from its type:
+
+```csharp
+using CdCSharp.Pangea.Core.Base;
+using CdCSharp.Pangea.Navigation.Abstractions;
+
+namespace MyApp.Navigation;
+
+public partial class InvoiceListViewModel : ViewModelBase
+{
+    private readonly INavigationService _navigation;
+
+    public InvoiceListViewModel(IServiceProvider services, INavigationService navigation)
+        : base(services) => _navigation = navigation;
+
+    public RelayCommand<Guid> OpenCommand => CreateCommand<Guid>(OpenAsync);
+
+    private Task OpenAsync(Guid id) => _navigation.NavigateToAsync(new ShowInvoice(id));
+}
+```
+
+Put a host where the content belongs:
+
+```xml
+<Window xmlns:pangea="clr-namespace:CdCSharp.Pangea.Navigation;assembly=CdCSharp.Pangea.Navigation">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Left"> <!-- menu --> </StackPanel>
+    <pangea:NavigationHost />
+  </DockPanel>
+</Window>
+```
+
+**Rules that matter when writing navigation code**
+
+- A screen that takes no data implements nothing extra: `NavigateToAsync<SettingsViewModel>()`
+  calls the `OnNavigatedToAsync()` override from `ViewModelBase`.
+- `CanNavigateAwayAsync` returning `false` cancels the navigation. That is how a screen keeps
+  unsaved work; `NavigateToAsync` returns `false` when it happens.
+- `GoBackAsync()` returns the same view model instance and does **not** replay the request.
+- Views are found by name: `OrderViewModel` is displayed by `OrderView`, `MainWindowViewModel` by
+  `MainWindow`. Otherwise call `IViewLocator.Register<TViewModel, TView>()`.
+- A request whose destination does not implement `INavigationAware<TRequest>` aborts startup. Do
+  not declare a request without implementing the matching interface on the view model it names.
+
+---
+
 ## Adding a feature
 
 ```csharp

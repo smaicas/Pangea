@@ -101,6 +101,25 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Navigation Section -->
+                <Border Background="{DynamicResource ThemeControlHighlightLowBrush}"
+                        BorderBrush="{DynamicResource ThemeAccentBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Navigation"
+                                   FontWeight="SemiBold"
+                                   FontSize="18" />
+                        <TextBlock Text="Typed requests, the back stack, and a screen that refuses to be left"
+                                   FontSize="14" />
+                        <Button Content="🧭 Open Navigation Demo"
+                                Command="{Binding OpenNavigationDemoCommand}"
+                                HorizontalAlignment="Left"
+                                Padding="12,8" />
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>

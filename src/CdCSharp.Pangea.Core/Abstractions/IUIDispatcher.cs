@@ -21,4 +21,14 @@ public interface IUIDispatcher
     /// Runs it inline when already on the UI thread.
     /// </summary>
     void Invoke(Action action);
+
+    /// <summary>
+    /// Runs <paramref name="callback"/> on the UI thread and completes when its task does.
+    /// Runs it inline when already on the UI thread.
+    /// </summary>
+    /// <remarks>
+    /// The asynchronous counterpart to <see cref="Invoke"/>: blocking the UI thread on an await is
+    /// how a deadlock starts, so work that awaits has to be marshalled rather than waited on.
+    /// </remarks>
+    Task<T> InvokeAsync<T>(Func<Task<T>> callback);
 }

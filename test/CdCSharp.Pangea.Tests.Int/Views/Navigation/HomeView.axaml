@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels.Navigation"
+             x:Class="CdCSharp.Pangea.Tests.Int.Views.Navigation.HomeView"
+             x:DataType="vm:HomeViewModel">
+    <StackPanel Margin="20" Spacing="12">
+        <TextBlock Text="🏠 Home" FontSize="22" FontWeight="Bold" />
+        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+        <TextBlock Text="Coming back here does not replay a request: the count only rises on a forward navigation."
+                   TextWrapping="Wrap" Opacity="0.7" />
+        <Button Content="Open an order from here" Command="{Binding OpenFirstOrderCommand}" />
+    </StackPanel>
+</UserControl>

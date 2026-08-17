@@ -1,9 +1,11 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
+using CdCSharp.Pangea.Navigation.Abstractions;
 using CdCSharp.Pangea.Services;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
@@ -89,6 +91,19 @@ public class BootstrapTests
         Assert.NotNull(services.GetService<IOptions<PangeaOptions>>());
     }
 
+    /// <summary>
+    /// Features are found by scanning, so a feature package that is referenced but not discovered
+    /// fails silently: its services are simply absent when something asks for them.
+    /// </summary>
+    [AvaloniaFact]
+    public void TheFeaturePackagesAreDiscoveredAndTheirServicesRegistered()
+    {
+        IServiceProvider services = Bootstrap(new StubApplication());
+
+        Assert.NotNull(services.GetService<INavigationService>());
+        Assert.NotNull(services.GetService<IViewLocator>());
+    }
+
     [AvaloniaFact]
     public void TheContainerIsPublishedOnTheApplication()
     {
@@ -139,14 +154,35 @@ public class BootstrapTests
         Assert.IsType<Marker>(services.GetService<IMarker>());
     }
 
+    /// <summary>
+    /// What startup owns is the wiring: the registered dispatcher is the Avalonia-backed one and
+    /// answers exactly what Avalonia's dispatcher answers.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not asserted: that a background thread is refused. Whether the headless
+    /// dispatcher has thread affinity at all is a property of the platform - it does on Windows and
+    /// does not on the Linux runner - so asserting it tests Avalonia, and fails on one of the two.
+    /// </remarks>
     [AvaloniaFact]
-    public void TheDispatcherIsWiredToTheUIThread()
+    public void TheDispatcherIsWiredToAvalonia()
     {
         IServiceProvider services = Bootstrap(new StubApplication());
         IUIDispatcher dispatcher = services.GetRequiredService<IUIDispatcher>();
 
-        // The test body owns the UI thread.
-        Assert.True(dispatcher.CheckAccess());
-        Assert.False(Task.Run(dispatcher.CheckAccess).GetAwaiter().GetResult());
+        Assert.IsType<AvaloniaUIDispatcher>(dispatcher);
+        Assert.Equal(Dispatcher.UIThread.CheckAccess(), dispatcher.CheckAccess());
+    }
+
+    [AvaloniaFact]
+    public void TheDispatcherRunsWhatItIsGiven()
+    {
+        IServiceProvider services = Bootstrap(new StubApplication());
+        IUIDispatcher dispatcher = services.GetRequiredService<IUIDispatcher>();
+
+        bool ran = false;
+        dispatcher.Invoke(() => ran = true);
+
+        Assert.True(ran);
+        Assert.Equal(7, dispatcher.InvokeAsync(() => Task.FromResult(7)).GetAwaiter().GetResult());
     }
 }

@@ -11,10 +11,11 @@
 
     <ItemGroup>
         <PackageReference Include="xunit.v3" Version="3.2.2" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+        <!-- The host is a real control, so it needs a real (headless) Avalonia application -->
+        <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Navigation\CdCSharp.Pangea.Navigation.csproj" />
     </ItemGroup>
 </Project>

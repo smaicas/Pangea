@@ -33,6 +33,7 @@
 		<ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" />
 		<ProjectReference Include="..\CdCSharp.Pangea.Theming\CdCSharp.Pangea.Theming.csproj" />
 		<ProjectReference Include="..\CdCSharp.Pangea.Localization\CdCSharp.Pangea.Localization.csproj" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Navigation\CdCSharp.Pangea.Navigation.csproj" />
 	</ItemGroup>
 
 

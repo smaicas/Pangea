@@ -442,8 +442,16 @@ public class WindowManager : IWindowManager, IDisposable
         WeakReference<Window> weakRef = new(window);
         _windowCache.AddOrUpdate(typeof(TWindow), weakRef, (_, _) => weakRef);
 
-        // A closed window must not be handed out again: Show() on it throws.
-        window.Closed += (_, _) => _windowCache.TryRemove(typeof(TWindow), out _);
+        // A closed window must not be handed out again: Show() on it throws. The handler removes
+        // itself, so the window stops holding this manager alive the moment it closes - the cache
+        // keeps only a weak reference, and this subscription was the one strong link left.
+        void OnClosed(object? sender, EventArgs e)
+        {
+            _windowCache.TryRemove(typeof(TWindow), out _);
+            window.Closed -= OnClosed;
+        }
+
+        window.Closed += OnClosed;
     }
 
     private void TryAutoInitializeMainWindow()

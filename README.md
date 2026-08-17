@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -67,6 +67,7 @@ dotnet add package CdCSharp.Pangea.Binding       # [Binding] attribute + source 
 dotnet add package CdCSharp.Pangea.Theming       # palettes, themes, theme service
 dotnet add package CdCSharp.Pangea.Storage       # per-platform paths and file access
 dotnet add package CdCSharp.Pangea.Localization  # cultures and resource strings
+dotnet add package CdCSharp.Pangea.Navigation    # typed navigation requests and a host
 ```
 
 Targets **.NET 10** and **Avalonia 12.1**.
@@ -399,6 +400,67 @@ up:
 public override void Configure(IServiceCollection services) =>
     services.AddLogging(builder => builder.AddConsole());
 ```
+
+---
+
+## 🧭 Navigation
+
+A navigation request names where it goes, so the call site stays short and the compiler still
+checks it.
+
+```csharp
+public sealed record ShowOrder(Guid Id) : INavigationRequest<OrderViewModel>;
+```
+
+```csharp
+public partial class OrderViewModel : ViewModelBase, INavigationAware<ShowOrder>
+{
+    public OrderViewModel(IServiceProvider services) : base(services) { }
+
+    [Binding] private Order? _order;
+
+    public Task OnNavigatedToAsync(ShowOrder request)
+    {
+        Order = _orders.Find(request.Id);   // request.Id is a Guid, no cast
+        return Task.CompletedTask;
+    }
+}
+```
+
+```csharp
+// The destination is inferred from the request
+await _navigation.NavigateToAsync(new ShowOrder(orderId));
+await _navigation.NavigateToAsync<SettingsViewModel>();   // no data to carry
+await _navigation.GoBackAsync();
+```
+
+Put a host where the content belongs and it follows along:
+
+```xml
+<Window xmlns:pangea="clr-namespace:CdCSharp.Pangea.Navigation;assembly=CdCSharp.Pangea.Navigation">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Left"> <!-- menu --> </StackPanel>
+    <pangea:NavigationHost />
+  </DockPanel>
+</Window>
+```
+
+**Lifecycle.** Every view model gets three hooks from `ViewModelBase`. They now fire:
+
+| | |
+|---|---|
+| `CanNavigateAwayAsync` | Return `false` to cancel the navigation - how a screen keeps unsaved work |
+| `OnNavigatedFromAsync` | The screen is no longer current |
+| `OnNavigatedToAsync` | The screen became current. A request arrives through `INavigationAware<TRequest>` instead |
+
+Going back returns the same view model instance and does **not** replay the request.
+
+**Views are found by name**, through the same type scan the rest of the toolkit uses:
+`OrderViewModel` is displayed by `OrderView`, and `MainWindowViewModel` by `MainWindow`. Register
+explicitly with `IViewLocator.Register<TViewModel, TView>()` when a view does not follow either.
+
+> A request whose destination does not implement `INavigationAware<TRequest>` would navigate and
+> silently drop its data. Startup checks every request and aborts naming both sides.
 
 ---
 
