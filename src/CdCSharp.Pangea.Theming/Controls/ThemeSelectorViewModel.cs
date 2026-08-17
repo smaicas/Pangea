@@ -1,73 +1,96 @@
-﻿using CdCSharp.Pangea.Binding.Attributes;
+﻿using Avalonia.Styling;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Theming.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 
 namespace CdCSharp.Pangea.Theming.Controls;
 
-public partial class ThemeSelectorViewModel : ViewModelBase
+/// <summary>
+/// Drives the two appearance axes: which theme is in use, and whether it shows light or dark.
+/// </summary>
+public class ThemeSelectorViewModel : ViewModelBase
 {
     private readonly IThemeService _themeService;
+    private readonly ILogger<ThemeSelectorViewModel> _logger;
 
-    [Binding] private string? _selectedTheme;
+    private string _selectedTheme;
+    private bool _isDark;
 
     public ThemeSelectorViewModel(IServiceProvider serviceProvider) : base(serviceProvider)
     {
         _themeService = serviceProvider.GetRequiredService<IThemeService>();
+        _logger = serviceProvider.GetRequiredService<ILogger<ThemeSelectorViewModel>>();
 
-        AvailableThemes = new ObservableCollection<string>(_themeService.GetAvailableThemes());
-        _selectedTheme = _themeService.GetCurrentTheme() ?? "Light";
+        AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes);
+        _selectedTheme = _themeService.CurrentTheme;
+        _isDark = _themeService.CurrentVariant == ThemeVariant.Dark;
     }
 
     public ObservableCollection<string> AvailableThemes { get; }
 
-    public bool IsDarkSelected
+    /// <summary>Which palette pair is in use.</summary>
+    public string SelectedTheme
     {
-        get => SelectedTheme?.Equals("Dark", StringComparison.OrdinalIgnoreCase) == true;
-        set 
+        get => _selectedTheme;
+        set
         {
-            string newTheme = value ? "Dark" : "Light";
-            SelectedTheme = newTheme;
+            if (_selectedTheme == value) return;
+
+            string previous = _selectedTheme;
+            _selectedTheme = value;
+
+            try
+            {
+                _themeService.SetTheme(value);
+            }
+            catch (Exception ex)
+            {
+                // Roll the picker back to what is actually applied rather than lie about it.
+                _logger.LogError(ex, "Could not apply theme {ThemeName}", value);
+                _selectedTheme = previous;
+            }
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(VariantTooltip));
         }
     }
 
-    public string ThemeIcon => IsDarkSelected ? "🌙" : "☀️";
-    public string ThemeTooltip => $"Current theme: {SelectedTheme ?? "None"}";
+    /// <summary>Whether the current theme shows its dark palette.</summary>
+    public bool IsDark
+    {
+        get => _isDark;
+        set
+        {
+            if (_isDark == value) return;
 
+            _isDark = value;
+            _themeService.SetVariant(value ? ThemeVariant.Dark : ThemeVariant.Light);
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(VariantIcon));
+            OnPropertyChanged(nameof(VariantTooltip));
+        }
+    }
+
+    public string VariantIcon => IsDark ? "🌙" : "☀️";
+
+    public string VariantTooltip => $"{SelectedTheme} - {(IsDark ? "dark" : "light")}";
+
+    public RelayCommand ToggleVariantCommand => CreateCommand(() => IsDark = !IsDark);
+
+    /// <summary>Re-reads the themes registered with the service.</summary>
     public RelayCommand RefreshThemesCommand => CreateCommand(RefreshThemes);
 
-    partial void OnSelectedThemeChanged()
-    {
-        try
-        {
-            if (!string.IsNullOrEmpty(SelectedTheme))
-                _themeService.SetCustomTheme(SelectedTheme);
-            
-            OnPropertyChanged(nameof(IsDarkSelected));
-            OnPropertyChanged(nameof(ThemeIcon));
-            OnPropertyChanged(nameof(ThemeTooltip));
-        }
-        catch (Exception)
-        {
-            string? currentTheme = _themeService.GetCurrentTheme();
-            if (_selectedTheme != currentTheme)
-            {
-                _selectedTheme = currentTheme;
-                OnPropertyChanged(nameof(SelectedTheme));
-                OnPropertyChanged(nameof(IsDarkSelected));
-                OnPropertyChanged(nameof(ThemeIcon));
-                OnPropertyChanged(nameof(ThemeTooltip));
-            }
-        }
-    }
     private void RefreshThemes()
     {
         AvailableThemes.Clear();
-        List<string> themes = _themeService.GetAvailableThemes();
-        foreach (string theme in themes)
+
+        foreach (string theme in _themeService.AvailableThemes)
+        {
             AvailableThemes.Add(theme);
+        }
     }
 }

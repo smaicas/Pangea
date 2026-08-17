@@ -1,0 +1,322 @@
+{
+  "avaloniaVersion": "12.1.1",
+  "note": "Control dictionaries vendored from Avalonia's Simple theme as a starting point. 'vendored' files are still byte-identical to upstream and hash-pinned; 'customized' files are owned by this repo and may diverge freely.",
+  "files": {
+    "AdornerLayer.xaml": {
+      "origin": "vendored",
+      "sha256": "b493668b8b884738398536364bac35d04e173fa6c02fd2cabfe043d4b1bc02ec"
+    },
+    "AutoCompleteBox.xaml": {
+      "origin": "vendored",
+      "sha256": "7d4931db90bca49de8d592c217d84163401ecd7113c273fa7578f05ef855c027"
+    },
+    "Button.xaml": {
+      "origin": "vendored",
+      "sha256": "d6cde2ae1d99ff8bc22cd6883288823cdbcbd417d0c637ee766ec5c04c153eef"
+    },
+    "ButtonSpinner.xaml": {
+      "origin": "vendored",
+      "sha256": "dd078970b52bc46a125d2e79f47e3cd85a3cd82b5e0ab11d640842ed24ac6149"
+    },
+    "Calendar.xaml": {
+      "origin": "vendored",
+      "sha256": "f39ad43ab3c86c99391e318556bfeb6859b465d683368e27cc04c7c5f9b7a4c5"
+    },
+    "CalendarButton.xaml": {
+      "origin": "vendored",
+      "sha256": "95efb436cfdb169764ff9795e92ebf04462d090aa80b6909a08f350809466c90"
+    },
+    "CalendarDatePicker.xaml": {
+      "origin": "vendored",
+      "sha256": "675e8bb49877ccb1b30eae68e0be535415b4f55e44b701cfd6553be4cadf1f5b"
+    },
+    "CalendarDayButton.xaml": {
+      "origin": "vendored",
+      "sha256": "d4c639d0909e1e40cd326019c0b133abbfdc2377a76e7f1068e910b9b3e09837"
+    },
+    "CalendarItem.xaml": {
+      "origin": "vendored",
+      "sha256": "72aed7246cc05f8cddb79e5308fdce5f6d5a235d960bacb6a7a72d1e6195b726"
+    },
+    "Carousel.xaml": {
+      "origin": "vendored",
+      "sha256": "70ee75aef2d1aaf679000f7289dc7b0f26494ed80c23a5b4b09278b702972fbb"
+    },
+    "CarouselPage.xaml": {
+      "origin": "vendored",
+      "sha256": "b969b4b327428f9fa116c34d972cd522f53127de0d3800d12008891973cee84d"
+    },
+    "CheckBox.xaml": {
+      "origin": "vendored",
+      "sha256": "8b0150c11a6851b0e82e0329f491666bc314a6cb776ddada7f3fd25a6d64ab72"
+    },
+    "ComboBox.xaml": {
+      "origin": "vendored",
+      "sha256": "c71c8e8d396e843399410de86165122744b7db1143571eda6b9447a6bc0e4bc6"
+    },
+    "ComboBoxItem.xaml": {
+      "origin": "vendored",
+      "sha256": "a8473da150225e7d9fcc5f8fc691fd2024dc9bded11fe1d880ca1089d02ae319"
+    },
+    "CommandBar.xaml": {
+      "origin": "vendored",
+      "sha256": "39627f8e5a8fea4a9bdff88b21383e92934bafc6b7ef39dfea26063723cd8016"
+    },
+    "ContentPage.xaml": {
+      "origin": "vendored",
+      "sha256": "3fd99ab55e884cd54d850610cebfc5b81429ea2203e3a4f8f1fab8ccab59d0e3"
+    },
+    "ContextMenu.xaml": {
+      "origin": "vendored",
+      "sha256": "11cb0e54da1784dfd841d093bd80a93e15eb47630a39555810d3a448e05c5e96"
+    },
+    "DataValidationErrors.xaml": {
+      "origin": "vendored",
+      "sha256": "23aae2f3f979446dba124582d03b962fe0981ffcf3f449e84f3f7dcc781af6ee"
+    },
+    "DatePicker.xaml": {
+      "origin": "vendored",
+      "sha256": "d3b7342295d0145a587d440ce621935a70c2911f8983ff6356f427fdfed96973"
+    },
+    "DateTimePickerShared.xaml": {
+      "origin": "vendored",
+      "sha256": "7cb0f58fbc36672d3f3f3b49c8a51ecf8603ffc663bfcd3b6ac4bff3d5d1f698"
+    },
+    "DrawerPage.xaml": {
+      "origin": "vendored",
+      "sha256": "c657f57fa9dbfd9fc5309451501c34754c90bb61c4a878ca4bf84736619f4921"
+    },
+    "DropDownButton.xaml": {
+      "origin": "vendored",
+      "sha256": "a20d3fc1a2e92109b2cfb23f1cdff93f1376cf97c62bf88722803b90f7adc2ad"
+    },
+    "EmbeddableControlRoot.xaml": {
+      "origin": "vendored",
+      "sha256": "395c99cc21ac1fcad9ec82f58fd3491028bbc9b91713472cc670e7091be56dd2"
+    },
+    "Expander.xaml": {
+      "origin": "vendored",
+      "sha256": "72d50bb52613447fab0005acede27959dedd6d9e8df72ed28254de896a97d857"
+    },
+    "FlyoutPresenter.xaml": {
+      "origin": "vendored",
+      "sha256": "690c101c2200356aa3305b2505521763746ca6302ad7728a44ab737f37159f6c"
+    },
+    "GridSplitter.xaml": {
+      "origin": "vendored",
+      "sha256": "091c58624893ddf6ac7ef4188fea87e9597faefd09a83e0214ac3d9c228cb40e"
+    },
+    "GroupBox.xaml": {
+      "origin": "vendored",
+      "sha256": "a3f1a457e010301a4a1a2cb2349630dfc031bf16e7a2b3597c37bad0b96f6ece"
+    },
+    "HeaderedContentControl.xaml": {
+      "origin": "vendored",
+      "sha256": "7ffd32db90f9c78e10e2b3e1d1a697f0175bd980821f48051f8f0fc4ffbc2ba8"
+    },
+    "HyperlinkButton.xaml": {
+      "origin": "vendored",
+      "sha256": "a5b4c52f0f6981cb81a13e921d7b882039a29e460723c97013280a4ec6ac9cb4"
+    },
+    "ItemsControl.xaml": {
+      "origin": "vendored",
+      "sha256": "eace391f2b59f353580b3f488b35d41699278e22077f718ba4890b252383da6e"
+    },
+    "Label.xaml": {
+      "origin": "vendored",
+      "sha256": "b417243b7e1da7f76fa90c31915f4563d7520f74408fa9430cd00b5d11352f4f"
+    },
+    "ListBox.xaml": {
+      "origin": "vendored",
+      "sha256": "f06e2a3cfc71058bdadb834f87f0931e05b2821291e021316ec4f1b823a9aed5"
+    },
+    "ListBoxItem.xaml": {
+      "origin": "vendored",
+      "sha256": "dea72407c2483dadd635d4f22a84b56ec9701e0426745cab1717463fa493ba2e"
+    },
+    "ManagedFileChooser.xaml": {
+      "origin": "vendored",
+      "sha256": "f0a0cf74df26cb7d61b35076267240b630f4b4c6325a1e30624e6922fc31f5f9"
+    },
+    "Menu.xaml": {
+      "origin": "vendored",
+      "sha256": "c29380c9c6462b6a21307eb780cb8b09f6e1789183b1c6fa6e1a9f25d192e265"
+    },
+    "MenuFlyoutPresenter.xaml": {
+      "origin": "vendored",
+      "sha256": "fbb6e2fcbf593aa866e9222a00d17f27af447ed2fe10d890753c7a606de476cd"
+    },
+    "MenuItem.xaml": {
+      "origin": "vendored",
+      "sha256": "ed35409d008c92e0038b1dc382147f399368dfdea48b91df0a65afe9f78ddfca"
+    },
+    "NavigationPage.xaml": {
+      "origin": "vendored",
+      "sha256": "c61314b9f7e6f721c0b9e17672b3f785e71c308c3c7b7191fc7a8c16308a1c30"
+    },
+    "NotificationCard.xaml": {
+      "origin": "vendored",
+      "sha256": "3458c401a945fd9d6fd10fe944506ee4925cf0febbcab108dcc1db434bf0407c"
+    },
+    "NumericUpDown.xaml": {
+      "origin": "vendored",
+      "sha256": "669ed43402682d43c2ac83b5b831d25e166d7198e8e11af05640451347d44ffd"
+    },
+    "OverlayPopupHost.xaml": {
+      "origin": "vendored",
+      "sha256": "ab8fcc50572c5aff6464a7ec57ff4cd042202811b15dd4b2976d102915b18899"
+    },
+    "PathIcon.xaml": {
+      "origin": "vendored",
+      "sha256": "680e05f116e01d4b294c79f58fec6e0127aad3bf52b404eb9dc65b90f8a18331"
+    },
+    "PipsPager.xaml": {
+      "origin": "vendored",
+      "sha256": "94882ec2bb2057c50c9c1d385668d04d782f7e8a3f76ef0a9dc5f333c3fcb3b3"
+    },
+    "PopupRoot.xaml": {
+      "origin": "vendored",
+      "sha256": "c0e3716d1053c68104bf8f8da94bac07b09741fbcb769d969fa15de2ab7324e2"
+    },
+    "ProgressBar.xaml": {
+      "origin": "vendored",
+      "sha256": "560edb633998f48009987134e7fcfe7a4051a0968f9d6332307a86fb9ddc8095"
+    },
+    "RadioButton.xaml": {
+      "origin": "vendored",
+      "sha256": "f8c33fcf97a215b101f5c2141712a9a90422d3285a762f42b6a6c7c4ecbb310f"
+    },
+    "RefreshContainer.xaml": {
+      "origin": "vendored",
+      "sha256": "b2641a73163e54e091b3c979d56f15d9d985b74af3203a7d37b2e9aa9d15ec1f"
+    },
+    "RefreshVisualizer.xaml": {
+      "origin": "vendored",
+      "sha256": "bf68d00ccb1fa81b1caa3472165fb13c1dc310bf518e157c572f37ae41ae3f6b"
+    },
+    "RepeatButton.xaml": {
+      "origin": "vendored",
+      "sha256": "34af1848258a8b9f293542c03ee03b3772110922e36202368a379b442ed05871"
+    },
+    "ScrollBar.xaml": {
+      "origin": "vendored",
+      "sha256": "9121bd01c2580f2f4b8252a8cfa3e4a576b7267c2184d2ee475e6fe2ee19b760"
+    },
+    "ScrollViewer.xaml": {
+      "origin": "vendored",
+      "sha256": "353321e1c5fc31bb83aa45b8d3adaea1c98f5d5ff92f67cf57161a90ac6ee962"
+    },
+    "SelectableTextBlock.xaml": {
+      "origin": "vendored",
+      "sha256": "d95087263b11773d8a1c3218410e19e52c2c6b19a20fb0f7efe0b74308c822f6"
+    },
+    "Separator.xaml": {
+      "origin": "vendored",
+      "sha256": "ce4b67f41e9be176bbaf11b71c0632417805cb279ebd1637664e575bed0feb89"
+    },
+    "SimpleControls.xaml": {
+      "origin": "customized",
+      "reason": "Aggregator: merges point at this assembly instead of Avalonia.Themes.Simple, and x:ClassModifier is dropped."
+    },
+    "Slider.xaml": {
+      "origin": "vendored",
+      "sha256": "5a4420acf64765aaacfd44fafd9ad845733a85a8954f5f149d17bc310334f680"
+    },
+    "SplitButton.xaml": {
+      "origin": "vendored",
+      "sha256": "d8fba29df3518bd9e3dff7048482ab5042c8e5095987ebe281d6a67822cd9b8a"
+    },
+    "SplitView.xaml": {
+      "origin": "vendored",
+      "sha256": "67641108ef0b8f83feafa8016b257dec741257f1c518e730729694374ebd8437"
+    },
+    "TabControl.xaml": {
+      "origin": "vendored",
+      "sha256": "4a598b27434ea2990854143db2858b15eface031e2a4a02acbc66272aaf9942d"
+    },
+    "TabItem.xaml": {
+      "origin": "vendored",
+      "sha256": "b1c53effcaa0be8b264da8ecd21ce65a5e9f92a68651d3fa70c5c8e84d04b4f3"
+    },
+    "TabStrip.xaml": {
+      "origin": "vendored",
+      "sha256": "61da198b6afca5535ad346925a8885a315d3974d67bd175771618edc382603a5"
+    },
+    "TabStripItem.xaml": {
+      "origin": "vendored",
+      "sha256": "99d03c39758e39bba537cc207419fdacac6b8153e857a6d832e3d345f3670cdc"
+    },
+    "TabbedPage.xaml": {
+      "origin": "customized",
+      "reason": "Upstream 12.1.1 binds SolidColorBrush.Color to Brush resources; retargeted to the Color keys."
+    },
+    "TableView.xaml": {
+      "origin": "vendored",
+      "sha256": "0af7a6e9f1f39df246394eb4baa3d6cc473b294e84b423a9688fd574cfd05d25"
+    },
+    "TableViewCell.xaml": {
+      "origin": "vendored",
+      "sha256": "1ef9e56106f8da9b389b2843c5bd29a51c31cc941ea8d56ac31cd03b1077a4d7"
+    },
+    "TableViewColumnHeader.xaml": {
+      "origin": "vendored",
+      "sha256": "fe5abea2f98ee6ae7b001091726b893baff4f9e4e8cf75f5ceaed00d7899cbdc"
+    },
+    "TableViewRow.xaml": {
+      "origin": "vendored",
+      "sha256": "6b19eccaefb183a117ef10f7853e62a0790894f45250be4ceb94de8806b36f26"
+    },
+    "TextBox.xaml": {
+      "origin": "vendored",
+      "sha256": "d28bb4672862967ed03eda8e27d06e3aa009beac3d7bb61efafb44a98a3ec97f"
+    },
+    "TextSelectionHandle.xaml": {
+      "origin": "vendored",
+      "sha256": "59b7b1e0d7378a292664d776099a5db92ba3a150d82d3cb0c58d2e0d310562b7"
+    },
+    "ThemeVariantScope.xaml": {
+      "origin": "vendored",
+      "sha256": "eff41ff201b3cc8b4acfe4f7ba225fe7c2509225d76b201fa7612d461d4145a8"
+    },
+    "TimePicker.xaml": {
+      "origin": "vendored",
+      "sha256": "d7d6f15c47cde01fa142ad81f5b8555330474c8145eac60f1639f8a1bb24238b"
+    },
+    "ToggleButton.xaml": {
+      "origin": "vendored",
+      "sha256": "08f3d8316f42696fc7b135755f7fba2ada1d5a036c5e7fe17931f772972d27e6"
+    },
+    "ToggleSwitch.xaml": {
+      "origin": "vendored",
+      "sha256": "f002852790f3a1451907f4dceca0a22a2ceba7d497e85d6cd805c3c8451b9265"
+    },
+    "ToolTip.xaml": {
+      "origin": "vendored",
+      "sha256": "d6dc806ba4628871aa5c6df20dd6e7be421e83cc8c10173984b7011d7e7c921e"
+    },
+    "TransitioningContentControl.xaml": {
+      "origin": "vendored",
+      "sha256": "8e2e3075256b5f34b8fe75ad9e5ac2de979400218e5603e2a05904b9e300a03f"
+    },
+    "TreeView.xaml": {
+      "origin": "vendored",
+      "sha256": "edacbdce5f29fc7eaae31058dfc1952f55022fb82514744bc0330ab71345701c"
+    },
+    "TreeViewItem.xaml": {
+      "origin": "vendored",
+      "sha256": "151b32beaba98a66cdbbd78615347fad3cb66d87d958f1f847392510d1e669d2"
+    },
+    "Window.xaml": {
+      "origin": "vendored",
+      "sha256": "32f155eecad8d0e51ad083833687451f86b757615240dcd7b6d7c7f395eaa031"
+    },
+    "WindowDrawnDecorations.xaml": {
+      "origin": "vendored",
+      "sha256": "8d8d8c508a0cf528fc35bee646d5756fa843cd0280c660c9c1893391649f5b03"
+    },
+    "WindowNotificationManager.xaml": {
+      "origin": "vendored",
+      "sha256": "ae3d590cb02e491966de03d353a74bd7a17ae50b2c7e3a78b1db2f0b7aa4aecd"
+    }
+  }
+}

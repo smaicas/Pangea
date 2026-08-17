@@ -1,13 +1,12 @@
-using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
-using CdCSharp.Pangea.Core.Services;
 using CdCSharp.Pangea.Services;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace CdCSharp.Pangea;
@@ -16,76 +15,62 @@ public static class PangeaExtensions
 {
     public static AppBuilder UsePangea(this AppBuilder builder)
     {
-        builder.AfterSetup(appBuilder =>
-        {
-            ConfigurePangeaServices();
-        });
-
+        builder.AfterSetup(_ => ConfigurePangeaServices());
         return builder;
     }
 
     private static void ConfigurePangeaServices()
     {
-        if (Avalonia.Application.Current is not PangeaApplication pangeaApp)
+        if (Application.Current is not PangeaApplication pangeaApp)
+        {
             throw new InvalidOperationException("Application must inherit from PangeaApplication to use Pangea");
+        }
+
+        PangeaOptions options = pangeaApp.ConfigurePangeaOptions(PangeaOptions.Default);
 
         IServiceCollection services = new ServiceCollection();
+        services.AddSingleton(Options.Create(options));
 
-        // 1 - Register PangeaOptions
-        services.Configure<PangeaOptions>((options) => pangeaApp.ConfigurePangeaOptions(options));
+        // One scan of the application's types, shared by everything that needs to look types up.
+        TypeRegistry typeRegistry = new(options.DI.AdditionalAssemblies);
+        typeRegistry.Initialize();
+        services.AddSingleton(typeRegistry);
 
-        // 2 - Discover and register features
-        FeatureRegistry.DiscoverAndRegisterFeatures(services);
+        FeatureRegistry featureRegistry = new(typeRegistry);
+        featureRegistry.DiscoverAndRegister(services);
+        services.AddSingleton(featureRegistry);
 
-        // 3 - Register Core Services
         RegisterCoreServices(services);
 
-        // 4 - Allow App Services Configuration
         pangeaApp.Configure(services);
 
-        // 5 - Discover and register ViewModels
-        RegisterViewModels(services);
+        RegisterViewModels(services, typeRegistry, options);
 
-        // 6 - Build service provider and init static instance
         IServiceProvider serviceProvider = services.BuildServiceProvider();
         pangeaApp.SetValue(PangeaApplication.ServiceProviderProperty, serviceProvider);
-        PangeaServices.Initialize(serviceProvider);
     }
 
-    
     private static void RegisterCoreServices(IServiceCollection services)
     {
-        // Register UI dispatcher first (required by RelayCommandFactory)
+        // No providers by default: the toolkit logs, the application decides where that goes.
+        services.AddLogging();
+
+        // The dispatcher comes first: the command factory hands it to every command it builds.
         services.AddSingleton<IUIDispatcher, AvaloniaUIDispatcher>();
-        
-        // Register command factory with dispatcher
         services.AddSingleton<IRelayCommandFactory, RelayCommandFactory>();
-        
-        // Other core services
-        services.AddSingleton<IApplicationLifetime>(GetApplicationLifetime());
+        services.AddSingleton(GetApplicationLifetime());
         services.AddSingleton<IWindowManager, WindowManager>();
     }
 
-    private static IApplicationLifetime GetApplicationLifetime()
+    private static IApplicationLifetime GetApplicationLifetime() =>
+        Application.Current?.ApplicationLifetime
+        ?? throw new InvalidOperationException("ApplicationLifetime not available during Pangea startup");
+
+    private static void RegisterViewModels(IServiceCollection services, TypeRegistry typeRegistry, PangeaOptions options)
     {
-        if (Avalonia.Application.Current?.ApplicationLifetime is { } lifetime)
-            return lifetime;
+        if (!options.DI.AutoRegisterViewModels) return;
 
-        throw new InvalidOperationException("ApplicationLifetime not available during WindowManager creation");
-    }
-
-    private static void RegisterViewModels(IServiceCollection services)
-    {
-        using ServiceProvider tempProvider = services.BuildServiceProvider();
-        IOptions<PangeaOptions> optionsAccessor = tempProvider.GetRequiredService<IOptions<PangeaOptions>>();
-        PangeaOptions options = optionsAccessor.Value;
-
-        if (!options.DI.AutoRegisterViewModels)
-            return;
-
-        Type[] viewModelTypes = TypeRegistry.Instance.GetTypesDerivedFrom<ViewModelBase>().ToArray();
-
-        foreach (Type viewModelType in viewModelTypes)
+        foreach (Type viewModelType in typeRegistry.GetTypesDerivedFrom<ViewModelBase>())
         {
             services.Add(new ServiceDescriptor(viewModelType, viewModelType, options.DI.ViewModelLifetime));
         }

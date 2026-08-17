@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <RootNamespace>CdCSharp.Pangea.Localization.Tests</RootNamespace>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Localization\CdCSharp.Pangea.Localization.csproj" />
+    </ItemGroup>
+
+    <!--
+        The .resx files under Resources\ are picked up by the SDK's default EmbeddedResource glob,
+        so string lookup and satellite fallback are exercised against real compiled resources.
+    -->
+</Project>

@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:CdCSharp.Pangea.Theming.Controls"
@@ -6,9 +6,9 @@
     x:DataType="controls:ThemeSelectorViewModel">
 
     <ToggleButton
-        IsChecked="{Binding IsDarkSelected, Mode=TwoWay}"
+        IsChecked="{Binding IsDark, Mode=TwoWay}"
         HorizontalAlignment="Left"
-        ToolTip.Tip="{Binding ThemeTooltip}"
+        ToolTip.Tip="{Binding VariantTooltip}"
         Width="44"
         Height="44"
         CornerRadius="22"
@@ -17,7 +17,7 @@
         <Border CornerRadius="20"
                 Width="36"
                 Height="36">
-            <TextBlock Text="{Binding ThemeIcon}"
+            <TextBlock Text="{Binding VariantIcon}"
                        FontSize="20"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center" />

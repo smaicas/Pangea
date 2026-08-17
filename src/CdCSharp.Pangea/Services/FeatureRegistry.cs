@@ -1,203 +1,86 @@
-using Avalonia;
+﻿using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Core.Base;
 using Microsoft.Extensions.DependencyInjection;
-using CdCSharp.Pangea.Core.Abstractions;
-using System.Collections.Concurrent;
-using System.Reflection;
 
 namespace CdCSharp.Pangea.Services;
 
-public static class FeatureRegistry
+/// <summary>
+/// Finds the <see cref="IPangeaFeature"/> implementations available to the application, lets each
+/// one register its services, and later hands each one the running application to configure.
+/// </summary>
+/// <remarks>
+/// <para>
+/// One instance per application, built during startup and registered in the container.
+/// </para>
+/// <para>
+/// Discovery goes through <see cref="TypeRegistry"/>, so there is a single assembly scan. A feature
+/// that fails to configure aborts startup: half a feature is worse than none, and a silent failure
+/// here surfaces much later as a missing service.
+/// </para>
+/// </remarks>
+public class FeatureRegistry
 {
-    private static readonly ConcurrentDictionary<string, IPangeaFeature> _features = new();
+    private readonly TypeRegistry _typeRegistry;
+    private readonly List<IPangeaFeature> _features = [];
 
-    public static void RegisterFeature(IPangeaFeature feature)
+    public FeatureRegistry(TypeRegistry typeRegistry) =>
+        _typeRegistry = typeRegistry ?? throw new ArgumentNullException(nameof(typeRegistry));
+
+    /// <summary>Features discovered so far, in discovery order.</summary>
+    public IReadOnlyList<IPangeaFeature> Features => _features;
+
+    /// <summary>
+    /// Instantiates every feature and lets it contribute services to the container.
+    /// </summary>
+    public void DiscoverAndRegister(IServiceCollection services)
     {
-        _features.TryAdd(feature.Name, feature);
+        ArgumentNullException.ThrowIfNull(services);
+
+        foreach (Type featureType in _typeRegistry.GetTypesImplementing<IPangeaFeature>()
+                     .Where(type => type is { IsAbstract: false, IsInterface: false })
+                     .OrderBy(type => type.FullName, StringComparer.Ordinal))
+        {
+            if (_features.Any(feature => feature.GetType() == featureType)) continue;
+
+            IPangeaFeature instance = Create(featureType);
+            instance.ConfigureServices(services);
+            _features.Add(instance);
+        }
     }
 
-    public static bool IsFeatureAvailable(string featureName)
+    /// <summary>
+    /// Runs each feature's application-level configuration, once the container is built.
+    /// </summary>
+    public void ConfigureApplication(IServiceProvider serviceProvider, IPangeaApplicationContext applicationContext)
     {
-        return _features.ContainsKey(featureName);
-    }
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(applicationContext);
 
-    public static T? GetFeature<T>() where T : class, IPangeaFeature
-    {
-        return _features.Values.OfType<T>().FirstOrDefault();
-    }
-
-    public static IPangeaFeature[] GetAllFeatures()
-    {
-        return _features.Values.ToArray();
-    }
-    
-    public static void ConfigureAllFeatures(IServiceProvider serviceProvider, IPangeaApplicationContext applicationContext)
-    {
-        foreach (IPangeaFeature feature in _features.Values)
+        foreach (IPangeaFeature feature in _features)
         {
             try
             {
                 feature.ConfigureApplication(serviceProvider, applicationContext);
-                System.Diagnostics.Debug.WriteLine($"ConfigureApplication completed: {feature.Name}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"ConfigureApplication error on feature: {feature.Name}: {ex.Message}");
+                throw new InvalidOperationException(
+                    $"Feature '{feature.Name}' ({feature.GetType().FullName}) failed to configure the application.", ex);
             }
         }
     }
-    
-    public static void DiscoverAndRegisterFeatures(IServiceCollection services)
+
+    private static IPangeaFeature Create(Type featureType)
     {
         try
         {
-            System.Diagnostics.Debug.WriteLine("Discovering features...");
-
-            LoadAllAvailableAssemblies();
-
-            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => !IsSystemAssembly(assembly))
-                .ToArray();
-
-            System.Diagnostics.Debug.WriteLine($"Scanning {assemblies.Length} assemblies for features");
-
-            int featuresRegistered = 0;
-
-            foreach (Assembly assembly in assemblies)
-            {
-                try
-                {
-                    Type[] featureTypes = assembly.GetTypes()
-                        .Where(type => typeof(IPangeaFeature).IsAssignableFrom(type))
-                        .Where(type => !type.IsAbstract && !type.IsInterface)
-                        .ToArray();
-
-                    foreach (Type featureType in featureTypes)
-                    {
-                        if (ProcessFeatureType(featureType, services))
-                            featuresRegistered++;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error scanning assembly: {ex.GetType().Name}");
-                }
-            }
-
-            System.Diagnostics.Debug.WriteLine($"Registered features: {featuresRegistered}");
+            return (IPangeaFeature)Activator.CreateInstance(featureType)!;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"DiscoverAndRegisterFeatures error: {ex.Message}");
+            throw new InvalidOperationException(
+                $"Feature '{featureType.FullName}' could not be created. Features need a public parameterless constructor.",
+                ex);
         }
-    }
-
-    private static bool ProcessFeatureType(Type featureType, IServiceCollection services)
-    {
-        try
-        {
-            System.Diagnostics.Debug.WriteLine($"Processing feature: {featureType.FullName}");
-
-            if (_features.Values.Any(f => f.GetType() == featureType))
-            {
-                System.Diagnostics.Debug.WriteLine($"Feature registered yet: {featureType.Name}");
-                return false;
-            }
-
-            if (Activator.CreateInstance(featureType) is IPangeaFeature featureInstance)
-            {
-                featureInstance.ConfigureServices(services);
-                RegisterFeature(featureInstance);
-
-                System.Diagnostics.Debug.WriteLine($"Registered feature: {featureInstance.Name} v{featureInstance.Version}");
-                return true;
-            }
-
-            return false;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error while processing {featureType.Name}: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static void LoadAllAvailableAssemblies()
-    {
-        try
-        {
-            HashSet<string> processedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Select(a => a.GetName().Name ?? "")
-                .Where(name => !string.IsNullOrEmpty(name))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            LoadAssembliesFromApplicationDirectory(processedAssemblies);
-
-            System.Diagnostics.Debug.WriteLine($"Total processed assemblies: {processedAssemblies.Count}");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"LoadAllAvailableAssemblies error: {ex.Message}");
-        }
-    }
-
-    private static void LoadAssembliesFromApplicationDirectory(HashSet<string> processedAssemblies)
-    {
-        try
-        {
-            string applicationDirectory = AppContext.BaseDirectory;
-            System.Diagnostics.Debug.WriteLine($"Searching assemblies in: {applicationDirectory}");
-
-            if (!Directory.Exists(applicationDirectory))
-                return;
-
-            string[] dllFiles = Directory.GetFiles(applicationDirectory, "*.dll", SearchOption.TopDirectoryOnly);
-            
-            System.Diagnostics.Debug.WriteLine($"Found {dllFiles.Length} .dll files");
-
-            foreach (string dllFile in dllFiles)
-            {
-                try
-                {
-                    string fileName = Path.GetFileNameWithoutExtension(dllFile);
-                    
-                    if (processedAssemblies.Contains(fileName) || IsSystemAssemblyName(fileName))
-                        continue;
-
-                    Assembly assembly = Assembly.LoadFrom(dllFile);
-                    
-                    if (processedAssemblies.Add(fileName))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Loaded from file: {fileName}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Can't load {Path.GetFileName(dllFile)}: {ex.GetType().Name}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"LoadAssembliesFromApplicationDirectory error: {ex.Message}");
-        }
-    }
-
-    private static bool IsSystemAssembly(Assembly assembly)
-    {
-        string? assemblyName = assembly.GetName().Name;
-        return IsSystemAssemblyName(assemblyName);
-    }
-
-    private static bool IsSystemAssemblyName(string? assemblyName)
-    {
-        if (string.IsNullOrEmpty(assemblyName))
-            return true;
-
-        return assemblyName.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
-               assemblyName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
-               assemblyName.StartsWith("netstandard", StringComparison.OrdinalIgnoreCase) ||
-               assemblyName.StartsWith("mscorlib", StringComparison.OrdinalIgnoreCase) ||
-               assemblyName.Equals("Avalonia", StringComparison.OrdinalIgnoreCase) ||
-               assemblyName.StartsWith("Avalonia.", StringComparison.OrdinalIgnoreCase);
     }
 }

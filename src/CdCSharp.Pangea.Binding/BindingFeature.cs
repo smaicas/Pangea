@@ -1,9 +1,8 @@
-using CdCSharp.Pangea.Core.Abstractions;
+﻿using CdCSharp.Pangea.Core.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CdCSharp.Pangea.Binding;
 
-[PangeaFeature(typeof(BindingFeature))]
 public class BindingFeature : IPangeaFeature
 {
     public string Name => "Binding";

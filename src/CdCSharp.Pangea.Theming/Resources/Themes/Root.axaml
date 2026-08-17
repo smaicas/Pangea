@@ -14,6 +14,7 @@
     <sys:Double x:Key="ScrollBarThumbThickness">8</sys:Double>
     <sys:Double x:Key="IconElementThemeHeight">20</sys:Double>
     <sys:Double x:Key="IconElementThemeWidth">20</sys:Double>
+    <sys:Double x:Key="TextControlPlaceholderOpacity">0.5</sys:Double>
 
     <!-- Brushes fijos -->
     <SolidColorBrush x:Key="ThemeControlTransparentBrush" Color="Transparent" />

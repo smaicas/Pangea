@@ -1,10 +1,12 @@
 name: Publish to NuGet
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.0.5). Leave empty for automatic Major.Minor.RunNumber.'
+        required: false
+        default: ''
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -30,10 +32,10 @@ jobs:
       - name: Generate Version
         id: version
         run: |
-          if [[ $GITHUB_REF == refs/tags/v* ]]; then
-            # If tagged, use version from tag
-            VERSION=${GITHUB_REF#refs/tags/v}
-            echo "Using tag version: $VERSION"
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            # Manual version from workflow_dispatch input
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Using manual version: $VERSION"
           else
             # Automatic Version: Major.Minor.RunNumber
             VERSION="${{ env.MAJOR_VERSION }}.${{ env.MINOR_VERSION }}.${{ github.run_number }}"
@@ -49,9 +51,24 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      # Runs before the versioned build so it cannot overwrite the stamped assemblies
+      # that the --no-build pack steps rely on.
+      - name: Test
+        run: |
+          for project in \
+            test/CdCSharp.Pangea.Core.Tests/CdCSharp.Pangea.Core.Tests.csproj \
+            test/CdCSharp.Pangea.Tests/CdCSharp.Pangea.Tests.csproj \
+            test/CdCSharp.Pangea.Localization.Tests/CdCSharp.Pangea.Localization.Tests.csproj \
+            test/CdCSharp.Pangea.Binding.CodeGeneration.Tests/CdCSharp.Pangea.Binding.CodeGeneration.Tests.csproj \
+            test/CdCSharp.Pangea.Theming.Tests/CdCSharp.Pangea.Theming.Tests.csproj
+          do
+            echo "🧪 $project"
+            dotnet test --project "$project" -c ${{ env.CONFIGURATION }} --verbosity normal
+          done
+
       - name: Build Solution
         run: |
-          echo "🔧 Step 1: Building Analyzers first (REQUIRED for main package)..."
+          echo "🔧 Step 1: Building the analyzer first (REQUIRED for main package)..."
           dotnet build src/CdCSharp.Pangea.Binding.CodeGeneration/CdCSharp.Pangea.Binding.CodeGeneration.csproj \
             -c ${{ env.CONFIGURATION }} \
             -p:Version=${{ steps.version.outputs.version }} \
@@ -59,16 +76,9 @@ jobs:
             -p:FileVersion=${{ steps.version.outputs.version }} \
             -v normal
           
-          dotnet build src/CdCSharp.Pangea.Theming.CodeGeneration/CdCSharp.Pangea.Theming.CodeGeneration.csproj \
-            -c ${{ env.CONFIGURATION }} \
-            -p:Version=${{ steps.version.outputs.version }} \
-            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
-            -p:FileVersion=${{ steps.version.outputs.version }} \
-            -v normal
 
-          echo "✅ Analyzers built successfully. Verifying..."
+          echo "✅ Analyzer built successfully. Verifying..."
           ls -la src/CdCSharp.Pangea.Binding.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
-          ls -la src/CdCSharp.Pangea.Theming.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
 
           echo "🔧 Step 2: Building Core..."
           dotnet build src/CdCSharp.Pangea.Core/CdCSharp.Pangea.Core.csproj \
@@ -115,9 +125,6 @@ jobs:
             -p:FileVersion=${{ steps.version.outputs.version }} \
             -v normal
 
-      - name: Test
-        run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal
-
       - name: Pack Main Project (with embedded analyzers)
         run: |
           echo "📦 Packing ONLY main project with embedded analyzers..."
@@ -125,7 +132,6 @@ jobs:
           # Verificar que los analyzers existen antes de empaquetar
           echo "🔍 Verifying analyzer DLLs exist..."
           ls -la src/CdCSharp.Pangea.Binding.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/CdCSharp.Pangea.Binding.CodeGeneration.dll
-          ls -la src/CdCSharp.Pangea.Theming.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/CdCSharp.Pangea.Theming.CodeGeneration.dll
           
           dotnet pack src/CdCSharp.Pangea/CdCSharp.Pangea.csproj \
             -c ${{ env.CONFIGURATION }} \
@@ -216,11 +222,6 @@ jobs:
                 echo "❌ Binding analyzer MISSING!"
               fi
           
-              if [[ -f "temp_extract/analyzers/dotnet/cs/CdCSharp.Pangea.Theming.CodeGeneration.dll" ]]; then
-                echo "✅ Theming analyzer found!"
-              else
-                echo "❌ Theming analyzer MISSING!"
-              fi
             else
               echo "❌ Analyzers folder NOT found!"
               echo "Available directories:"

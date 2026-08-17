@@ -3,6 +3,7 @@ using CdCSharp.Pangea.Binding.Attributes;
 using CdCSharp.Pangea.Tests.Int.Views;
 using CdCSharp.Pangea.Theming.Controls;
 using CdCSharp.Pangea.Theming.Abstractions;
+using Avalonia.Threading;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -32,6 +33,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public RelayCommand UpdateStatusCommand => CreateCommand(ExecuteUpdateStatus);
     public RelayCommand OpenCommandTestCommand => CreateCommand(OpenCommandTest);
+    public RelayCommand OpenControlGalleryCommand => CreateCommand(OpenControlGallery);
 
     public string ProgressText => $"Demo Progress: {ProgressValue}%";
 
@@ -57,6 +59,16 @@ public partial class MainWindowViewModel : ViewModelBase
         await _windowManager.ShowWindowAsync<CommandTestWindow, CommandTestViewModel>();
     }
 
+    private void OpenControlGallery()
+    {
+        // A plain synchronous command body, running on the UI thread like any MVVM command should.
+        // The gallery is pure XAML with no view model of its own; it only needs the shared theme
+        // selector so switching theme from it drives the whole application.
+        ControlGalleryWindow gallery = new();
+        gallery.UseThemeSelector(ThemeSelector);
+        gallery.Show();
+    }
+
     partial void OnProgressValueChanged()
     {
         OnPropertyChanged(nameof(ProgressText));
@@ -64,10 +76,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void UpdateStatusMessage()
     {
-        string currentTheme = _themeService.GetCurrentTheme() ?? "Unknown";
-        _statusMessage = currentTheme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
-            ? "🌙 Dark theme active - Warm & minimal design"
-            : "☀️ Light theme active - Clean & bright design";
+        bool isDark = _themeService.CurrentVariant == Avalonia.Styling.ThemeVariant.Dark;
+        _statusMessage = isDark
+            ? $"🌙 {_themeService.CurrentTheme} dark - Warm & minimal design"
+            : $"☀️ {_themeService.CurrentTheme} light - Clean & bright design";
         OnPropertyChanged(nameof(StatusMessage));
     }
 }

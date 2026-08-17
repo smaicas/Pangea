@@ -1,124 +1,151 @@
-using CdCSharp.Pangea.Localization.Abstractions;
+﻿using CdCSharp.Pangea.Localization.Abstractions;
 using Microsoft.Extensions.Options;
 using System.Globalization;
-using System.Resources;
 using System.Reflection;
+using System.Resources;
 
 namespace CdCSharp.Pangea.Localization.Services;
 
+/// <summary>
+/// Reads localized strings from the resource assemblies declared in <see cref="LocalizationOptions"/>
+/// and owns the application's current culture.
+/// </summary>
 public class LocalizationService : ILocalizationService
 {
-    private readonly IOptions<LocalizationOptions> _options;
-    private readonly List<ResourceManager> _resourceManagers = new();
+    private readonly LocalizationOptions _options;
+    private readonly IReadOnlyList<ResourceManager> _resourceManagers;
+    private readonly IReadOnlyList<CultureInfo> _supportedCultures;
 
     public LocalizationService(IOptions<LocalizationOptions> options)
     {
-        _options = options;
-        
-        InitializeResourceManagers();
-        InitializeCulture();
+        ArgumentNullException.ThrowIfNull(options);
+
+        _options = options.Value;
+        _resourceManagers = DiscoverResourceManagers(_options.ResourceAssemblies);
+        _supportedCultures = _options.SupportedCultures.Select(CultureInfo.GetCultureInfo).ToList();
+
+        CurrentCulture = ResolveInitialCulture();
+        ApplyCulture(CurrentCulture);
     }
 
     public CultureInfo CurrentCulture { get; private set; }
 
-    public IEnumerable<CultureInfo> SupportedCultures => 
-        _options.Value.SupportedCultures.Select(c => new CultureInfo(c));
+    public IEnumerable<CultureInfo> SupportedCultures => _supportedCultures;
 
     public event EventHandler<CultureChangedEventArgs>? CultureChanged;
 
+    /// <summary>
+    /// Resolves <paramref name="key"/> against the resource assemblies in order. An unresolved key
+    /// is returned as-is, which keeps a missing translation visible in the UI instead of blank.
+    /// </summary>
     public string GetString(string key)
     {
-        if (string.IsNullOrEmpty(key))
-            return key;
+        if (string.IsNullOrEmpty(key)) return key;
 
         foreach (ResourceManager resourceManager in _resourceManagers)
         {
+            string? value;
+
             try
             {
-                string? value = resourceManager.GetString(key, CurrentCulture);
-                if (!string.IsNullOrEmpty(value))
-                    return value;
+                value = resourceManager.GetString(key, CurrentCulture);
             }
-            catch
+            catch (MissingManifestResourceException)
             {
-                // Continue to next resource manager
+                // This assembly ships no resources for the current culture; the next one may.
+                continue;
             }
+
+            if (!string.IsNullOrEmpty(value)) return value;
         }
 
-        return key; // Return key as fallback
+        return key;
     }
 
     public void SetCulture(string cultureName)
     {
-        LocalizationOptions opts = _options.Value;
-        
-        if (!opts.SupportedCultures.Contains(cultureName))
+        ArgumentException.ThrowIfNullOrWhiteSpace(cultureName);
+
+        if (!_options.SupportedCultures.Contains(cultureName, StringComparer.OrdinalIgnoreCase))
         {
-            throw new NotSupportedException($"Culture '{cultureName}' is not supported. Supported cultures: {string.Join(", ", opts.SupportedCultures)}");
+            throw new NotSupportedException(
+                $"Culture '{cultureName}' is not supported. Supported cultures: {string.Join(", ", _options.SupportedCultures)}");
         }
 
-        CultureInfo oldCulture = CurrentCulture;
-        CurrentCulture = new CultureInfo(cultureName);
-        CultureInfo.CurrentCulture = CurrentCulture;
-        CultureInfo.CurrentUICulture = CurrentCulture;
+        CultureInfo previous = CurrentCulture;
+        CultureInfo next = CultureInfo.GetCultureInfo(cultureName);
 
-        CultureChanged?.Invoke(this, new CultureChangedEventArgs(oldCulture, CurrentCulture));
+        if (string.Equals(previous.Name, next.Name, StringComparison.OrdinalIgnoreCase)) return;
+
+        CurrentCulture = next;
+        ApplyCulture(next);
+
+        CultureChanged?.Invoke(this, new CultureChangedEventArgs(previous, next));
     }
 
-    private void InitializeResourceManagers()
+    /// <summary>
+    /// Applies the culture to the whole application, not just whichever thread asked for the change:
+    /// <see cref="CultureInfo.DefaultThreadCurrentCulture"/> covers threads started later, and the
+    /// calling thread needs setting explicitly.
+    /// </summary>
+    private static void ApplyCulture(CultureInfo culture)
     {
-        LocalizationOptions opts = _options.Value;
-        
-        foreach (string assemblyName in opts.ResourceAssemblyNames)
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+        CultureInfo.CurrentCulture = culture;
+        CultureInfo.CurrentUICulture = culture;
+    }
+
+    private CultureInfo ResolveInitialCulture()
+    {
+        if (_options.AutoDetectCulture)
         {
-            try
+            string systemCulture = CultureInfo.CurrentUICulture.Name;
+
+            if (_options.SupportedCultures.Contains(systemCulture, StringComparer.OrdinalIgnoreCase))
             {
-                Assembly? assembly = Assembly.LoadFrom(assemblyName);
-                if (assembly != null)
+                return CultureInfo.GetCultureInfo(systemCulture);
+            }
+        }
+
+        return CultureInfo.GetCultureInfo(_options.DefaultCulture);
+    }
+
+    /// <summary>
+    /// Finds the generated resource classes in the given assemblies: a type exposing a public
+    /// static <see cref="ResourceManager"/> property, which is what the .resx designer emits.
+    /// </summary>
+    private static List<ResourceManager> DiscoverResourceManagers(IEnumerable<Assembly> assemblies)
+    {
+        List<ResourceManager> managers = [];
+
+        foreach (Assembly assembly in assemblies)
+        {
+            foreach (Type type in SafeGetTypes(assembly))
+            {
+                PropertyInfo? property = type.GetProperty(
+                    nameof(ResourceManager), BindingFlags.Public | BindingFlags.Static);
+
+                if (property?.PropertyType == typeof(ResourceManager) &&
+                    property.GetValue(null) is ResourceManager manager)
                 {
-                    Type[] types = assembly.GetTypes();
-                    foreach (Type type in types)
-                    {
-                        if (type.Name.EndsWith("Resources") && type.GetProperty("ResourceManager") != null)
-                        {
-                            PropertyInfo? property = type.GetProperty("ResourceManager", BindingFlags.Public | BindingFlags.Static);
-                            if (property?.GetValue(null) is ResourceManager resourceManager)
-                            {
-                                _resourceManagers.Add(resourceManager);
-                            }
-                        }
-                    }
+                    managers.Add(manager);
                 }
             }
-            catch
-            {
-                // Ignore failed assembly loads
-            }
         }
+
+        return managers;
     }
 
-    private void InitializeCulture()
+    private static IEnumerable<Type> SafeGetTypes(Assembly assembly)
     {
-        LocalizationOptions opts = _options.Value;
-        CurrentCulture = new CultureInfo(opts.DefaultCulture);
-        
-        if (opts.AutoDetectCulture)
+        try
         {
-            DetectSystemCulture();
+            return assembly.GetTypes();
         }
-        
-        CultureInfo.CurrentCulture = CurrentCulture;
-        CultureInfo.CurrentUICulture = CurrentCulture;
-    }
-
-    private void DetectSystemCulture()
-    {
-        LocalizationOptions opts = _options.Value;
-        string systemCulture = CultureInfo.CurrentUICulture.Name;
-        
-        if (opts.SupportedCultures.Contains(systemCulture))
+        catch (ReflectionTypeLoadException ex)
         {
-            CurrentCulture = new CultureInfo(systemCulture);
+            return ex.Types.OfType<Type>();
         }
     }
 }

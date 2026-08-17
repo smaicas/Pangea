@@ -7,131 +7,116 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/smaicas/CdCSharp.Pangea/.github/workflows/nuget-publish.yml?style=flat-square&logo=github&label=Build)](https://github.com/smaicas/CdCSharp.Pangea/actions)
 [![License](https://img.shields.io/github/license/smaicas/CdCSharp.Pangea?style=flat-square&logo=opensourceinitiative&logoColor=white&label=License&color=green)](https://github.com/smaicas/CdCSharp.Pangea/blob/main/LICENSE)
 [![.NET Version](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Avalonia](https://img.shields.io/badge/Avalonia-11.3.9-663399?style=flat-square&logo=avalonia)](https://avaloniaui.net/)
-[![C# Language](https://img.shields.io/badge/C%23-12.0-239120?style=flat-square&logo=csharp)](https://docs.microsoft.com/en-us/dotnet/csharp/)
+[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.1-663399?style=flat-square&logo=avalonia)](https://avaloniaui.net/)
 
-**Modern Avalonia Toolkit with Intelligent MVVM, Advanced Binding, Dynamic Theming and Persistent Storage**
+**An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick Start](#-quick-start) • [📖 Features](#-features) • [🔧 Advanced Usage](#-advanced-usage) • [📚 Documentation](#-documentation)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization)
 
 </div>
+
+> **Status: pre-1.0.** The API is still moving and breaking changes land without a deprecation
+> cycle. Pin a version if you depend on it.
 
 ---
 
 ## 🎯 What is Pangea?
 
-**Pangea** is a comprehensive, production-ready toolkit for **Avalonia UI** applications that brings modern development patterns and intelligent code generation to cross-platform desktop development. Built with performance, developer experience, and maintainability in mind.
+Pangea wires up the parts an Avalonia application usually assembles by hand: a DI container, a
+source generator that turns fields into observable properties, a theme you can restyle from C#,
+per-platform storage paths, and localization.
 
-### ✨ Why Pangea?
-
-- **🧠 Intelligent Code Generation**: Advanced functional analysis that understands your ViewModels
-- **⚡ Zero Boilerplate**: Write less, achieve more with smart source generators
-- **🎨 Dynamic Theming**: Beautiful, customizable themes that adapt at runtime
-- **💾 Persistent Storage**: Seamless data persistence with multiple providers
-- **🌐 Globalization Ready**: Built-in localization and multi-language support
-- **🏗️ Enterprise-Grade Architecture**: Dependency injection, lifecycle management, and modular design
+Each capability is a **feature** — a class implementing `IPangeaFeature`, discovered at startup,
+registering its own services. Install the whole toolkit or just the features you want.
 
 ---
 
 ## 📦 Installation
 
-### Quick Install (Recommended)
 ```bash
-# Install the complete toolkit
+# Everything, including the binding source generator
 dotnet add package CdCSharp.Pangea
 ```
 
-### Granular Installation
 ```bash
-# Core functionality
-dotnet add package CdCSharp.Pangea.Core
-
-# Individual features
-dotnet add package CdCSharp.Pangea.Binding
-dotnet add package CdCSharp.Pangea.Theming  
-dotnet add package CdCSharp.Pangea.Storage
-dotnet add package CdCSharp.Pangea.Localization
+# Or piece by piece
+dotnet add package CdCSharp.Pangea.Core          # ViewModelBase, RelayCommand, TypeRegistry
+dotnet add package CdCSharp.Pangea.Binding       # [Binding] attribute + generator
+dotnet add package CdCSharp.Pangea.Theming       # palettes, themes, theme service
+dotnet add package CdCSharp.Pangea.Storage       # per-platform paths and file access
+dotnet add package CdCSharp.Pangea.Localization  # cultures and resource strings
 ```
+
+Targets **.NET 10** and **Avalonia 12.1**.
 
 ---
 
-## 🚀 Quick Start
-
-### 1. Setup Your Application
+## 🚀 Quick start
 
 ```csharp
 // App.axaml.cs
-using CdCSharp.Pangea;
-
 public partial class App : PangeaApplication
 {
     public override void Configure(IServiceCollection services)
     {
-        // Register your services
-        services.AddTransient<MainViewModel>();
         services.AddSingleton<IDataService, DataService>();
+        // View models deriving from ViewModelBase are registered automatically
     }
 }
 
-// Program.cs  
+// Program.cs
 public static AppBuilder BuildAvaloniaApp()
     => AppBuilder.Configure<App>()
         .UsePlatformDetect()
         .WithInterFont()
         .LogToTrace()
-        .UsePangea(); // 🌍 Enable Pangea
+        .UsePangea();
 ```
 
-### 2. Create Smart ViewModels
+`UsePangea()` scans the application's assemblies once, registers every feature it finds, registers
+your view models, and builds the container. `PangeaApplication` then lets each feature configure the
+running application and shows the main window.
+
+---
+
+## 🧠 Binding
+
+Fields marked `[Binding]` become properties that raise change notifications — including for the
+computed properties and commands that depend on them.
 
 ```csharp
-using CdCSharp.Pangea.Binding.Attributes;
-using CdCSharp.Pangea.Core.Base;
-
 public partial class ProductViewModel : ViewModelBase
 {
-    // 🏷️ Fields with [Binding] become full properties with change notifications
+    public ProductViewModel(IServiceProvider services) : base(services) { }
+
     [Binding] private string _name = "";
     [Binding] private decimal _price;
     [Binding] private bool _isAvailable = true;
-    [Binding] private ObservableCollection<string> _categories = new();
+    [Binding(ReadOnly = true)] private string _sku = "";
+    [Binding(PropertyName = "Tags")] private ObservableCollection<string> _categories = [];
 
-    // ⚙️ Computed properties automatically detect dependencies
     public string DisplayName => $"{Name} ({Price:C})";
     public bool CanOrder => IsAvailable && Price > 0;
-    
-    // 🎯 Commands with automatic CanExecute binding
-    public RelayCommand OrderCommand => CreateCommand(ExecuteOrder, () => CanOrder);
-    public RelayCommand<string> AddCategoryCommand => CreateCommand<string>(AddCategory);
 
-    private void ExecuteOrder()
+    public RelayCommand OrderCommand => CreateCommand(Order, () => CanOrder);
+    public RelayCommand<string> AddTagCommand => CreateCommand<string>(AddTag);
+
+    private void Order() => IsAvailable = false;
+
+    private void AddTag(string? tag)
     {
-        // Order logic here
-        IsAvailable = false; // Automatically updates CanOrder and OrderCommand.CanExecute
+        if (!string.IsNullOrEmpty(tag)) Tags.Add(tag);
     }
 
-    private void AddCategory(string? category)
-    {
-        if (!string.IsNullOrEmpty(category))
-            Categories.Add(category);
-    }
-
-    // 🔄 Partial methods for custom change handling
-    partial void OnNameChanged()
-    {
-        // Custom logic when Name changes
-        // DisplayName automatically updates too!
-    }
+    // Optional hook, called by the generated setter
+    partial void OnNameChanged() { }
 }
 ```
 
-### 3. What Pangea Generates For You
-
-The **Functional Analyzer** examines your ViewModel and generates optimized code:
+The generator analyses the class and emits only the notifications that are actually needed:
 
 ```csharp
-// ✨ Auto-generated by Pangea's Intelligent Binding System
-public partial class ProductViewModel
+partial class ProductViewModel
 {
     public string Name
     {
@@ -141,10 +126,9 @@ public partial class ProductViewModel
             if (SetProperty(ref _name, value))
             {
                 OnNameChanged();
-                
-                // 🧠 Smart dependency detection
-                OnPropertyChanged(nameof(DisplayName));      // Computed property
-                OrderCommand.NotifyCanExecuteChanged();       // Command dependency
+
+                // Computed property notifications
+                OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
@@ -157,338 +141,288 @@ public partial class ProductViewModel
             if (SetProperty(ref _price, value))
             {
                 OnPriceChanged();
-                
-                // 🔗 Transitive dependencies automatically resolved
-                OnPropertyChanged(nameof(DisplayName));
+
+                // Computed property notifications
                 OnPropertyChanged(nameof(CanOrder));
-                OrderCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(DisplayName));
+
+                // Command CanExecute notifications
+                OrderCommand.RaiseCanExecuteChanged();
             }
         }
     }
 
-    // 🚀 Full implementation for all binding fields...
+    // ReadOnly: getter only, no change hook, no notifications
+    public string Sku
+    {
+        get => _sku;
+    }
+
+    partial void OnNameChanged();
+    partial void OnPriceChanged();
 }
 ```
+
+**What it works out for you**
+
+| | |
+|---|---|
+| Computed properties | An expression- or getter-bodied property that reads a binding property is notified when it changes |
+| Transitive chains | `Price → DisplayName → Summary` propagates without you listing it |
+| Commands | A command whose `CanExecute` reads a property — directly, through a `CanX` method, or through a computed property — gets `RaiseCanExecuteChanged()` |
+| Collections | If `OnXChanged` calls a method that mutates a collection, whatever reads that collection is notified |
+
+### Commands
+
+`CreateCommand` builds a `RelayCommand` bound to the UI dispatcher.
+
+```csharp
+public RelayCommand SaveCommand => CreateCommand(Save, () => CanSave);          // sync
+public RelayCommand LoadCommand => CreateCommand(LoadAsync);                    // async
+public RelayCommand<Item> RemoveCommand => CreateCommand<Item>(Remove);         // parameterised
+```
+
+A **synchronous body runs on the UI thread**, marshalled if you invoke the command from elsewhere.
+Background work belongs in the `Func<Task>` overload, where leaving the UI thread is explicit.
+
+Failures always reach `ViewModelBase.OnCommandError`, which you can override. `ExecuteAsync` also
+rethrows so an awaiting caller can react; `ICommand.Execute` cannot, and does not.
 
 ---
 
-## 📖 Features
+## 🎨 Theming
 
-### 🧠 Intelligent Functional Analysis
+A **theme** is a pair of palettes, light and dark. A **variant** is which of the two is showing.
+They are separate axes: switching theme keeps the variant, and vice versa.
 
-Pangea's **FunctionalAnalyzer** performs sophisticated static analysis of your ViewModels:
+### Restyling the application
 
-#### **Phase 1: Discovery & Inventory**
-- **🏷️ Binding Fields**: Detects `[Binding]` attributed fields and their characteristics
-- **⚙️ Computed Properties**: Identifies expression-bodied properties and their dependencies
-- **🎯 Command Properties**: Analyzes `RelayCommand` properties and their CanExecute conditions
-- **🔧 CanExecute Methods**: Maps command validation methods to their dependencies
-- **🔄 Partial Methods**: Discovers `OnPropertyChanged` partial methods and tracked method calls
-- **📦 Collection Modifiers**: Finds methods that modify observable collections
-
-#### **Phase 2: Dependency Graph Analysis**
-- **🔗 Direct Dependencies**: Maps immediate property-to-property relationships
-- **🌐 Transitive Dependencies**: Calculates cascading dependency chains
-- **⚡ Command Dependencies**: Links command CanExecute to property changes
-- **📊 Collection Dependencies**: Tracks collection modification impacts
-- **🎯 Smart Optimization**: Eliminates redundant notifications
-
-#### **Phase 3: Intelligent Code Generation**
-- **📝 Minimal Notifications**: Generates only necessary `OnPropertyChanged` calls
-- **🔄 Cascade Management**: Handles complex dependency chains automatically
-- **⚡ Performance Optimized**: Reduces reflection and runtime overhead
-- **🛡️ Null-Safe Operations**: Generates defensive code patterns
-
-#### **Advanced Capabilities**
+Override the colours you care about — everything derived from them follows:
 
 ```csharp
-public partial class AdvancedViewModel : ViewModelBase
+using CdCSharp.Pangea.Theming.Palettes;
+
+public sealed class BrandDark : DarkPalette
 {
-    [Binding] private string _firstName = "";
-    [Binding] private string _lastName = "";
-    [Binding] private decimal _salary;
-    [Binding] private bool _isManager;
-    [Binding] private ObservableCollection<Employee> _directReports = new();
-
-    // 🧠 Complex computed properties with multiple dependencies
-    public string FullName => $"{FirstName} {LastName}".Trim();
-    public string DisplayTitle => IsManager ? $"Manager: {FullName}" : FullName;
-    public decimal AnnualBonus => IsManager ? Salary * 0.15m : Salary * 0.05m;
-    public bool HasDirectReports => DirectReports.Count > 0;
-    
-    // 🎯 Commands with complex CanExecute logic
-    public RelayCommand PromoteCommand => CreateCommand(Promote, () => !IsManager && Salary > 50000);
-    public RelayCommand<Employee> RemoveReportCommand => CreateCommand<Employee>(RemoveReport, emp => emp != null && HasDirectReports);
-
-    // 🔄 Collection modification with automatic dependent updates
-    private void AddDirectReport(Employee employee)
-    {
-        DirectReports.Add(employee); 
-        // 🚀 Pangea automatically notifies: HasDirectReports, RemoveReportCommand.CanExecute
-    }
-
-    // 🎛️ Complex partial method with cascade handling
-    partial void OnSalaryChanged()
-    {
-        UpdateBenefits();
-        RecalculateTeamBudget();
-        // 🧠 Pangea handles: AnnualBonus, PromoteCommand.CanExecute notifications
-    }
+    public override Color ThemeAccentColor => Color.Parse("#FF4F9DDE");
+    public override Color ThemeBackgroundColor => Color.Parse("#FF101418");
 }
 
-// ✨ Generated notifications are precisely calculated:
-// Changing FirstName triggers: FullName → DisplayTitle
-// Changing IsManager triggers: DisplayTitle, AnnualBonus, PromoteCommand.CanExecute  
-// Changing Salary triggers: AnnualBonus, PromoteCommand.CanExecute + custom partial method
-```
-
-### 🎨 Dynamic Theming System
-
-```csharp
-// Runtime theme switching
-public partial class SettingsViewModel : ViewModelBase
+public sealed class BrandLight : PangeaPalette   // the base is the light palette
 {
-    private readonly IThemeService _themeService;
-    
-    public RelayCommand<string> ChangeThemeCommand => CreateCommand<string>(theme => 
-    {
-        _themeService.SetTheme(theme);
-        // Theme changes immediately across entire application
-    });
+    public override Color ThemeAccentColor => Color.Parse("#FF1B6EC2");
 }
 ```
 
-### 💾 Flexible Storage System
+```csharp
+services.Configure<ThemingOptions>(options =>
+{
+    // Replace the toolkit's own theme...
+    options.Themes[PangeaTheme.DefaultName] = new PangeaTheme(new BrandLight(), new BrandDark());
+
+    // ...or add more and let the user choose
+    options.Themes["Contrast"] = new PangeaTheme(new ContrastLight(), new ContrastDark());
+    options.DefaultTheme = "Contrast";
+
+    options.EnableSystemThemeDetection = true;      // follow the OS preference
+    options.FallbackVariant = ThemeVariant.Dark;    // when it has none
+});
+```
+
+Every colour property name **is** its resource key, and each one also produces a brush with `Color`
+swapped for `Brush`. Overriding `ThemeAccentColor` therefore updates `ThemeAccentColor`,
+`ThemeAccentBrush`, and everything derived from them.
+
+### Switching at runtime
 
 ```csharp
-public partial class UserPreferencesViewModel : ViewModelBase
+public class AppearanceViewModel : ViewModelBase
 {
-    [Binding] private string _username = "";
-    [Binding] private ThemeMode _preferredTheme = ThemeMode.System;
-    
-    // 💾 Automatic persistence
-    private readonly IStorageService _storage;
-    
-    partial void OnUsernameChanged() => _storage.SaveAsync("username", Username);
-    partial void OnPreferredThemeChanged() => _storage.SaveAsync("theme", PreferredTheme);
+    private readonly IThemeService _themes;
+
+    public AppearanceViewModel(IServiceProvider services) : base(services) =>
+        _themes = services.GetRequiredService<IThemeService>();
+
+    public IReadOnlyCollection<string> Themes => _themes.AvailableThemes;
+
+    public RelayCommand<string> UseTheme => CreateCommand<string>(name => _themes.SetTheme(name!));
+    public RelayCommand UseDark => CreateCommand(() => _themes.SetVariant(ThemeVariant.Dark));
 }
 ```
 
-### 🌐 Localization Support
+The toolkit ships a `ThemeSelector` control with a view model that drives both axes.
+
+Because the palettes are Avalonia theme variants, a `ThemeVariantScope` can render part of the UI in
+the opposite variant to the rest of the application.
+
+### Control themes
+
+The control dictionaries under `Resources/Controls/Shared` are Avalonia's Simple theme, vendored as
+a starting point. A manifest records which files are still untouched copies and which this repo has
+taken ownership of, and a test fails when the two drift apart or when the Avalonia version moves
+without the theme being re-vendored.
+
+---
+
+## 💾 Storage
+
+Per-platform application folders plus file access.
 
 ```csharp
-// Localization with binding support
-public partial class LocalizedViewModel : ViewModelBase
+public class SettingsService(IStorageService storage)
+{
+    private readonly string _path = storage.GetDataFilePath("settings.json");
+
+    public Task<Settings?> LoadAsync() => storage.ReadJsonAsync<Settings>(_path);
+
+    public Task SaveAsync(Settings settings) => storage.WriteJsonAsync(_path, settings);
+}
+```
+
+```csharp
+services.Configure<StorageOptions>(options =>
+{
+    options.ApplicationName = "MyApp";   // folder name under the platform's data directory
+    options.UsePortableMode = false;     // true keeps everything next to the executable
+    options.CustomDataPath = null;       // or somewhere of your choosing
+});
+```
+
+Writes create the folders they need. Reads do not: `ReadTextAsync` fails on a missing file the way
+`File.ReadAllTextAsync` does, while `ReadJsonAsync` returns null, for state that may not exist yet.
+
+---
+
+## 🌐 Localization
+
+```csharp
+services.Configure<LocalizationOptions>(options =>
+{
+    options.SupportedCultures = ["en-US", "es-ES"];
+    options.DefaultCulture = "en-US";
+    options.AutoDetectCulture = true;
+
+    // Assemblies holding the .resx-generated resource classes
+    options.ResourceAssemblies.Add(typeof(Strings).Assembly);
+});
+```
+
+```csharp
+public class GreetingViewModel : ViewModelBase
 {
     private readonly ILocalizationService _localization;
-    
-    public string WelcomeMessage => _localization.GetString("Welcome", Username);
-    public string ItemCount => _localization.GetString("ItemCount", Items.Count);
+
+    public string Welcome => _localization.GetString("WelcomeMessage");
+
+    public void SwitchToSpanish() => _localization.SetCulture("es-ES");
 }
 ```
 
+An unresolved key comes back as itself, so a missing translation is visible rather than blank.
+`SetCulture` applies to the whole application, including threads started afterwards, and raises
+`CultureChanged`.
+
 ---
 
-## 🔧 Advanced Usage
-
-### Custom Configuration
+## 🔧 Configuration
 
 ```csharp
 public partial class App : PangeaApplication
 {
     public override PangeaOptions ConfigurePangeaOptions(PangeaOptions options)
     {
-        return options with
-        {
-            DI = options.DI with
-            {
-                AutoRegisterViewModels = true,
-                ViewModelLifetime = ServiceLifetime.Scoped
-            },
-            Window = options.Window with
-            {
-                AutoDiscoverMainWindow = true,
-                MainWindowType = typeof(MainWindow),
-                MainViewModelType = typeof(MainViewModel)
-            }
-        };
-    }
+        options.DI.AutoRegisterViewModels = true;
+        options.DI.ViewModelLifetime = ServiceLifetime.Transient;
 
-    public override void Configure(IServiceCollection services)
-    {
-        // Advanced service registration
-        services.AddSingleton<ICustomService, CustomService>();
-        services.AddHttpClient<IApiClient, ApiClient>();
-        
-        // Storage configuration
-        services.Configure<StorageOptions>(options =>
-        {
-            options.Provider = StorageProvider.SQLite;
-            options.ConnectionString = "Data Source=app.db";
-        });
+        // Assemblies to scan beyond those reachable from the entry assembly
+        options.DI.AdditionalAssemblies.Add(typeof(PluginFeature).Assembly);
 
-        // Theme configuration
-        services.Configure<ThemingOptions>(options =>
-        {
-            options.DefaultTheme = "Dark";
-            options.AllowRuntimeSwitching = true;
-        });
+        options.Window.AutoDiscoverMainWindow = true;
+        options.Window.MainWindowType = typeof(MainWindow);
+        options.Window.MainViewModelType = typeof(MainWindowViewModel);
+
+        return options;
     }
 }
 ```
 
-### Custom Storage Providers
+### Writing a feature
 
 ```csharp
-public class CloudStorageProvider : IStorageProvider
+public class TelemetryFeature : IPangeaFeature
 {
-    public async Task<T?> GetAsync<T>(string key)
-    {
-        // Custom cloud storage implementation
-        return await _cloudClient.GetAsync<T>(key);
-    }
+    public string Name => "Telemetry";
+    public Version Version => new(1, 0, 0);
 
-    public async Task SaveAsync<T>(string key, T value)
+    public void ConfigureServices(IServiceCollection services) =>
+        services.AddSingleton<ITelemetry, Telemetry>();
+
+    public void ConfigureApplication(IServiceProvider services, IPangeaApplicationContext context)
     {
-        await _cloudClient.SaveAsync(key, value);
+        // Runs once the container is built, with the application available
     }
 }
-
-// Register in DI
-services.AddTransient<IStorageProvider, CloudStorageProvider>();
 ```
 
----
+Discovery is by interface: any non-abstract `IPangeaFeature` in a scanned assembly is instantiated
+and registered. A feature that fails to configure aborts startup naming itself, rather than leaving
+the application half-wired.
 
-## 🏗️ Architecture & Design Patterns
+### Logging
 
-### Modular Feature System
-Pangea uses a modular architecture where each feature is self-contained:
-
-- **🧩 Feature Discovery**: Automatic registration via attributes
-- **⚙️ Dependency Injection**: Full DI container integration
-- **🔌 Plugin Architecture**: Easy to extend with custom features
-- **🎯 Single Responsibility**: Each feature has a clear purpose
-
-### Performance Considerations
-
-- **📊 Compile-Time Generation**: Source generators eliminate runtime reflection
-- **🔄 Efficient Change Tracking**: Minimal property change notifications
-- **💾 Lazy Loading**: Services and resources loaded on-demand
-- **🎯 Memory Efficient**: Weak references and proper disposal patterns
-
-### Testing Support
+The toolkit logs through `ILogger` and registers no providers of its own. Add yours and it is picked
+up:
 
 ```csharp
-[TestClass]
-public class ProductViewModelTests
-{
-    [TestMethod]  
-    public void PropertyChanges_TriggerDependentUpdates()
-    {
-        // Arrange
-        var viewModel = new ProductViewModel();
-        var notificationCount = 0;
-        viewModel.PropertyChanged += (s, e) => notificationCount++;
-
-        // Act
-        viewModel.Name = "Test Product";
-
-        // Assert - Verify Pangea generated the right notifications
-        Assert.IsTrue(notificationCount >= 2); // Name + DisplayName
-        Assert.AreEqual("Test Product", viewModel.DisplayName);
-    }
-}
+public override void Configure(IServiceCollection services) =>
+    services.AddLogging(builder => builder.AddConsole());
 ```
 
 ---
 
-## 🎯 Comparison with Other Solutions
+## 🧪 Tests
 
-| Feature | Pangea | CommunityToolkit.Mvvm | ReactiveUI | Prism |
-|---------|---------|----------------------|------------|-------|
-| 🧠 **Intelligent Analysis** | ✅ Advanced | ❌ Basic | ❌ Manual | ❌ Manual |
-| ⚡ **Source Generation** | ✅ Full | ✅ Partial | ❌ Reflection | ❌ Reflection |
-| 🎨 **Dynamic Theming** | ✅ Built-in | ❌ None | ❌ None | ❌ Custom |
-| 💾 **Storage Integration** | ✅ Multi-provider | ❌ None | ❌ Custom | ❌ Custom |
-| 🌐 **Localization** | ✅ Integrated | ❌ External | ❌ External | ✅ Built-in |
-| 🏗️ **DI Container** | ✅ Built-in | ❌ External | ✅ Splat | ✅ Built-in |
-| 📱 **Cross-Platform** | ✅ Avalonia | ❌ WPF/WinUI | ✅ Multi | ✅ Multi |
+```bash
+dotnet test --project test/CdCSharp.Pangea.Core.Tests/CdCSharp.Pangea.Core.Tests.csproj
+```
 
----
+Six suites cover the source generator, the theme (structure, resource resolution per variant,
+control template smoke tests, drift against upstream Avalonia), commands and threading, startup
+registries, storage and localization. `test/CdCSharp.Pangea.Tests.Int` is a sample application with a
+control gallery for looking at the theme by eye.
 
-## 📚 Documentation
-
-### 📖 Comprehensive Guides
-- **[Getting Started Guide](docs/getting-started.md)** - Step-by-step setup and first app
-- **[Binding System Deep Dive](docs/binding-system.md)** - Advanced binding scenarios
-- **[Theming Guide](docs/theming.md)** - Custom themes and runtime switching
-- **[Storage Providers](docs/storage.md)** - All supported storage backends
-- **[Architecture Overview](docs/architecture.md)** - Design patterns and principles
-
-### 🔧 API Reference
-- **[ViewModelBase API](docs/api/viewmodel-base.md)** - Base class reference
-- **[IThemeService API](docs/api/theme-service.md)** - Theme management
-- **[IStorageService API](docs/api/storage-service.md)** - Data persistence
-- **[Attributes Reference](docs/api/attributes.md)** - All available attributes
-
-### 📝 Examples & Samples
-- **[Sample Applications](examples/)** - Complete example projects
-- **[Code Snippets](docs/snippets.md)** - Common patterns and solutions
-- **[Migration Guides](docs/migration/)** - Upgrading from other MVVM frameworks
+The theming and window tests run on `Avalonia.Headless`, so they need no display.
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+1. Fork the repository
+2. Create a branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes
+4. Push and open a Pull Request
 
-### 🚀 Quick Contribute
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### 🐛 Found a Bug?
-- Check [existing issues](https://github.com/smaicas/CdCSharp.Pangea/issues)
-- Create a [new issue](https://github.com/smaicas/CdCSharp.Pangea/issues/new) with detailed reproduction steps
-
----
-
-## 📊 Project Statistics
-
-<div align="center">
-
-![GitHub Stars](https://img.shields.io/github/stars/smaicas/CdCSharp.Pangea?style=flat-square&logo=github&color=yellow)
-![GitHub Forks](https://img.shields.io/github/forks/smaicas/CdCSharp.Pangea?style=flat-square&logo=github&color=blue)
-![GitHub Issues](https://img.shields.io/github/issues/smaicas/CdCSharp.Pangea?style=flat-square&logo=github&color=red)
-![Code Size](https://img.shields.io/github/languages/code-size/smaicas/CdCSharp.Pangea?style=flat-square&logo=github&color=green)
-
-</div>
+Found a bug? Check [existing issues](https://github.com/smaicas/CdCSharp.Pangea/issues) or open a
+[new one](https://github.com/smaicas/CdCSharp.Pangea/issues/new).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **[Avalonia UI Team](https://avaloniaui.net/)** - For the amazing cross-platform UI framework
-- **[.NET Team](https://dotnet.microsoft.com/)** - For Source Generators and modern C# features
-- **Contributors** - Everyone who has contributed to making Pangea better
-
----
+- **[Avalonia UI](https://avaloniaui.net/)** — the cross-platform UI framework, and the Simple theme
+  the control dictionaries started from
+- **[.NET](https://dotnet.microsoft.com/)** — source generators and modern C#
 
 <div align="center">
 
-**⭐ If Pangea helps your project, please give it a star! ⭐**
-
 **Made with ❤️ for the Avalonia and .NET community**
 
-[🔝 Back to Top](#-cdcsharppangea)
+[🔝 Back to top](#-cdcsharppangea)
 
 </div>

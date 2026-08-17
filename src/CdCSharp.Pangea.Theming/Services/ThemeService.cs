@@ -1,176 +1,83 @@
-﻿using Avalonia;
-using Avalonia.Markup.Xaml.Styling;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Styling;
 using CdCSharp.Pangea.Theming.Abstractions;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
+using CdCSharp.Pangea.Theming.Palettes;
 
 namespace CdCSharp.Pangea.Theming.Services;
 
+/// <summary>
+/// Keeps exactly one theme dictionary merged into the application and moves Avalonia's variant.
+/// </summary>
 public class ThemeService : IThemeService
 {
-    public static class Resources
+    private readonly Dictionary<string, PangeaTheme> _themes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _lock = new();
+
+    private ResourceDictionary? _appliedResources;
+
+    public ThemeService() => RegisterTheme(PangeaTheme.DefaultName, PangeaTheme.Default);
+
+    public string CurrentTheme { get; private set; } = PangeaTheme.DefaultName;
+
+    public ThemeVariant CurrentVariant { get; private set; } = ThemeVariant.Default;
+
+    public IReadOnlyCollection<string> AvailableThemes
     {
-        public const string DarkThemePath = "avares://CdCSharp.Pangea.Theming/Resources/Themes/DarkTheme.axaml";
-        public const string LightThemePath = "avares://CdCSharp.Pangea.Theming/Resources/Themes/LightTheme.axaml";
-    }
-
-    public static class Themes
-    {
-        public const string Dark = nameof(Dark);
-        public const string Light = nameof(Light);
-    }
-
-    private static readonly IReadOnlyDictionary<string, string> DefaultThemes = new Dictionary<string, string>
-    {
-        [Themes.Dark] = Resources.DarkThemePath, 
-        [Themes.Light] = Resources.LightThemePath
-    }.AsReadOnly();
-
-    private readonly ConcurrentDictionary<string, string> _registeredThemes = new();
-    private readonly object _themeOperationLock = new();
-
-    private ResourceInclude? _currentCustomTheme;
-    private string? _currentThemeName;
-
-    public ThemeService()
-    {
-        InitializeDefaultThemes();
-    }
-
-    public PangeaUI? ToolKitUI { get; private set; }
-
-    public void RegisterTheme(string name, string resourcePath)
-    {
-        ValidateThemeParameters(name, resourcePath);
-        _registeredThemes[name] = resourcePath;
-    }
-
-    public void UnregisterTheme(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return;
-
-        if (_registeredThemes.TryRemove(name, out _) && _currentThemeName == name)
-            SetCustomTheme(null);
-    }
-
-    public IReadOnlyDictionary<string, string> GetRegisteredThemes() =>
-        _registeredThemes.ToDictionary(kvp => kvp.Key, kvp => kvp.Value).AsReadOnly();
-
-    public bool IsThemeRegistered(string name) =>
-        !string.IsNullOrWhiteSpace(name) && _registeredThemes.ContainsKey(name);
-
-    public void SetCustomTheme(string? themeName)
-    {
-        if (_currentThemeName == themeName) return;
-
-        lock (_themeOperationLock)
+        get
         {
-            try
+            lock (_lock) return _themes.Keys.ToList();
+        }
+    }
+
+    public void RegisterTheme(string name, PangeaTheme theme)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(theme);
+
+        lock (_lock) _themes[name] = theme;
+    }
+
+    public void SetTheme(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        PangeaTheme theme;
+        lock (_lock)
+        {
+            if (!_themes.TryGetValue(name, out PangeaTheme? registered))
             {
-                _currentThemeName = themeName;
-                ApplyCustomTheme(themeName);
-                SynchronizeWithAvaloniaThemeVariant(themeName);
+                throw new InvalidOperationException(
+                    $"Theme '{name}' is not registered. Available: {string.Join(", ", _themes.Keys)}");
             }
-            catch (Exception)
-            {
-                _currentThemeName = null;
-                throw;
-            }
+
+            theme = registered;
+            CurrentTheme = name;
         }
+
+        Apply(theme);
     }
 
-    public string? GetCurrentTheme() => _currentThemeName;
-
-    public List<string> GetAvailableThemes() => _registeredThemes.Keys.ToList();
-
-    public void RegisterToolkitUI(PangeaUI toolkitUI)
+    public void SetVariant(ThemeVariant variant)
     {
-        ArgumentNullException.ThrowIfNull(toolkitUI);
-        
-        ToolKitUI = toolkitUI;
+        ArgumentNullException.ThrowIfNull(variant);
 
-        if (!string.IsNullOrEmpty(_currentThemeName))
-            ApplyCustomTheme(_currentThemeName);
+        CurrentVariant = variant;
+
+        if (Application.Current is { } application) application.RequestedThemeVariant = variant;
     }
 
-    private void InitializeDefaultThemes()
+    /// <summary>
+    /// Replaces the merged palette. Building it once per switch keeps the application holding a
+    /// single theme dictionary instead of a growing stack of them.
+    /// </summary>
+    private void Apply(PangeaTheme theme)
     {
-        foreach (KeyValuePair<string, string> theme in DefaultThemes)
-            _registeredThemes[theme.Key] = theme.Value;
-    }
+        if (Application.Current?.Resources.MergedDictionaries is not { } merged) return;
 
-    private static void ValidateThemeParameters(string name, string resourcePath)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Theme name cannot be null or empty", nameof(name));
-        }
+        if (_appliedResources is not null) merged.Remove(_appliedResources);
 
-        if (string.IsNullOrWhiteSpace(resourcePath))
-        {
-            throw new ArgumentException("Resource path cannot be null or empty", nameof(resourcePath));
-        }
-    }
-
-    private void ApplyCustomTheme(string? themeName)
-    {
-        if (Application.Current?.Resources?.MergedDictionaries == null) return;
-
-        RemoveCurrentCustomTheme(); 
-
-        if (!string.IsNullOrEmpty(themeName))
-            LoadCustomTheme(themeName);
-    }
-
-    private void LoadCustomTheme(string themeName)
-    {
-        if (!_registeredThemes.TryGetValue(themeName, out string? resourcePath))
-        {
-            throw new InvalidOperationException($"Theme '{themeName}' is not registered");
-        }
-
-        try
-        {
-            
-            Uri themeUri = new(resourcePath);
-            _currentCustomTheme = new ResourceInclude(themeUri) { Source = themeUri };
-            Application.Current!.Resources!.MergedDictionaries.Add(_currentCustomTheme);
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to load theme '{themeName}' from '{resourcePath}'", ex);
-        }
-    }
-
-    private void RemoveCurrentCustomTheme()
-    {
-        if (_currentCustomTheme != null && Application.Current?.Resources?.MergedDictionaries != null)
-        {
-            Application.Current.Resources.MergedDictionaries.Remove(_currentCustomTheme);
-            _currentCustomTheme = null;
-        }
-    }
-
-    private static void SynchronizeWithAvaloniaThemeVariant(string? themeName)
-    {
-        try
-        {
-            Application? app = Application.Current;
-            if (app == null) return;
-
-            ThemeVariant targetVariant = themeName?.Contains("dark", StringComparison.OrdinalIgnoreCase) == true
-                ? ThemeVariant.Dark
-                : ThemeVariant.Light;
-
-            app.RequestedThemeVariant = targetVariant;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"SynchronizeWithAvaloniaThemeVariant error: {ex.Message}");
-        }
+        _appliedResources = theme.Build();
+        merged.Add(_appliedResources);
     }
 }

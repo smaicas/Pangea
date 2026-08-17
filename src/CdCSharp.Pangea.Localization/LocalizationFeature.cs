@@ -1,11 +1,10 @@
-using CdCSharp.Pangea.Core.Abstractions;
+﻿using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Localization.Abstractions;
 using CdCSharp.Pangea.Localization.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CdCSharp.Pangea.Localization;
 
-[PangeaFeature(typeof(LocalizationFeature))]
 public class LocalizationFeature : IPangeaFeature
 {
     public string Name => "Localization";
@@ -13,9 +12,8 @@ public class LocalizationFeature : IPangeaFeature
 
     public void ConfigureServices(IServiceCollection services)
     {
-        services.Configure<LocalizationOptions>(options => 
-        {
-        });
+        // Defaults only; the application overrides them with its own services.Configure call.
+        services.Configure<LocalizationOptions>(_ => { });
 
         services.AddSingleton<ILocalizationService, LocalizationService>();
     }

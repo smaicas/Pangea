@@ -278,20 +278,20 @@ public class FunctionalAnalyzer
 
         foreach (MethodDeclarationSyntax method in allMethods)
         {
-            if (method.Body != null)
-            {
-                List<string> collectionModifications = DetectCollectionModifications(method.Body);
-                if (collectionModifications.Any())
-                {
-                    CollectionModifyingMethodInfo methodInfo = new CollectionModifyingMethodInfo
-                    {
-                        MethodName = method.Identifier.ValueText,
-                        ModifiedCollections = collectionModifications,
-                        ManualNotifications = ExtractManualNotifications(method.Body)
-                    };
+            SyntaxNode? body = method.Body ?? (SyntaxNode?)method.ExpressionBody?.Expression;
+            if (body == null) continue;
 
-                    analysis.CollectionModifyingMethods.Add(methodInfo);
-                }
+            List<string> collectionModifications = DetectCollectionModifications(body);
+            if (collectionModifications.Any())
+            {
+                CollectionModifyingMethodInfo methodInfo = new CollectionModifyingMethodInfo
+                {
+                    MethodName = method.Identifier.ValueText,
+                    ModifiedCollections = collectionModifications,
+                    ManualNotifications = ExtractManualNotifications(body)
+                };
+
+                analysis.CollectionModifyingMethods.Add(methodInfo);
             }
         }
     }
@@ -817,13 +817,6 @@ public class FunctionalAnalyzer
         }
     }
 
-    private void AnalyzePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnary, CommandInfo commandInfo,
-        ViewModelAnalysis analysis)
-    {
-        // Para casos como !IsLoading, !HasErrors
-        AnalyzeLambdaExpression(prefixUnary.Operand, commandInfo, analysis);
-    }
-
     private void AnalyzeInvocationInLambda(InvocationExpressionSyntax invocation, CommandInfo commandInfo,
         ViewModelAnalysis analysis)
     {
@@ -877,16 +870,6 @@ public class FunctionalAnalyzer
         AnalyzeLambdaExpression(binaryExpression.Right, commandInfo, analysis);
     }
 
-
-    private void AnalyzeMemberAccess(MemberAccessExpressionSyntax memberAccess, CommandInfo commandInfo)
-    {
-        if (memberAccess.Expression is IdentifierNameSyntax identifier)
-        {
-            // Items.Count -> agregar "Items" como dependencia
-            commandInfo.CanExecuteReferences.Add(identifier.Identifier.ValueText);
-        }
-    }
-
     private void AnalyzeLambdaBlock(BlockSyntax block, CommandInfo commandInfo, ViewModelAnalysis analysis)
     {
         // Para lambdas con cuerpo de bloque { ... }
@@ -913,24 +896,6 @@ public class FunctionalAnalyzer
         return analysis.BindingFields.Any(bf => bf.PropertyName == propertyName) ||
                analysis.ComputedProperties.Any(cp => cp.PropertyName == propertyName) ||
                analysis.CanExecuteMethods.Any(cem => cem.MethodName == propertyName);
-    }
-
-    private void AnalyzeInvocationExpression(InvocationExpressionSyntax invocation, CommandInfo commandInfo,
-        ViewModelAnalysis analysis)
-    {
-        // Para casos como !string.IsNullOrEmpty(item), capturar referencias a propiedades del ViewModel
-        foreach (ArgumentSyntax argument in invocation.ArgumentList.Arguments)
-        {
-            if (argument.Expression is IdentifierNameSyntax identifier)
-            {
-                // Solo agregar si es una propiedad conocida del ViewModel, no un parámetro
-                if (analysis.BindingFields.Any(bf => bf.PropertyName == identifier.Identifier.ValueText) ||
-                    analysis.ComputedProperties.Any(cp => cp.PropertyName == identifier.Identifier.ValueText))
-                {
-                    commandInfo.CanExecuteReferences.Add(identifier.Identifier.ValueText);
-                }
-            }
-        }
     }
 
     #endregion
@@ -1089,12 +1054,14 @@ public class FunctionalAnalyzer
         SyntaxNode? body = method.Body ?? (SyntaxNode?)method.ExpressionBody?.Expression;
         if (body == null) return methodCalls;
 
-        foreach (SyntaxNode node in body.DescendantNodes())
+        // DescendantNodesAndSelf: for expression-bodied hooks (=> ApplyFilter();) the invocation
+        // is the body itself, so DescendantNodes alone would miss it.
+        foreach (SyntaxNode node in body.DescendantNodesAndSelf())
         {
             if (node is InvocationExpressionSyntax invocation)
             {
                 string? methodName = ExtractMethodName(invocation.Expression);
-                if (!string.IsNullOrEmpty(methodName))
+                if (methodName is { Length: > 0 })
                 {
                     methodCalls.Add(methodName);
                 }
@@ -1124,11 +1091,11 @@ public class FunctionalAnalyzer
         return methodName;
     }
 
-    private List<string> DetectCollectionModifications(BlockSyntax methodBody)
+    private List<string> DetectCollectionModifications(SyntaxNode methodBody)
     {
         List<string> modifications = new List<string>();
 
-        foreach (SyntaxNode node in methodBody.DescendantNodes())
+        foreach (SyntaxNode node in methodBody.DescendantNodesAndSelf())
         {
             if (node is InvocationExpressionSyntax invocation &&
                 invocation.Expression is MemberAccessExpressionSyntax memberAccess)
@@ -1153,31 +1120,45 @@ public class FunctionalAnalyzer
             "AddRange" or "RemoveRange" or "Sort" or "Reverse";
     }
 
-    private List<string> ExtractManualNotifications(BlockSyntax methodBody)
+    private List<string> ExtractManualNotifications(SyntaxNode methodBody)
     {
         List<string> notifications = new List<string>();
 
-        foreach (SyntaxNode node in methodBody.DescendantNodes())
+        foreach (SyntaxNode node in methodBody.DescendantNodesAndSelf())
         {
-            if (node is InvocationExpressionSyntax invocation &&
-                invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-                memberAccess.Name.Identifier.ValueText == "OnPropertyChanged")
+            // Matches both OnPropertyChanged(...) and this.OnPropertyChanged(...)
+            if (node is not InvocationExpressionSyntax invocation ||
+                ExtractMethodName(invocation.Expression) != "OnPropertyChanged")
             {
-                ArgumentSyntax? arg = invocation.ArgumentList.Arguments.FirstOrDefault();
-                if (arg?.Expression is InvocationExpressionSyntax nameofCall &&
-                    nameofCall.Expression is IdentifierNameSyntax nameofId &&
-                    nameofId.Identifier.ValueText == "nameof")
+                continue;
+            }
+
+            ArgumentSyntax? arg = invocation.ArgumentList.Arguments.FirstOrDefault();
+
+            // OnPropertyChanged(nameof(Property))
+            if (arg?.Expression is InvocationExpressionSyntax nameofCall &&
+                nameofCall.Expression is IdentifierNameSyntax nameofId &&
+                nameofId.Identifier.ValueText == "nameof")
+            {
+                ArgumentSyntax? nameofArg = nameofCall.ArgumentList.Arguments.FirstOrDefault();
+                if (nameofArg?.Expression is IdentifierNameSyntax propertyName)
                 {
-                    ArgumentSyntax? nameofArg = nameofCall.ArgumentList.Arguments.FirstOrDefault();
-                    if (nameofArg?.Expression is IdentifierNameSyntax propertyName)
-                    {
-                        notifications.Add(propertyName.Identifier.ValueText);
-                    }
+                    notifications.Add(propertyName.Identifier.ValueText);
+                }
+            }
+            // OnPropertyChanged("Property")
+            else if (arg?.Expression is LiteralExpressionSyntax literal &&
+                     literal.IsKind(SyntaxKind.StringLiteralExpression))
+            {
+                string? value = literal.Token.ValueText;
+                if (!string.IsNullOrEmpty(value))
+                {
+                    notifications.Add(value);
                 }
             }
         }
 
-        return notifications;
+        return notifications.Distinct().ToList();
     }
 
     private string GetNamespace(ClassDeclarationSyntax classDeclaration)
@@ -1286,8 +1267,6 @@ public class ViewModelAnalysis
 
     public List<CollectionModifyingMethodInfo> CollectionModifyingMethods { get; set; } =
         new List<CollectionModifyingMethodInfo>();
-
-    public Dictionary<string, List<string>> DependencyGraph { get; set; } = new Dictionary<string, List<string>>();
 
     public Dictionary<string, List<string>> TransitiveDependencies { get; set; } =
         new Dictionary<string, List<string>>();

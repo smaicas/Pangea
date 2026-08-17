@@ -1,47 +1,37 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CdCSharp.Pangea.Core.Abstractions;
 
 namespace CdCSharp.Pangea.Services;
 
 /// <summary>
-/// Avalonia implementation of IUIDispatcher for thread-safe UI updates
+/// <see cref="IUIDispatcher"/> backed by Avalonia's dispatcher.
 /// </summary>
+/// <remarks>
+/// Exceptions from the scheduled delegate are deliberately not caught: whoever scheduled the work
+/// decides what to do about it, and swallowing them here would turn a failing body into a silent
+/// no-op.
+/// </remarks>
 public class AvaloniaUIDispatcher : IUIDispatcher
 {
     public bool CheckAccess() => Dispatcher.UIThread.CheckAccess();
 
     public void Post(Action action)
     {
-        if (action == null) return;
-        
-        try
-        {
-            Dispatcher.UIThread.Post(action);
-        }
-        catch
-        {
-            // Ignore dispatcher errors to prevent crashes
-        }
+        ArgumentNullException.ThrowIfNull(action);
+        Dispatcher.UIThread.Post(action);
     }
 
     public void Invoke(Action action)
     {
-        if (action == null) return;
-        
-        try
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (CheckAccess())
         {
-            if (CheckAccess())
-            {
-                action();
-            }
-            else
-            {
-                Dispatcher.UIThread.Invoke(action);
-            }
+            action();
         }
-        catch
+        else
         {
-            // Ignore dispatcher errors to prevent crashes
+            Dispatcher.UIThread.Invoke(action);
         }
     }
 }

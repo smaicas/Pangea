@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform, so test projects are executables.
+             The runner itself is selected in global.json ("test": { "runner": ... }). -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Pinned to the xunit.v3 line Avalonia.Headless.XUnit builds against; on 4.x its
+             [AvaloniaFact] discovery fails with MissingMethodException. -->
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <!-- Drives the theme through a real Avalonia app with no windowing backend -->
+        <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Theming\CdCSharp.Pangea.Theming.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Records which vendored theme files are still untouched; see VendoredThemeDriftTests -->
+        <None Update="upstream-manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+</Project>

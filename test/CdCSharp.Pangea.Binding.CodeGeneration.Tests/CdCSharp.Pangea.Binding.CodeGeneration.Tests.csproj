@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform, so test projects are executables.
+             The runner itself is selected in global.json ("test": { "runner": ... }). -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Hosts the generator under test; matches the Roslyn shipped with the .NET 10 SDK -->
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+        <!-- Kept on the same xunit.v3 line as the theming tests, which Avalonia.Headless.XUnit pins -->
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Generator under test: referenced as a normal assembly so it can be driven directly -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj" />
+        <!-- Runtime types the analyzed source depends on (BindingAttribute, ViewModelBase, RelayCommand) -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding\CdCSharp.Pangea.Binding.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" />
+    </ItemGroup>
+</Project>

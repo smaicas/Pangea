@@ -1,0 +1,295 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:theming="using:CdCSharp.Pangea.Theming.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+        x:Class="CdCSharp.Pangea.Tests.Int.Views.ControlGalleryWindow"
+        x:CompileBindings="False"
+        Title="Pangea UI - Control Gallery"
+        Width="1400" Height="900">
+
+    <!--
+        Every control the toolkit theme styles, on one screen. The automated suite proves these
+        controls build a visual tree; this is where you check they actually look right.
+    -->
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Border Grid.Row="0"
+                Background="{DynamicResource ThemeControlLowBrush}"
+                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="🧩" FontSize="24" VerticalAlignment="Center" />
+                    <TextBlock Text="Control Gallery" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="Theme:" VerticalAlignment="Center" />
+                    <theming:ThemeSelector x:Name="SelectorHost" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Padding="32">
+            <StackPanel Spacing="24" MaxWidth="1240">
+
+                <!-- ============ THEME VARIANT SCOPING ============ -->
+                <!--
+                    Both panels render in their own variant regardless of the active theme, because
+                    the palettes ship as Avalonia theme variants rather than as dictionaries swapped
+                    at runtime. Whatever the app theme is, one of these stays light and the other dark.
+                -->
+                <GroupBox Header="ThemeVariantScope - light and dark side by side, whatever the app theme">
+                    <Grid ColumnDefinitions="*,16,*">
+                        <Border Grid.Column="0" BorderThickness="1" CornerRadius="6"
+                                BorderBrush="{DynamicResource ThemeBorderMidBrush}">
+                            <ThemeVariantScope RequestedThemeVariant="Light">
+                                <Border Background="{DynamicResource ThemeBackgroundBrush}" Padding="16" CornerRadius="6">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Light" FontWeight="SemiBold" />
+                                        <Button Content="Button" />
+                                        <TextBox PlaceholderText="TextBox" />
+                                        <CheckBox Content="CheckBox" IsChecked="True" />
+                                        <ProgressBar Value="60" />
+                                    </StackPanel>
+                                </Border>
+                            </ThemeVariantScope>
+                        </Border>
+                        <Border Grid.Column="2" BorderThickness="1" CornerRadius="6"
+                                BorderBrush="{DynamicResource ThemeBorderMidBrush}">
+                            <ThemeVariantScope RequestedThemeVariant="Dark">
+                                <Border Background="{DynamicResource ThemeBackgroundBrush}" Padding="16" CornerRadius="6">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Dark" FontWeight="SemiBold" />
+                                        <Button Content="Button" />
+                                        <TextBox PlaceholderText="TextBox" />
+                                        <CheckBox Content="CheckBox" IsChecked="True" />
+                                        <ProgressBar Value="60" />
+                                    </StackPanel>
+                                </Border>
+                            </ThemeVariantScope>
+                        </Border>
+                    </Grid>
+                </GroupBox>
+
+                <!-- ============ BUTTONS ============ -->
+                <GroupBox Header="Buttons">
+                    <StackPanel Spacing="16">
+                        <WrapPanel ItemSpacing="12" LineSpacing="12">
+                            <Button Content="Button" />
+                            <Button Content="Disabled" IsEnabled="False" />
+                            <RepeatButton Content="RepeatButton" />
+                            <ToggleButton Content="ToggleButton" IsChecked="True" />
+                            <HyperlinkButton Content="HyperlinkButton" />
+                            <DropDownButton Content="DropDownButton">
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="First" />
+                                        <MenuItem Header="Second" />
+                                    </MenuFlyout>
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
+                            <SplitButton Content="SplitButton">
+                                <SplitButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Option A" />
+                                        <MenuItem Header="Option B" />
+                                    </MenuFlyout>
+                                </SplitButton.Flyout>
+                            </SplitButton>
+                        </WrapPanel>
+                        <WrapPanel ItemSpacing="16" LineSpacing="12">
+                            <CheckBox Content="Checked" IsChecked="True" />
+                            <CheckBox Content="Unchecked" />
+                            <CheckBox Content="Indeterminate" IsChecked="{x:Null}" IsThreeState="True" />
+                            <CheckBox Content="Disabled" IsEnabled="False" />
+                            <RadioButton Content="Option 1" GroupName="Gallery" IsChecked="True" />
+                            <RadioButton Content="Option 2" GroupName="Gallery" />
+                            <ToggleSwitch Content="ToggleSwitch" IsChecked="True" />
+                        </WrapPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ TEXT INPUT ============ -->
+                <GroupBox Header="Text and numeric input">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="TextBlock - the quick brown fox jumps over the lazy dog" />
+                        <SelectableTextBlock Text="SelectableTextBlock - select me, then right click for the flyout" />
+                        <Label Content="Label" />
+                        <TextBox PlaceholderText="TextBox with placeholder" />
+                        <TextBox Text="Disabled TextBox" IsEnabled="False" />
+                        <TextBox AcceptsReturn="True" Height="72"
+                                 Text="Multiline TextBox&#x0a;second line&#x0a;third line" />
+                        <AutoCompleteBox x:Name="Completion" Watermark="AutoCompleteBox - type 'a'" />
+                        <NumericUpDown Value="42" Minimum="0" Maximum="100" />
+                        <ButtonSpinner Content="ButtonSpinner" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ SELECTION ============ -->
+                <GroupBox Header="Selection">
+                    <StackPanel Spacing="12">
+                        <ComboBox x:Name="Combo" PlaceholderText="ComboBox" />
+                        <ComboBox x:Name="EditableCombo" IsEditable="True" PlaceholderText="Editable ComboBox" />
+                        <ListBox x:Name="List" Height="120" />
+                        <TabControl>
+                            <TabItem Header="First">
+                                <TextBlock Text="TabItem content" Margin="12" />
+                            </TabItem>
+                            <TabItem Header="Second">
+                                <TextBlock Text="Second tab" Margin="12" />
+                            </TabItem>
+                            <TabItem Header="Disabled" IsEnabled="False" />
+                        </TabControl>
+                        <TabStrip>
+                            <TabStripItem>Strip A</TabStripItem>
+                            <TabStripItem>Strip B</TabStripItem>
+                        </TabStrip>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ RANGE AND PROGRESS ============ -->
+                <GroupBox Header="Range and progress">
+                    <Grid ColumnDefinitions="*,24,Auto" RowDefinitions="Auto,Auto,Auto">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="12">
+                            <Slider Value="40" />
+                            <Slider Value="70" IsSnapToTickEnabled="True" TickFrequency="10" TickPlacement="BottomRight" />
+                            <ProgressBar Value="65" />
+                            <ProgressBar Value="65" ShowProgressText="True" />
+                            <ProgressBar IsIndeterminate="True" />
+                            <PipsPager NumberOfPages="5" SelectedPageIndex="2" />
+                        </StackPanel>
+                        <Slider Grid.Row="0" Grid.Column="2" Orientation="Vertical" Value="55" Height="180" />
+                    </Grid>
+                </GroupBox>
+
+                <!-- ============ DATE AND TIME ============ -->
+                <GroupBox Header="Date and time">
+                    <StackPanel Spacing="12">
+                        <WrapPanel ItemSpacing="12" LineSpacing="12">
+                            <CalendarDatePicker />
+                            <DatePicker />
+                            <TimePicker />
+                        </WrapPanel>
+                        <Calendar HorizontalAlignment="Left" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ DATA ============ -->
+                <GroupBox Header="Data">
+                    <StackPanel Spacing="12">
+                        <TreeView x:Name="Tree" Height="180">
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate ItemsSource="{Binding Children}">
+                                    <TextBlock Text="{Binding Title}" />
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                        <TableView x:Name="Table" Height="200" CanUserResizeColumns="True">
+                            <TableView.Columns>
+                                <TableViewColumn Header="Name" Binding="{Binding Name}" Width="200" />
+                                <TableViewColumn Header="Role" Binding="{Binding Role}" Width="180" />
+                                <TableViewColumn Header="Count" Binding="{Binding Count}" Width="100" />
+                            </TableView.Columns>
+                        </TableView>
+                        <ItemsControl x:Name="Items" />
+                        <Carousel x:Name="Slides" Height="80" />
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ CONTAINERS ============ -->
+                <GroupBox Header="Containers and layout">
+                    <StackPanel Spacing="12">
+                        <Expander Header="Expander (expanded)" IsExpanded="True">
+                            <TextBlock Text="Expander content" Margin="8" />
+                        </Expander>
+                        <Expander Header="Expander (collapsed)" />
+                        <HeaderedContentControl Header="HeaderedContentControl">
+                            <TextBlock Text="Its content" />
+                        </HeaderedContentControl>
+                        <Separator />
+                        <Grid ColumnDefinitions="*,4,*" Height="80">
+                            <Border Grid.Column="0" Background="{DynamicResource ThemeControlMidBrush}" />
+                            <GridSplitter Grid.Column="1" />
+                            <Border Grid.Column="2" Background="{DynamicResource ThemeControlLowBrush}" />
+                        </Grid>
+                        <SplitView IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="180" Height="140">
+                            <SplitView.Pane>
+                                <TextBlock Text="SplitView pane" Margin="12" />
+                            </SplitView.Pane>
+                            <TextBlock Text="SplitView content" Margin="12" />
+                        </SplitView>
+                        <ContentPage Height="90">
+                            <TextBlock Text="ContentPage content" Margin="12" />
+                        </ContentPage>
+                        <TransitioningContentControl Content="TransitioningContentControl" Height="48" />
+                        <RefreshContainer Height="72">
+                            <TextBlock Text="RefreshContainer - pull to refresh" Margin="12" />
+                        </RefreshContainer>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ MENUS AND FLYOUTS ============ -->
+                <GroupBox Header="Menus, flyouts and commands">
+                    <StackPanel Spacing="12">
+                        <Menu>
+                            <MenuItem Header="_File">
+                                <MenuItem Header="New" InputGesture="Ctrl+N" />
+                                <MenuItem Header="Open" />
+                                <Separator />
+                                <MenuItem Header="Recent">
+                                    <MenuItem Header="Nested item" />
+                                </MenuItem>
+                                <MenuItem Header="Disabled" IsEnabled="False" />
+                            </MenuItem>
+                            <MenuItem Header="_Edit">
+                                <MenuItem Header="Copy" />
+                            </MenuItem>
+                        </Menu>
+                        <CommandBar>
+                            <CommandBar.PrimaryCommands>
+                                <CommandBarButton Label="Save" />
+                                <CommandBarButton Label="Share" />
+                                <CommandBarSeparator />
+                                <CommandBarToggleButton Label="Pin" IsChecked="True" />
+                            </CommandBar.PrimaryCommands>
+                            <CommandBar.SecondaryCommands>
+                                <CommandBarButton Label="Settings" />
+                            </CommandBar.SecondaryCommands>
+                        </CommandBar>
+                        <Border Background="{DynamicResource ThemeControlMidBrush}" Padding="12" CornerRadius="4">
+                            <TextBlock Text="Right click me for a ContextMenu, hover for a ToolTip">
+                                <TextBlock.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Context item" />
+                                        <MenuItem Header="Another one" />
+                                    </ContextMenu>
+                                </TextBlock.ContextMenu>
+                                <ToolTip.Tip>This is a ToolTip</ToolTip.Tip>
+                            </TextBlock>
+                        </Border>
+                        <Button Content="Button with a Flyout">
+                            <Button.Flyout>
+                                <Flyout>
+                                    <TextBlock Text="FlyoutPresenter content" />
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ============ MISC ============ -->
+                <GroupBox Header="Icons and validation">
+                    <StackPanel Spacing="12" Orientation="Horizontal">
+                        <PathIcon Data="M 0,0 L 16,0 L 8,16 Z" Width="24" Height="24" />
+                        <PathIcon Data="M 8,0 A 8,8 0 1 0 8,16 A 8,8 0 1 0 8,0 Z" Width="24" Height="24" />
+                    </StackPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

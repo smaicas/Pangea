@@ -65,7 +65,7 @@
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Text Input:" VerticalAlignment="Center" Margin="0,10,10,0" />
                     <TextBox Grid.Row="2" Grid.Column="1" 
                              Text="{Binding TextInput}" 
-                             Watermark="Enter text to enable Text Command"
+                             PlaceholderText="Enter text to enable Text Command"
                              Margin="0,10,0,0" />
 
                     <!-- Counter -->

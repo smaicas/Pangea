@@ -1,10 +1,10 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
-using CdCSharp.Pangea.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 
@@ -40,8 +40,9 @@ public interface IWindowManager : IDisposable
 public class WindowManager : IWindowManager, IDisposable
 {
     private readonly ConcurrentDictionary<Type, WeakReference<Window>> _windowCache = new();
-    private readonly SemaphoreSlim _creationSemaphore = new(1, 1);
     private readonly IServiceProvider _serviceProvider;
+    private readonly TypeRegistry _typeRegistry;
+    private readonly ILogger<WindowManager> _logger;
     private readonly IApplicationLifetime _applicationLifetime;
     private readonly PangeaOptions _options;
     private Window? _mainWindow;
@@ -51,9 +52,13 @@ public class WindowManager : IWindowManager, IDisposable
     public WindowManager(
         IServiceProvider serviceProvider,
         IApplicationLifetime applicationLifetime,
-        IOptions<PangeaOptions> options)
+        IOptions<PangeaOptions> options,
+        TypeRegistry typeRegistry,
+        ILogger<WindowManager> logger)
     {
         _serviceProvider = serviceProvider;
+        _typeRegistry = typeRegistry;
+        _logger = logger;
         _applicationLifetime = applicationLifetime;
         _options = options.Value;
     }
@@ -118,14 +123,12 @@ public class WindowManager : IWindowManager, IDisposable
         if (TryGetCachedWindow<TWindow>(out TWindow? existingWindow))
             return existingWindow;
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            return CreateWindowWithViewModel<TWindow, TViewModel>();
-        }
-        else
-        {
-            return Dispatcher.UIThread.Invoke(() => CreateWindowWithViewModel<TWindow, TViewModel>());
-        }
+        // Re-check on the UI thread: without it two callers that both miss the cache each build a
+        // window, and the second silently replaces the first in the cache.
+        return Dispatcher.UIThread.Invoke(() =>
+            TryGetCachedWindow<TWindow>(out TWindow? cached)
+                ? cached
+                : CreateWindowWithViewModel<TWindow, TViewModel>());
     }
 
     public TWindow GetOrCreateWindow<TWindow>() where TWindow : Window, new()
@@ -135,14 +138,10 @@ public class WindowManager : IWindowManager, IDisposable
         if (TryGetCachedWindow<TWindow>(out TWindow? existingWindow))
             return existingWindow;
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            return CreateWindow<TWindow>();
-        }
-        else
-        {
-            return Dispatcher.UIThread.Invoke(() => CreateWindow<TWindow>());
-        }
+        // Re-check on the UI thread: without it two callers that both miss the cache each build a
+        // window, and the second silently replaces the first in the cache.
+        return Dispatcher.UIThread.Invoke(() =>
+            TryGetCachedWindow<TWindow>(out TWindow? cached) ? cached : CreateWindow<TWindow>());
     }
 
     public async Task<TWindow> ShowWindowAsync<TWindow, TViewModel>()
@@ -194,21 +193,17 @@ public class WindowManager : IWindowManager, IDisposable
             // Configurar como modal
             await ConfigureAsModalDialog(window);
 
-            // Ejecutar la acción del diálogo en paralelo con el ShowDialog
-            Task<TResult> dialogTask = dialogAction(viewModel);
-            
-            // Mostrar el diálogo modal
-            Task<bool?> showDialogTask = ShowDialogInternal(window);
+            // The dialog is shown while the action runs; both have to be awaited, or a failure
+            // inside ShowDialog is never observed and the dialog outlives the call.
+            Task<bool?> showing = ShowDialogInternal(window);
+            TResult result = await dialogAction(viewModel);
 
-            // Esperar a que termine la acción del diálogo
-            TResult result = await dialogTask;
-
-            // Cerrar el diálogo si aún está abierto
             if (window.IsVisible)
             {
                 await CloseDialogSafe(window);
             }
 
+            await showing;
             return result;
         }
         catch (Exception)
@@ -434,18 +429,18 @@ public class WindowManager : IWindowManager, IDisposable
 
         if (windowType == null || viewModelType == null)
         {
-            windowType ??= TypeRegistry.Instance.GetType("MainWindow");
-            viewModelType ??= TypeRegistry.Instance.GetType("MainWindowViewModel");
+            windowType ??= _typeRegistry.GetType("MainWindow");
+            viewModelType ??= _typeRegistry.GetType("MainWindowViewModel");
             
             if (windowType == null)
             {
-                Type[] windowTypes = TypeRegistry.Instance.FindTypes("Window").ToArray();
+                Type[] windowTypes = _typeRegistry.FindTypes("Window").ToArray();
                 windowType = windowTypes.FirstOrDefault(t => t.Name.Contains("Main"));
             }
             
             if (viewModelType == null)
             {
-                Type[] viewModelTypes = TypeRegistry.Instance.GetTypesDerivedFrom<ViewModelBase>().ToArray();
+                Type[] viewModelTypes = _typeRegistry.GetTypesDerivedFrom<ViewModelBase>().ToArray();
                 viewModelType = viewModelTypes.FirstOrDefault(vm => vm.Name.Contains("Main"));
             }
         }
@@ -464,7 +459,9 @@ public class WindowManager : IWindowManager, IDisposable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to auto-initialize main window: {ex.Message}");
+                // Auto-discovery is a convenience: the application can still set its main window
+                // explicitly, so this warns rather than aborting startup.
+                _logger.LogWarning(ex, "Could not auto-initialize the main window from {WindowType}", windowType);
             }
         }
     }
@@ -510,15 +507,6 @@ public class WindowManager : IWindowManager, IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        try
-        {
-            _creationSemaphore.Dispose();
-        }
-        catch
-        {
-            // Ignore disposal errors
-        }
-        
         GC.SuppressFinalize(this);
     }
 }

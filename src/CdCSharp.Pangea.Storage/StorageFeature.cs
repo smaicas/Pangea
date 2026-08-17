@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Core.Abstractions;
+﻿using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Storage.Abstractions;
 using CdCSharp.Pangea.Storage.Providers;
 using CdCSharp.Pangea.Storage.Services;
@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 
 namespace CdCSharp.Pangea.Storage;
 
-[PangeaFeature(typeof(StorageFeature))]
 public class StorageFeature : IPangeaFeature
 {
     public string Name => "Storage";
