@@ -147,6 +147,74 @@ public class WindowManagerTests
         Assert.True(main.IsVisible);
     }
 
+    /// <summary>
+    /// Nothing pumps the UI thread while the test body holds it, so a call that genuinely marshals
+    /// cannot finish until we pump. A call that posts and walks away finishes immediately - which
+    /// is the difference between "the window is closed when this returns" and a promise.
+    /// </summary>
+    [AvaloniaFact]
+    public void CloseWindow_FromABackgroundThread_DoesNotReturnUntilTheWindowIsClosed()
+    {
+        WindowManager manager = Create();
+        SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
+        window.Show();
+
+        Task closing = Task.Run(manager.CloseWindow<SampleWindow>);
+
+        Assert.False(closing.Wait(TimeSpan.FromMilliseconds(250)),
+            "CloseWindow returned before the UI thread had a chance to close the window.");
+
+        PumpUntilComplete(closing);
+        Assert.False(window.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void CloseAllWindows_FromABackgroundThread_DoesNotReturnUntilTheWindowsAreClosed()
+    {
+        WindowManager manager = Create();
+        SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
+        window.Show();
+
+        Task closing = Task.Run(manager.CloseAllWindows);
+
+        Assert.False(closing.Wait(TimeSpan.FromMilliseconds(250)),
+            "CloseAllWindows returned before the UI thread had a chance to close anything.");
+
+        PumpUntilComplete(closing);
+        Assert.False(window.IsVisible);
+    }
+
+    /// <summary>
+    /// A modal dialog needs an owner. Without a main window there is none, and the caller deserves
+    /// to be told which call is missing rather than an exception from inside Avalonia.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ShowDialog_WithoutAMainWindow_ExplainsWhatIsMissing()
+    {
+        WindowManager manager = Create();
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ShowDialogAsync<SampleWindow, SampleViewModel>());
+
+        Assert.Contains("SetMainWindow", error.Message, StringComparison.Ordinal);
+    }
+
+    [AvaloniaFact]
+    public async Task ShowDialog_WhenTheActionFails_ClosesTheDialogAndSurfacesTheOriginalFailure()
+    {
+        WindowManager manager = Create();
+        manager.SetMainWindow(new SampleWindow());
+        manager.GetMainWindow()!.Show();
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ShowDialogAsync<SampleWindow, SampleViewModel, int>(
+                _ => throw new InvalidOperationException("the action failed")));
+
+        // The failure the caller gets has to be their own, not whatever the abandoned ShowDialog
+        // task turned into on its way out.
+        Assert.Equal("the action failed", error.Message);
+    }
+
     [AvaloniaFact]
     public void AfterDispose_EveryOperationIsRejected()
     {

@@ -39,6 +39,8 @@ public class AgentGuideCompilesTests
     [Fact]
     public void EverySampleInTheGuideCompiles()
     {
+        CancellationToken cancellation = TestContext.Current.CancellationToken;
+
         IReadOnlyList<Sample> samples = ReadSamples();
 
         Assert.True(samples.Count >= 10, $"Only found {samples.Count} samples; the extraction is broken.");
@@ -47,17 +49,18 @@ public class AgentGuideCompilesTests
         // accumulates context going down the page.
         CSharpCompilation compilation = CSharpCompilation.Create(
             "AgentGuideSamples",
-            samples.Select(sample => CSharpSyntaxTree.ParseText(sample.Code, path: $"line {sample.Line}"))
-                .Prepend(CSharpSyntaxTree.ParseText(Prelude)),
+            samples.Select(sample =>
+                    CSharpSyntaxTree.ParseText(sample.Code, path: $"line {sample.Line}", cancellationToken: cancellation))
+                .Prepend(CSharpSyntaxTree.ParseText(Prelude, cancellationToken: cancellation)),
             References(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // The samples rely on [Binding] producing properties, so they are compiled the way a real
         // project builds them: through the generator.
         CSharpGeneratorDriver.Create(new ViewModelSourceGenerator())
-            .RunGeneratorsAndUpdateCompilation(compilation, out Compilation generated, out _);
+            .RunGeneratorsAndUpdateCompilation(compilation, out Compilation generated, out _, cancellation);
 
-        List<Diagnostic> errors = generated.GetDiagnostics()
+        List<Diagnostic> errors = generated.GetDiagnostics(cancellation)
             .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
             .ToList();
 

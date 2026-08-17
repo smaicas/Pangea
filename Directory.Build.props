@@ -19,6 +19,15 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
+  <!--
+    The repository builds clean or it does not build. A nullability warning is a contract stated
+    and not kept, a broken cref ships inside the XML documentation, and an obsolete API is the
+    next upgrade's breakage. Raising the bar is only worth it while the count is zero.
+  -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="" Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" Visible="false" />

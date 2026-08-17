@@ -304,7 +304,7 @@ public partial class TestViewModel : ViewModelBase
         }
     }
 
-    private void AddItem(string item)
+    private void AddItem(string? item)
     {
         if (!string.IsNullOrEmpty(item))
         {

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CdCSharp.Pangea.Windows;
 
@@ -27,13 +28,20 @@ public interface IWindowManager : IDisposable
     void SetMainWindow<TWindow, TViewModel>() where TWindow : Window, new() where TViewModel : class;
     void SetMainWindow(Window window);
     void Initialize();
-        Task<TResult> ShowDialogAsync<TWindow, TViewModel, TResult>(
+
+    /// <summary>
+    /// Shows a modal dialog and runs <paramref name="dialogAction"/> against its view model.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">No main window has been set to own the dialog.</exception>
+    Task<TResult> ShowDialogAsync<TWindow, TViewModel, TResult>(
         Func<TViewModel, Task<TResult>> dialogAction)
-        where TWindow : Window, new() 
+        where TWindow : Window, new()
         where TViewModel : class;
-        
+
+    /// <summary>Shows a modal dialog and returns its result.</summary>
+    /// <exception cref="InvalidOperationException">No main window has been set to own the dialog.</exception>
     Task<bool?> ShowDialogAsync<TWindow, TViewModel>()
-        where TWindow : Window, new() 
+        where TWindow : Window, new()
         where TViewModel : class;
 }
 
@@ -150,10 +158,8 @@ public class WindowManager : IWindowManager, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
 
-        // Obtener o crear la ventana primero (thread-safe)
         TWindow window = GetOrCreateWindow<TWindow, TViewModel>();
-        
-        // Mostrar ventana usando Dispatcher thread-safe
+
         if (Dispatcher.UIThread.CheckAccess())
         {
             ShowWindowSafe(window);
@@ -174,28 +180,31 @@ public class WindowManager : IWindowManager, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
         ArgumentNullException.ThrowIfNull(dialogAction);
 
-        // Crear una nueva instancia para diálogos (no usar caché)
+        Window owner = RequireDialogOwner();
+
+        // Dialogs are single-use, so they are never cached.
         TViewModel viewModel;
         TWindow window;
-        
+
         if (Dispatcher.UIThread.CheckAccess())
         {
             (window, viewModel) = CreateDialogWindow<TWindow, TViewModel>();
         }
         else
         {
-            (window, viewModel) = await Dispatcher.UIThread.InvokeAsync(() => 
+            (window, viewModel) = await Dispatcher.UIThread.InvokeAsync(() =>
                 CreateDialogWindow<TWindow, TViewModel>());
         }
 
+        Task<bool?>? showing = null;
+
         try
         {
-            // Configurar como modal
             await ConfigureAsModalDialog(window);
 
             // The dialog is shown while the action runs; both have to be awaited, or a failure
             // inside ShowDialog is never observed and the dialog outlives the call.
-            Task<bool?> showing = ShowDialogInternal(window);
+            showing = ShowDialogInternal(window, owner);
             TResult result = await dialogAction(viewModel);
 
             if (window.IsVisible)
@@ -208,11 +217,16 @@ public class WindowManager : IWindowManager, IDisposable
         }
         catch (Exception)
         {
-            // Asegurar que el diálogo se cierre en caso de error
             if (window.IsVisible)
             {
                 await CloseDialogSafe(window);
             }
+
+            if (showing is not null)
+            {
+                await ObserveDialogFailure(showing);
+            }
+
             throw;
         }
     }
@@ -223,35 +237,58 @@ public class WindowManager : IWindowManager, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
 
-        // Crear una nueva instancia para diálogos (no usar caché)
+        Window owner = RequireDialogOwner();
+
+        // Dialogs are single-use, so they are never cached.
         TWindow window;
-        
+
         if (Dispatcher.UIThread.CheckAccess())
         {
             (window, _) = CreateDialogWindow<TWindow, TViewModel>();
         }
         else
         {
-            (window, _) = await Dispatcher.UIThread.InvokeAsync(() => 
+            (window, _) = await Dispatcher.UIThread.InvokeAsync(() =>
                 CreateDialogWindow<TWindow, TViewModel>());
         }
 
         try
         {
-            // Configurar como modal
             await ConfigureAsModalDialog(window);
-
-            // Mostrar el diálogo modal y devolver el resultado
-            return await ShowDialogInternal(window);
+            return await ShowDialogInternal(window, owner);
         }
         catch (Exception)
         {
-            // Asegurar que el diálogo se cierre en caso de error
             if (window.IsVisible)
             {
                 await CloseDialogSafe(window);
             }
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Avalonia requires an owner for a modal dialog and throws on a null one, naming a parameter
+    /// the caller never passed. Failing here names the call they are missing instead.
+    /// </summary>
+    private Window RequireDialogOwner() =>
+        _mainWindow ?? throw new InvalidOperationException(
+            "A modal dialog needs an owner window, and no main window has been set. " +
+            "Call SetMainWindow before showing a dialog.");
+
+    /// <summary>
+    /// Awaits an abandoned dialog so its failure is observed and logged rather than resurfacing
+    /// later as an unobserved task exception. The caller is already failing for its own reason.
+    /// </summary>
+    private async Task ObserveDialogFailure(Task showing)
+    {
+        try
+        {
+            await showing;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "The dialog was abandoned because the dialog action failed");
         }
     }
 
@@ -273,8 +310,7 @@ public class WindowManager : IWindowManager, IDisposable
     {
         TViewModel viewModel = _serviceProvider.GetRequiredService<TViewModel>();
         TWindow window = new() { DataContext = viewModel };
-        
-        // No cachear ventanas de diálogo ya que son de un solo uso
+
         return (window, viewModel);
     }
 
@@ -290,30 +326,17 @@ public class WindowManager : IWindowManager, IDisposable
         }
     }
 
-    private void ConfigureModalWindow(Window window)
-    {
-        // Configurar propiedades del diálogo modal
+    private static void ConfigureModalWindow(Window window) =>
         window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        
-        // Establecer la ventana padre si existe una ventana principal
-        if (_mainWindow != null && _mainWindow.IsVisible)
-        {
-            // Note: En Avalonia, ShowDialog automáticamente maneja el owner
-            // si se llama desde una ventana padre
-        }
-    }
 
-    private async Task<bool?> ShowDialogInternal(Window window)
+    private static async Task<bool?> ShowDialogInternal(Window window, Window owner)
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
-            return await window.ShowDialog<bool?>(_mainWindow);
+            return await window.ShowDialog<bool?>(owner);
         }
-        else
-        {
-            return await Dispatcher.UIThread.InvokeAsync(async () => 
-                await window.ShowDialog<bool?>(_mainWindow));
-        }
+
+        return await Dispatcher.UIThread.InvokeAsync(async () => await window.ShowDialog<bool?>(owner));
     }
 
     private async Task CloseDialogSafe(Window window)
@@ -335,13 +358,15 @@ public class WindowManager : IWindowManager, IDisposable
         if (!TryGetCachedWindow<TWindow>(out TWindow? window))
             return;
 
+        // Invoke, not InvokeAsync: this method returns void, so posting the close and walking away
+        // would let the caller observe an open window and lose any failure.
         if (Dispatcher.UIThread.CheckAccess())
         {
             window.Close();
         }
         else
         {
-            Dispatcher.UIThread.InvokeAsync(() => window.Close());
+            Dispatcher.UIThread.Invoke(window.Close);
         }
     }
 
@@ -361,24 +386,23 @@ public class WindowManager : IWindowManager, IDisposable
 
         if (Dispatcher.UIThread.CheckAccess())
         {
-            foreach (Window window in windowsToClose)
-            {
-                window.Close();
-            }
+            CloseEach(windowsToClose);
         }
         else
         {
-            Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                foreach (Window window in windowsToClose)
-                {
-                    window.Close();
-                }
-            });
+            Dispatcher.UIThread.Invoke(() => CloseEach(windowsToClose));
         }
     }
 
-    private bool TryGetCachedWindow<TWindow>(out TWindow? window) where TWindow : Window
+    private static void CloseEach(List<Window> windows)
+    {
+        foreach (Window window in windows)
+        {
+            window.Close();
+        }
+    }
+
+    private bool TryGetCachedWindow<TWindow>([NotNullWhen(true)] out TWindow? window) where TWindow : Window
     {
         window = null;
         
@@ -417,8 +441,8 @@ public class WindowManager : IWindowManager, IDisposable
     {
         WeakReference<Window> weakRef = new(window);
         _windowCache.AddOrUpdate(typeof(TWindow), weakRef, (_, _) => weakRef);
-        
-        // Remover del cache cuando se cierre la ventana
+
+        // A closed window must not be handed out again: Show() on it throws.
         window.Closed += (_, _) => _windowCache.TryRemove(typeof(TWindow), out _);
     }
 

@@ -23,6 +23,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- Startup composition is internal; the tests drive it without it becoming public API. -->
+		<InternalsVisibleTo Include="CdCSharp.Pangea.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" />
 		<ProjectReference Include="..\CdCSharp.Pangea.Binding\CdCSharp.Pangea.Binding.csproj" />
 		<ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" />

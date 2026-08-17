@@ -123,7 +123,7 @@
                         <TextBox Text="Disabled TextBox" IsEnabled="False" />
                         <TextBox AcceptsReturn="True" Height="72"
                                  Text="Multiline TextBox&#x0a;second line&#x0a;third line" />
-                        <AutoCompleteBox x:Name="Completion" Watermark="AutoCompleteBox - type 'a'" />
+                        <AutoCompleteBox x:Name="Completion" PlaceholderText="AutoCompleteBox - type 'a'" />
                         <NumericUpDown Value="42" Minimum="0" Maximum="100" />
                         <ButtonSpinner Content="ButtonSpinner" />
                     </StackPanel>

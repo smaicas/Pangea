@@ -29,8 +29,8 @@ public class ThemingFeature : IPangeaFeature
     /// theme and variant.
     /// </summary>
     /// <remarks>
-    /// Failures are left to propagate: <see cref="Services.FeatureRegistry"/> names the feature and
-    /// aborts startup, which beats an application running with half a theme.
+    /// Failures are left to propagate: the feature registry names the feature and aborts startup,
+    /// which beats an application running with half a theme.
     /// </remarks>
     public void ConfigureApplication(IServiceProvider serviceProvider, IPangeaApplicationContext applicationContext)
     {
