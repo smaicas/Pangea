@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-		<TargetFramework>net10.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>12.0</LangVersion>
 
@@ -13,6 +13,33 @@
 
     <ItemGroup>
         <ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" />
+        <!-- Builds the generator and applies it to this project too -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
     </ItemGroup>
 
+    <!--
+        The generator ships with the attribute it reads. Installing this package alone has to be
+        enough: [Binding] without the generator produces nothing, and the failure looks like the
+        toolkit is broken rather than like a missing dependency.
+    -->
+    <ItemGroup>
+        <None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.dll"
+              Visible="false" />
+
+        <None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.pdb"
+              Visible="false"
+              Condition="Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb')" />
+    </ItemGroup>
+
+    <Target Name="EnsureGeneratorExistsBeforePack" BeforeTargets="GenerateNuspec;Pack">
+        <Error Condition="!Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll')"
+               Text="Binding generator not found. Build CdCSharp.Pangea.Binding.CodeGeneration first." />
+    </Target>
 </Project>

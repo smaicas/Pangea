@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -27,21 +27,43 @@ source generator that turns fields into observable properties, a theme you can r
 per-platform storage paths, and localization.
 
 Each capability is a **feature** — a class implementing `IPangeaFeature`, discovered at startup,
-registering its own services. Install the whole toolkit or just the features you want.
+registering its own services.
 
 ---
 
 ## 📦 Installation
 
+### Start from the template
+
 ```bash
-# Everything, including the binding source generator
+dotnet new install CdCSharp.Pangea.Templates
+dotnet new pangea-app -n MyApp
+cd MyApp && dotnet run
+```
+
+You get a running Avalonia application: the startup wiring, a window, and a sample view model and
+palette showing the toolkit's conventions.
+
+| Option | Default | |
+|---|---|---|
+| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--Sample` | `true` | Include the sample view model and palette |
+| `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+
+### Add to an existing project
+
+```bash
 dotnet add package CdCSharp.Pangea
 ```
 
+That is the package to install: besides pulling in every feature, it is where the application model
+lives — `PangeaApplication`, `UsePangea()` and the window manager.
+
+The features are also published on their own, for using a piece of the toolkit as a plain library
+without the Pangea application model. Each depends only on `CdCSharp.Pangea.Core`:
+
 ```bash
-# Or piece by piece
-dotnet add package CdCSharp.Pangea.Core          # ViewModelBase, RelayCommand, TypeRegistry
-dotnet add package CdCSharp.Pangea.Binding       # [Binding] attribute + generator
+dotnet add package CdCSharp.Pangea.Binding       # [Binding] attribute + source generator
 dotnet add package CdCSharp.Pangea.Theming       # palettes, themes, theme service
 dotnet add package CdCSharp.Pangea.Storage       # per-platform paths and file access
 dotnet add package CdCSharp.Pangea.Localization  # cultures and resource strings
@@ -380,18 +402,56 @@ public override void Configure(IServiceCollection services) =>
 
 ---
 
+## 🤖 AI coding agents
+
+Pangea ships a skill that teaches an AI coding agent to use the toolkit: the mental model, the
+conventions, the pitfalls, and the full list of theme resource keys.
+
+**Every C# sample in it is compiled against the real assemblies as part of the test suite**, through
+the source generator, so the guidance cannot drift away from the code. That check has already caught
+a generator bug and an API that made the documented approach impossible.
+
+Three ways to get it, most reliable first:
+
+```bash
+# 1. The template writes it into your project
+dotnet new pangea-app -n MyApp                  # --IncludeSkill is on by default
+```
+
+```bash
+# 2. Download the version-pinned skill from the matching release
+curl -L -o pangea-skill.zip \
+  https://github.com/smaicas/CdCSharp.Pangea/releases/download/v1.0.0/pangea-skill-1.0.0.zip
+unzip pangea-skill.zip -d ~/.claude/skills/       # or wherever your agent keeps skills
+```
+
+3. The NuGet package carries it too, under `tools/pangea-skill/` inside the package. Note this copy
+   lives in the global packages folder rather than your repository, so an agent listing files will
+   not find it — prefer one of the first two.
+
+The skill follows the usual layout: a `SKILL.md` whose frontmatter says what it is and when to reach
+for it, with the bulky key reference in `references/`.
+
+> Pin the skill to the Pangea version you use. Guidance from an older release describes an API that
+> has since moved, and an agent will follow it confidently.
+
+---
+
 ## 🧪 Tests
 
 ```bash
 dotnet test --project test/CdCSharp.Pangea.Core.Tests/CdCSharp.Pangea.Core.Tests.csproj
 ```
 
-Six suites cover the source generator, the theme (structure, resource resolution per variant,
+Seven suites cover the source generator, the theme (structure, resource resolution per variant,
 control template smoke tests, drift against upstream Avalonia), commands and threading, startup
-registries, storage and localization. `test/CdCSharp.Pangea.Tests.Int` is a sample application with a
-control gallery for looking at the theme by eye.
+registries, storage, localization, and the agent skill's samples.
+`test/CdCSharp.Pangea.Tests.Int` is a sample application with a control gallery for looking at the
+theme by eye.
 
-The theming and window tests run on `Avalonia.Headless`, so they need no display.
+The theming and window tests run on `Avalonia.Headless`, so they need no display. The template is
+verified in CI instead: every option combination is generated against the packages just built and
+compiled for real.
 
 ---
 

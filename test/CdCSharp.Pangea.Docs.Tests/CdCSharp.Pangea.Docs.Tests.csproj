@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <!-- Compiles the documentation's code samples against the real assemblies -->
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+        <!-- UsePlatformDetect lives here, and the setup sample uses it -->
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
+        <!-- Referenced as an assembly so the samples can be compiled through the generator -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj" />
+    </ItemGroup>
+</Project>

@@ -1,0 +1,25 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MyPangeaApp.ViewModels"
+        x:Class="MyPangeaApp.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="MyPangeaApp"
+        Width="520" Height="320">
+
+    <Border Background="{DynamicResource ThemeBackgroundBrush}" Padding="32">
+        <StackPanel Spacing="16" VerticalAlignment="Center">
+
+            <TextBlock Text="{Binding Greeting}"
+                       FontSize="24"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource ThemeForegroundBrush}" />
+
+            <TextBox Text="{Binding Name}" PlaceholderText="Your name" />
+
+            <Button Content="Greet" Command="{Binding GreetCommand}" HorizontalAlignment="Left" />
+
+            <TextBlock Text="{Binding Clicks, StringFormat='Greeted {0} time(s)'}"
+                       Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+        </StackPanel>
+    </Border>
+</Window>

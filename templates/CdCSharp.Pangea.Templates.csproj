@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <PackageType>Template</PackageType>
+        <PackageId>CdCSharp.Pangea.Templates</PackageId>
+        <Title>Pangea project templates</Title>
+        <Description>dotnet new templates for Avalonia applications built on CdCSharp.Pangea.</Description>
+        <PackageTags>$(PackageTags);template;dotnet-new;scaffolding</PackageTags>
+
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <IncludeContentInPack>true</IncludeContentInPack>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <ContentTargetFolders>content</ContentTargetFolders>
+        <EnableDefaultItems>false</EnableDefaultItems>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <!-- A template package ships no assemblies -->
+        <NoWarn>$(NoWarn);NU5128</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="content\**\*" Exclude="content\**\bin\**;content\**\obj\**" />
+        <Compile Remove="**\*" />
+    </ItemGroup>
+
+    <!--
+        The skill is copied in rather than duplicated in source control, so the template hands out
+        the same guidance the toolkit publishes.
+    -->
+    <Target Name="CopyAgentSkill" BeforeTargets="Build;Pack">
+        <ItemGroup>
+            <SkillFiles Include="$(MSBuildThisFileDirectory)..\tools\pangea-skill\**\*.md" />
+        </ItemGroup>
+
+        <Copy SourceFiles="@(SkillFiles)"
+              DestinationFiles="@(SkillFiles->'$(MSBuildThisFileDirectory)content\MyPangeaApp\pangea-skill\%(RecursiveDir)%(Filename)%(Extension)')" />
+    </Target>
+
+    <!-- Point the generated projects at the version being published. -->
+    <Target Name="StampPangeaVersion" BeforeTargets="Pack" Condition="'$(Version)' != ''">
+        <PropertyGroup>
+            <TemplateConfig>$(MSBuildThisFileDirectory)content\MyPangeaApp\.template.config\template.json</TemplateConfig>
+        </PropertyGroup>
+
+        <WriteLinesToFile File="$(TemplateConfig)"
+                          Lines="$([System.IO.File]::ReadAllText($(TemplateConfig)).Replace('&quot;defaultValue&quot;: &quot;1.0.0&quot;', '&quot;defaultValue&quot;: &quot;$(Version)&quot;'))"
+                          Overwrite="true" />
+    </Target>
+</Project>

@@ -85,8 +85,14 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("using System.ComponentModel;");
         sb.AppendLine();
-        sb.AppendLine($"namespace {analysis.Namespace};");
-        sb.AppendLine();
+        // A view model in the global namespace has none to declare, and emitting an empty one
+        // produces a file that does not parse.
+        if (!string.IsNullOrEmpty(analysis.Namespace))
+        {
+            sb.AppendLine($"namespace {analysis.Namespace};");
+            sb.AppendLine();
+        }
+
         sb.AppendLine($"partial class {analysis.ClassName}");
         sb.AppendLine("{");
 

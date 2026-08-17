@@ -17,6 +17,10 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
+    # Needed to create the release the agent skill is attached to
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout
@@ -59,6 +63,8 @@ jobs:
             test/CdCSharp.Pangea.Core.Tests/CdCSharp.Pangea.Core.Tests.csproj \
             test/CdCSharp.Pangea.Tests/CdCSharp.Pangea.Tests.csproj \
             test/CdCSharp.Pangea.Localization.Tests/CdCSharp.Pangea.Localization.Tests.csproj \
+            test/CdCSharp.Pangea.Storage.Tests/CdCSharp.Pangea.Storage.Tests.csproj \
+            test/CdCSharp.Pangea.Docs.Tests/CdCSharp.Pangea.Docs.Tests.csproj \
             test/CdCSharp.Pangea.Binding.CodeGeneration.Tests/CdCSharp.Pangea.Binding.CodeGeneration.Tests.csproj \
             test/CdCSharp.Pangea.Theming.Tests/CdCSharp.Pangea.Theming.Tests.csproj
           do
@@ -189,6 +195,40 @@ jobs:
             --no-build \
             -v normal
 
+      - name: Pack Template
+        run: |
+          dotnet pack templates/CdCSharp.Pangea.Templates.csproj             -c ${{ env.CONFIGURATION }}             -o ./artifacts             -p:PackageVersion=${{ steps.version.outputs.version }}             -p:Version=${{ steps.version.outputs.version }}             -v normal
+
+      # The template is only useful if what it produces compiles. Every option combination is
+      # generated against the packages just built and built for real.
+      - name: Verify Template Output
+        run: |
+          FEED="$(pwd)/artifacts"
+          dotnet new install "$FEED/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg"
+
+          for options in "" "--IncludeSkill false" "--Sample false" "--IncludeSkill false --Sample false"; do
+            WORK="$(mktemp -d)"
+            echo "🧪 dotnet new pangea-app $options"
+
+            (
+              cd "$WORK"
+              dotnet new pangea-app -n Generated -o . --PangeaVersion "${{ steps.version.outputs.version }}" $options
+
+              cat > nuget.config <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$FEED" />
+              <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+
+              dotnet build -c ${{ env.CONFIGURATION }}
+            )
+          done
+
       - name: Verify Main Package Content
         run: |
           echo "📦 Generated packages:"
@@ -288,7 +328,39 @@ jobs:
             --skip-duplicate \
             --no-symbols
           
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg"             -k ${{ secrets.NUGET_API_KEY }}             -s https://api.nuget.org/v3/index.json             --skip-duplicate             --no-symbols
+
           echo "✅ All packages published successfully!"
+
+      # 🤖 The agent skill, published so it can be installed without the NuGet package
+      - name: Package the agent skill
+        run: |
+          SKILL="$(pwd)/artifacts/pangea-skill-${{ steps.version.outputs.version }}.zip"
+
+          # Zipped from inside tools/, so it unpacks as pangea-skill/SKILL.md: the skill
+          # directory sits at the root of the archive, which is what agents expect.
+          (cd tools && zip -r "$SKILL" pangea-skill -x '*.DS_Store')
+
+          echo "📦 Skill contents:"
+          unzip -l "$SKILL"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "CdCSharp.Pangea $TAG
+
+          Install the toolkit:
+
+              dotnet add package CdCSharp.Pangea
+
+          The agent skill attached below teaches an AI coding agent to use this exact version.
+          Unzip it into your agent's skills directory, or start from the project template." \
+            ./artifacts/pangea-skill-${{ steps.version.outputs.version }}.zip
 
       - name: Build Summary
         run: |
@@ -297,4 +369,6 @@ jobs:
           echo "  🔧 Configuration: ${{ env.CONFIGURATION }}"
           echo "  ✅ Main package: CdCSharp.Pangea (with embedded analyzers)"
           echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization"
+          echo "  🤖 Agent skill: attached to release v${{ steps.version.outputs.version }}"
+          echo "  📐 Template: dotnet new install CdCSharp.Pangea.Templates"
           echo "  🎯 Install command: dotnet add package CdCSharp.Pangea"

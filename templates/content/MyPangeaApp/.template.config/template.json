@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "CdCSharp",
+  "classifications": [ "Avalonia", "Desktop", "MVVM", "Pangea" ],
+  "identity": "CdCSharp.Pangea.App",
+  "name": "Pangea Avalonia App",
+  "shortName": "pangea-app",
+  "sourceName": "MyPangeaApp",
+  "defaultName": "MyPangeaApp",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "symbols": {
+    "PangeaVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "1.0.0",
+      "replaces": "PANGEA_VERSION",
+      "description": "Version of the Pangea packages to reference."
+    },
+    "IncludeSkill": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Copy the Pangea agent skill into the project so AI coding agents can read it."
+    },
+    "Sample": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include a sample view model and palette showing the toolkit's conventions."
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!IncludeSkill)",
+          "exclude": [ "pangea-skill/**" ]
+        },
+        {
+          "condition": "(!Sample)",
+          "exclude": [ "Themes/**" ]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [ { "path": "MyPangeaApp.csproj" } ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

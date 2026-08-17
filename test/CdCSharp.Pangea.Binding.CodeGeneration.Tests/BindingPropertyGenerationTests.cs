@@ -1,4 +1,4 @@
-namespace CdCSharp.Pangea.Binding.CodeGeneration.Tests;
+﻿namespace CdCSharp.Pangea.Binding.CodeGeneration.Tests;
 
 /// <summary>
 /// Covers the core contract of the generator: turning <c>[Binding]</c> fields into
@@ -238,6 +238,31 @@ public class BindingPropertyGenerationTests
             """;
 
         Assert.Null(GeneratorTestHelper.TryGetBindingSource(source, "CommandOnlyViewModel"));
+    }
+
+    [Fact]
+    public void ViewModelInTheGlobalNamespace_GeneratesValidCode()
+    {
+        const string source = """
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            public partial class RootViewModel : ViewModelBase
+            {
+                public RootViewModel(IServiceProvider sp) : base(sp) { }
+
+                [Binding] private string _name = string.Empty;
+            }
+            """;
+
+        string generated = GeneratorTestHelper.GetBindingSource(source, "RootViewModel");
+
+        // There is no namespace to declare, and an empty declaration does not parse.
+        Assert.DoesNotContain("namespace ;", generated);
+        Assert.Contains("public string Name", generated);
+
+        // Compiling it is the real check.
+        GeneratorTestHelper.RunAndLoad(source);
     }
 
     [Fact]

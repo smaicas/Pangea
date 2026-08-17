@@ -3,7 +3,7 @@
 namespace CdCSharp.Pangea.Theming.Palettes;
 
 /// <summary>Dark warm minimal.</summary>
-public sealed class DarkPalette : PangeaPalette
+public class DarkPalette : PangeaPalette
 {
     public override double PickerHighlightOpacity => 0.3d;
 

@@ -30,18 +30,5 @@
 		<ProjectReference Include="..\CdCSharp.Pangea.Localization\CdCSharp.Pangea.Localization.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<!-- Binding CodeGeneration Analyzer -->
-		<None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll" Pack="true" PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.dll" Visible="false" />
 
-		<!-- Incluir PDBs para debugging si existen -->
-		<None Include="..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb" Pack="true" PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Binding.CodeGeneration.pdb" Visible="false" Condition="Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.pdb')" />
-	</ItemGroup>
-
-	<Target Name="EnsureAnalyzersExistBeforePack" BeforeTargets="GenerateNuspec;Pack">
-		<Error Text="❌ Binding analyzer not found: ..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll&#xA;Build CdCSharp.Pangea.Binding.CodeGeneration first." Condition="!Exists('..\CdCSharp.Pangea.Binding.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Binding.CodeGeneration.dll')" />
-
-		<Message Text="✅ Binding analyzer found and ready for packaging:" Importance="high" />
-		<Message Text="  → CdCSharp.Pangea.Binding.CodeGeneration.dll" Importance="high" />
-	</Target>
 </Project>
