@@ -72,11 +72,19 @@ internal static class GeneratorTestHelper
     /// <summary>
     /// Returns the generated binding partial for the given class, or null when none was emitted.
     /// </summary>
+    /// <remarks>
+    /// Matched on the tail of the file name: generated files are named after the fully qualified
+    /// type, so that two view models of the same name in different namespaces do not collide, and
+    /// callers here name the class alone.
+    /// </remarks>
     public static string? TryGetBindingSource(string source, string className)
     {
         GeneratorResult result = Run(source);
+        string suffix = $"{className}.Binding.g.cs";
+
         return result.Sources
-            .FirstOrDefault(s => s.HintName == $"{className}.Binding.g.cs")?.Text;
+            .FirstOrDefault(s => s.HintName == suffix || s.HintName.EndsWith("." + suffix, StringComparison.Ordinal))
+            ?.Text;
     }
 
     /// <summary>

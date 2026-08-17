@@ -195,6 +195,12 @@ partial class ProductViewModel
 | Commands | A command whose `CanExecute` reads a property — directly, through a `CanX` method, or through a computed property — gets `RaiseCanExecuteChanged()` |
 | Collections | If `OnXChanged` calls a method that mutates a collection, whatever reads that collection is notified |
 
+**When it cannot generate**, it says so instead of letting the compiler complain about a file you
+did not write: a class that is not `partial` (`PGB001`), one that does not derive from
+`ViewModelBase` (`PGB002`), two fields that would produce the same property (`PGB003`), a name the
+class already declares (`PGB004`), or `[Binding]` on a `static` field (`PGB005`, a warning). A class
+with an error generates nothing, so the symptom is a property that is not there.
+
 ### Commands
 
 `CreateCommand` builds a `RelayCommand` bound to the UI dispatcher.

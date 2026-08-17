@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -61,13 +61,30 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
     {
         if (analysis == null || analysis.BindingFields.Count == 0) return;
 
+        foreach (Diagnostic diagnostic in analysis.Diagnostics)
+        {
+            context.ReportDiagnostic(diagnostic);
+        }
+
+        // Generating on top of an error buries it: the author would get one message they can act on
+        // and several more about a file they did not write.
+        if (analysis.Diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
+        {
+            return;
+        }
+
         string source = GenerateClassSource(analysis);
-        context.AddSource($"{analysis.ClassName}.Binding.g.cs", SourceText.From(source, Encoding.UTF8));
+        // Qualified, not just the class name: two view models called DetailViewModel in different
+        // feature namespaces is ordinary, and a repeated hint name makes Roslyn abandon the whole
+        // generator - every [Binding] in the project silently stops being generated.
+        string hint = SanitiseHintName(analysis.FullyQualifiedName);
+
+        context.AddSource($"{hint}.Binding.g.cs", SourceText.From(source, Encoding.UTF8));
 
         // Generar archivo de debug con información del análisis (solo en DEBUG)
 #if DEBUG
         string debugInfo = GenerateDebugInfo(analysis);
-        context.AddSource($"{analysis.ClassName}.Analysis.Debug.g.cs", SourceText.From(debugInfo, Encoding.UTF8));
+        context.AddSource($"{hint}.Analysis.Debug.g.cs", SourceText.From(debugInfo, Encoding.UTF8));
 #endif
     }
 
@@ -93,7 +110,15 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        sb.AppendLine($"partial class {analysis.ClassName}");
+        // Enclosing types are re-opened around it: without them the partial describes a different,
+        // top-level type and nothing it generates can see the fields it is meant to wrap.
+        foreach (string container in analysis.ContainingTypes)
+        {
+            sb.AppendLine($"partial class {container}");
+            sb.AppendLine("{");
+        }
+
+        sb.AppendLine($"partial class {analysis.ClassName}{analysis.TypeParameters}");
         sb.AppendLine("{");
 
         // Generar propiedades con análisis funcional completo
@@ -110,7 +135,28 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
 
         sb.AppendLine("}");
 
+        // One closing brace per enclosing type opened above.
+        foreach (string _ in analysis.ContainingTypes)
+        {
+            sb.AppendLine("}");
+        }
+
         return sb.ToString();
+    }
+
+    /// <summary>Turns a qualified type name into something usable as a file name.</summary>
+    private static string SanitiseHintName(string fullyQualifiedName)
+    {
+        StringBuilder safe = new StringBuilder(fullyQualifiedName.Length);
+
+        foreach (char character in fullyQualifiedName)
+        {
+            safe.Append(char.IsLetterOrDigit(character) || character == '.' || character == '_'
+                ? character
+                : '_');
+        }
+
+        return safe.ToString();
     }
 
     private static void GenerateOptimizedProperty(StringBuilder sb, BindingFieldInfo field, ViewModelAnalysis analysis)

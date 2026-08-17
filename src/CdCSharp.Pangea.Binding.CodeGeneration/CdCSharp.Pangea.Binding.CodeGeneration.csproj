@@ -29,4 +29,10 @@
         <Message Text="✅ Binding analyzer built successfully: $(OutputPath)$(AssemblyName).dll" Condition="Exists('$(OutputPath)$(AssemblyName).dll')" Importance="high" />
         <Error Text="❌ Binding analyzer build failed: $(OutputPath)$(AssemblyName).dll" Condition="!Exists('$(OutputPath)$(AssemblyName).dll')" />
     </Target>
+
+    <ItemGroup>
+        <!-- Roslyn requires a declared release history for any analyzer that ships rules. -->
+        <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+        <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+    </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Generic;
@@ -21,11 +21,17 @@ public class FunctionalAnalyzer
 
         ViewModelAnalysis analysis = new ViewModelAnalysis
         {
-            ClassName = classDeclaration.Identifier.ValueText, Namespace = GetNamespace(classDeclaration)
+            ClassName = classDeclaration.Identifier.ValueText,
+            Namespace = GetNamespace(classDeclaration),
+            TypeParameters = classDeclaration.TypeParameterList?.ToString() ?? "",
+            ContainingTypes = GetContainingTypes(classDeclaration)
         };
 
         // Phase 1: Inventory - Detectar todos los elementos funcionales
         InventoryBindingFields(classDeclaration, semanticModel, analysis);
+
+        // Validation needs the inventory: two of the checks are about the names it produced.
+        Validate(classDeclaration, semanticModel, analysis);
         InventoryComputedProperties(classDeclaration, analysis);
         InventoryCanExecuteElements(classDeclaration, analysis);
         InventoryCommands(classDeclaration, analysis);
@@ -1174,6 +1180,127 @@ public class FunctionalAnalyzer
         return "";
     }
 
+    /// <summary>
+    /// Everything the generator can tell the author before it writes a line.
+    /// </summary>
+    /// <remarks>
+    /// Each of these used to surface as a compiler error inside the generated file - about
+    /// SetProperty, or a duplicate member - naming code the author never wrote.
+    /// </remarks>
+    private void Validate(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel,
+        ViewModelAnalysis analysis)
+    {
+        if (analysis.BindingFields.Count == 0) return;
+
+        Location classLocation = classDeclaration.Identifier.GetLocation();
+        string className = classDeclaration.Identifier.ValueText;
+
+        if (!classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
+        {
+            analysis.Diagnostics.Add(Diagnostic.Create(
+                BindingDiagnostics.ClassMustBePartial, classLocation, className));
+        }
+
+        INamedTypeSymbol? classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
+
+        if (classSymbol != null && !DerivesFromViewModelBase(classSymbol))
+        {
+            analysis.Diagnostics.Add(Diagnostic.Create(
+                BindingDiagnostics.ClassMustDeriveFromViewModelBase, classLocation, className));
+        }
+
+        ValidateStaticFields(classDeclaration, semanticModel, analysis);
+        ValidateGeneratedNames(classDeclaration, classSymbol, analysis);
+    }
+
+    private static bool DerivesFromViewModelBase(INamedTypeSymbol classSymbol)
+    {
+        for (INamedTypeSymbol? current = classSymbol.BaseType; current != null; current = current.BaseType)
+        {
+            if (current.Name == "ViewModelBase") return true;
+        }
+
+        return false;
+    }
+
+    private void ValidateStaticFields(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel,
+        ViewModelAnalysis analysis)
+    {
+        foreach (FieldDeclarationSyntax field in classDeclaration.Members.OfType<FieldDeclarationSyntax>()
+                     .Where(HasBindingAttribute))
+        {
+            foreach (VariableDeclaratorSyntax variable in field.Declaration.Variables)
+            {
+                if (semanticModel.GetDeclaredSymbol(variable) is IFieldSymbol { IsStatic: true } staticField)
+                {
+                    analysis.Diagnostics.Add(Diagnostic.Create(
+                        BindingDiagnostics.StaticFieldNotSupported,
+                        variable.Identifier.GetLocation(),
+                        staticField.Name));
+                }
+            }
+        }
+    }
+
+    /// <summary>Names the generator is about to introduce, against each other and against the class.</summary>
+    private void ValidateGeneratedNames(ClassDeclarationSyntax classDeclaration, INamedTypeSymbol? classSymbol,
+        ViewModelAnalysis analysis)
+    {
+        HashSet<string> seen = new HashSet<string>();
+
+        foreach (BindingFieldInfo field in analysis.BindingFields)
+        {
+            Location location = FindFieldLocation(classDeclaration, field.FieldName);
+
+            if (!seen.Add(field.PropertyName))
+            {
+                analysis.Diagnostics.Add(Diagnostic.Create(
+                    BindingDiagnostics.DuplicatePropertyName, location, field.FieldName, field.PropertyName));
+                continue;
+            }
+
+            bool alreadyDeclared = classSymbol != null &&
+                                   classSymbol.GetMembers(field.PropertyName).Length > 0;
+
+            if (alreadyDeclared)
+            {
+                analysis.Diagnostics.Add(Diagnostic.Create(
+                    BindingDiagnostics.PropertyNameAlreadyTaken, location, field.FieldName, field.PropertyName));
+            }
+        }
+    }
+
+    private static Location FindFieldLocation(ClassDeclarationSyntax classDeclaration, string fieldName)
+    {
+        VariableDeclaratorSyntax? declarator = classDeclaration.Members.OfType<FieldDeclarationSyntax>()
+            .SelectMany(field => field.Declaration.Variables)
+            .FirstOrDefault(variable => variable.Identifier.ValueText == fieldName);
+
+        return declarator?.Identifier.GetLocation() ?? classDeclaration.Identifier.GetLocation();
+    }
+
+    /// <summary>
+    /// The types this one is nested inside, outermost first, each with its type parameters.
+    /// </summary>
+    /// <remarks>
+    /// A nested view model has to be re-declared inside its containers or the generated partial
+    /// describes a different, top-level type of the same name.
+    /// </remarks>
+    private List<string> GetContainingTypes(ClassDeclarationSyntax classDeclaration)
+    {
+        List<string> containers = new List<string>();
+
+        for (SyntaxNode? parent = classDeclaration.Parent; parent != null; parent = parent.Parent)
+        {
+            if (parent is TypeDeclarationSyntax type)
+            {
+                containers.Insert(0, type.Identifier.ValueText + (type.TypeParameterList?.ToString() ?? ""));
+            }
+        }
+
+        return containers;
+    }
+
     private BindingFieldInfo ExtractBindingInfo(IFieldSymbol fieldSymbol)
     {
         AttributeData? attribute = fieldSymbol.GetAttributes()
@@ -1258,6 +1385,25 @@ public class ViewModelAnalysis
 {
     public string ClassName { get; set; } = "";
     public string Namespace { get; set; } = "";
+
+    /// <summary>The declaration's type parameter list, such as <c>&lt;T&gt;</c>, or empty.</summary>
+    public string TypeParameters { get; set; } = "";
+
+    /// <summary>Enclosing types, outermost first, each with its own type parameters.</summary>
+    public List<string> ContainingTypes { get; set; } = new List<string>();
+
+    /// <summary>What the generator has to say about this class before generating anything.</summary>
+    public List<Diagnostic> Diagnostics { get; } = new List<Diagnostic>();
+
+    /// <summary>
+    /// Namespace, enclosing types and name: what makes one view model distinguishable from another
+    /// of the same name elsewhere in the project.
+    /// </summary>
+    public string FullyQualifiedName =>
+        string.Join(".", new[] { Namespace }
+            .Concat(ContainingTypes)
+            .Concat(new[] { ClassName })
+            .Where(part => !string.IsNullOrEmpty(part)));
 
     public List<BindingFieldInfo> BindingFields { get; set; } = new List<BindingFieldInfo>();
     public List<ComputedPropertyInfo> ComputedProperties { get; set; } = new List<ComputedPropertyInfo>();

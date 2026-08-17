@@ -489,6 +489,21 @@ public partial class LoggingApp : PangeaApplication
 - **Do not edit the theme XAML under `Resources/Controls/Shared`.** Declare a palette instead.
 - **`ReadTextAsync` throws, `ReadJsonAsync` returns null.** Pick the one matching the situation.
 
+### What the generator reports
+
+The generator refuses to emit for a class it cannot generate correctly, and says why. Reading the
+code, these are the mistakes it catches:
+
+| | |
+|---|---|
+| `PGB001` | The class has `[Binding]` fields and is not `partial` |
+| `PGB002` | The class has `[Binding]` fields and does not derive from `ViewModelBase` |
+| `PGB003` | Two `[Binding]` fields would generate the same property |
+| `PGB004` | The generated property name is already declared in the class |
+| `PGB005` | `[Binding]` on a `static` field, which is ignored (warning) |
+
+A class that trips an error generates nothing, so a missing property is the symptom to look for.
+
 ---
 
 ## Checklist before finishing generated code
