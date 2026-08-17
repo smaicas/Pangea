@@ -328,7 +328,11 @@ jobs:
             --skip-duplicate \
             --no-symbols
           
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg"             -k ${{ secrets.NUGET_API_KEY }}             -s https://api.nuget.org/v3/index.json             --skip-duplicate             --no-symbols
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg" \
+            -k ${{ secrets.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
 
           echo "✅ All packages published successfully!"
 

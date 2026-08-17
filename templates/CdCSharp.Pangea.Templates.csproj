@@ -34,14 +34,27 @@
               DestinationFiles="@(SkillFiles->'$(MSBuildThisFileDirectory)content\MyPangeaApp\pangea-skill\%(RecursiveDir)%(Filename)%(Extension)')" />
     </Target>
 
-    <!-- Point the generated projects at the version being published. -->
-    <Target Name="StampPangeaVersion" BeforeTargets="Pack" Condition="'$(Version)' != ''">
+    <!--
+        Point the generated projects at the version being published. Matched by shape rather than by
+        the literal current value, so re-packing at a different version stamps again: PangeaVersion
+        is the only symbol whose default looks like a version number.
+    -->
+    <Target Name="StampPangeaVersion" BeforeTargets="GenerateNuspec;Pack" Condition="'$(Version)' != ''">
         <PropertyGroup>
             <TemplateConfig>$(MSBuildThisFileDirectory)content\MyPangeaApp\.template.config\template.json</TemplateConfig>
+            <StampedConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), '&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;', '&quot;defaultValue&quot;: &quot;$(Version)&quot;'))</StampedConfig>
         </PropertyGroup>
 
-        <WriteLinesToFile File="$(TemplateConfig)"
-                          Lines="$([System.IO.File]::ReadAllText($(TemplateConfig)).Replace('&quot;defaultValue&quot;: &quot;1.0.0&quot;', '&quot;defaultValue&quot;: &quot;$(Version)&quot;'))"
-                          Overwrite="true" />
+        <WriteLinesToFile File="$(TemplateConfig)" Lines="$(StampedConfig)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    </Target>
+
+    <!-- Leave the working tree as it was found: the stamp belongs in the package, not in source. -->
+    <Target Name="RestorePangeaVersion" AfterTargets="Pack" Condition="'$(Version)' != ''">
+        <PropertyGroup>
+            <TemplateConfig>$(MSBuildThisFileDirectory)content\MyPangeaApp\.template.config\template.json</TemplateConfig>
+            <RestoredConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), '&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;', '&quot;defaultValue&quot;: &quot;1.0.0&quot;'))</RestoredConfig>
+        </PropertyGroup>
+
+        <WriteLinesToFile File="$(TemplateConfig)" Lines="$(RestoredConfig)" Overwrite="true" WriteOnlyWhenDifferent="true" />
     </Target>
 </Project>

@@ -1,5 +1,6 @@
-using Avalonia.Media;
+﻿using Avalonia.Media;
 using CdCSharp.Pangea.Theming.Palettes;
+using System.Globalization;
 using System.Reflection;
 using System.Text;
 
@@ -50,7 +51,26 @@ public class ResourceKeyReferenceTests
         Assert.True(missing.Count == 0, "Colours without a derived brush: " + string.Join(", ", missing));
     }
 
+    /// <summary>
+    /// Generated under the invariant culture: colour opacities and metrics format differently
+    /// wherever the decimal separator does, and the file has to be identical on every machine.
+    /// </summary>
     private static string BuildReference()
+    {
+        CultureInfo previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+
+        try
+        {
+            return BuildReferenceCore();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    private static string BuildReferenceCore()
     {
         Avalonia.Controls.ResourceDictionary light = PangeaTheme.BuildVariant(new LightPalette());
         Avalonia.Controls.ResourceDictionary dark = PangeaTheme.BuildVariant(new DarkPalette());

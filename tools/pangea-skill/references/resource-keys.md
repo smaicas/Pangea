@@ -195,7 +195,7 @@ Identical in both variants.
 |---|---|
 | `ContentControlThemeFontFamily` | `compositefont:fonts:Inter#Inter, $Default#Inter, $Default` |
 | `ThemeBorderThickness` | `1,1,1,1` |
-| `ThemeDisabledOpacity` | `0,4` |
+| `ThemeDisabledOpacity` | `0.4` |
 | `FontSizeSmall` | `10` |
 | `FontSizeNormal` | `12` |
 | `FontSizeLarge` | `16` |
@@ -203,7 +203,7 @@ Identical in both variants.
 | `ScrollBarThumbThickness` | `10` |
 | `IconElementThemeHeight` | `20` |
 | `IconElementThemeWidth` | `20` |
-| `TextControlPlaceholderOpacity` | `0,5` |
+| `TextControlPlaceholderOpacity` | `0.5` |
 | `ButtonMinHeight` | `32` |
 | `ButtonMinWidth` | `64` |
 | `ButtonPadding` | `12,6,12,6` |
