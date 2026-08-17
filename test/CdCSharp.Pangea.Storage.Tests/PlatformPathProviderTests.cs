@@ -40,14 +40,41 @@ public class PlatformPathProviderTests
 
     [Theory]
     [MemberData(nameof(ProviderNames))]
-    public void EveryPathIsRootedAndNonEmpty(string provider)
+    public void EveryPathIsNonEmpty(string provider)
     {
         foreach (string path in AllPaths(Create(provider)))
         {
             Assert.False(string.IsNullOrWhiteSpace(path));
+        }
+    }
+
+    /// <summary>
+    /// Only the provider this system would actually pick, plus the portable one.
+    /// </summary>
+    /// <remarks>
+    /// A provider builds on <c>Environment.GetFolderPath</c>, which answers for the running
+    /// operating system: the Windows provider asked for a Windows special folder on Linux gets an
+    /// empty string back and composes a relative path. That says nothing about the provider - it is
+    /// never selected there - so rootedness is only asserted where the provider actually runs.
+    /// </remarks>
+    [Theory]
+    [InlineData("host")]
+    [InlineData("portable")]
+    public void PathsAreRooted(string provider)
+    {
+        string name = provider == "host" ? HostProviderName() : provider;
+
+        foreach (string path in AllPaths(Create(name)))
+        {
             Assert.True(Path.IsPathRooted(path), $"'{path}' is not rooted.");
         }
     }
+
+    private static string HostProviderName() =>
+        OperatingSystem.IsWindows() ? "windows" :
+        OperatingSystem.IsLinux() ? "linux" :
+        OperatingSystem.IsMacOS() ? "macos" :
+        "portable";
 
     /// <summary>
     /// Two applications must not share a data directory. The portable provider separates by the
