@@ -35,6 +35,26 @@ public class AvaloniaUIDispatcher : IUIDispatcher
         }
     }
 
+    public T Invoke<T>(Func<T> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+
+        return CheckAccess() ? callback() : Dispatcher.UIThread.Invoke(callback);
+    }
+
+    public async Task InvokeAsync(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(action);
+    }
+
     public async Task<T> InvokeAsync<T>(Func<Task<T>> callback)
     {
         ArgumentNullException.ThrowIfNull(callback);

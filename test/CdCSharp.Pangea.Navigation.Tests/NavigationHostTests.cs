@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
@@ -119,6 +119,14 @@ public class NavigationHostTests
         public void Post(Action action) => action();
 
         public void Invoke(Action action) => action();
+
+        public T Invoke<T>(Func<T> callback) => callback();
+
+        public Task InvokeAsync(Action action)
+        {
+            action();
+            return Task.CompletedTask;
+        }
 
         public Task<T> InvokeAsync<T>(Func<Task<T>> callback) => callback();
     }

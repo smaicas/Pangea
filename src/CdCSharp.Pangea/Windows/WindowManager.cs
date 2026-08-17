@@ -1,6 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
+using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +52,7 @@ public class WindowManager : IWindowManager, IDisposable
     private readonly TypeRegistry _typeRegistry;
     private readonly ILogger<WindowManager> _logger;
     private readonly IApplicationLifetime _applicationLifetime;
+    private readonly IUIDispatcher _dispatcher;
     private readonly PangeaOptions _options;
     private Window? _mainWindow;
     private bool _initialized;
@@ -62,12 +63,14 @@ public class WindowManager : IWindowManager, IDisposable
         IApplicationLifetime applicationLifetime,
         IOptions<PangeaOptions> options,
         TypeRegistry typeRegistry,
+        IUIDispatcher dispatcher,
         ILogger<WindowManager> logger)
     {
         _serviceProvider = serviceProvider;
         _typeRegistry = typeRegistry;
         _logger = logger;
         _applicationLifetime = applicationLifetime;
+        _dispatcher = dispatcher;
         _options = options.Value;
     }
 
@@ -97,14 +100,7 @@ public class WindowManager : IWindowManager, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
         
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            SetMainWindowInternal<TWindow, TViewModel>();
-        }
-        else
-        {
-            Dispatcher.UIThread.Invoke(() => SetMainWindowInternal<TWindow, TViewModel>());
-        }
+        _dispatcher.Invoke(SetMainWindowInternal<TWindow, TViewModel>);
     }
 
     public void SetMainWindow(Window window)
@@ -112,14 +108,7 @@ public class WindowManager : IWindowManager, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, nameof(WindowManager));
         ArgumentNullException.ThrowIfNull(window);
         
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            SetMainWindowInternal(window);
-        }
-        else
-        {
-            Dispatcher.UIThread.Invoke(() => SetMainWindowInternal(window));
-        }
+        _dispatcher.Invoke(() => SetMainWindowInternal(window));
     }
 
     public TWindow GetOrCreateWindow<TWindow, TViewModel>()
@@ -133,7 +122,7 @@ public class WindowManager : IWindowManager, IDisposable
 
         // Re-check on the UI thread: without it two callers that both miss the cache each build a
         // window, and the second silently replaces the first in the cache.
-        return Dispatcher.UIThread.Invoke(() =>
+        return _dispatcher.Invoke(() =>
             TryGetCachedWindow<TWindow>(out TWindow? cached)
                 ? cached
                 : CreateWindowWithViewModel<TWindow, TViewModel>());
@@ -148,7 +137,7 @@ public class WindowManager : IWindowManager, IDisposable
 
         // Re-check on the UI thread: without it two callers that both miss the cache each build a
         // window, and the second silently replaces the first in the cache.
-        return Dispatcher.UIThread.Invoke(() =>
+        return _dispatcher.Invoke(() =>
             TryGetCachedWindow<TWindow>(out TWindow? cached) ? cached : CreateWindow<TWindow>());
     }
 
@@ -160,14 +149,7 @@ public class WindowManager : IWindowManager, IDisposable
 
         TWindow window = GetOrCreateWindow<TWindow, TViewModel>();
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            ShowWindowSafe(window);
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(() => ShowWindowSafe(window));
-        }
+        await _dispatcher.InvokeAsync(() => ShowWindowSafe(window));
 
         return window;
     }
@@ -186,15 +168,7 @@ public class WindowManager : IWindowManager, IDisposable
         TViewModel viewModel;
         TWindow window;
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            (window, viewModel) = CreateDialogWindow<TWindow, TViewModel>();
-        }
-        else
-        {
-            (window, viewModel) = await Dispatcher.UIThread.InvokeAsync(() =>
-                CreateDialogWindow<TWindow, TViewModel>());
-        }
+        (window, viewModel) = _dispatcher.Invoke(CreateDialogWindow<TWindow, TViewModel>);
 
         Task<bool?>? showing = null;
 
@@ -242,15 +216,7 @@ public class WindowManager : IWindowManager, IDisposable
         // Dialogs are single-use, so they are never cached.
         TWindow window;
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            (window, _) = CreateDialogWindow<TWindow, TViewModel>();
-        }
-        else
-        {
-            (window, _) = await Dispatcher.UIThread.InvokeAsync(() =>
-                CreateDialogWindow<TWindow, TViewModel>());
-        }
+        (window, _) = _dispatcher.Invoke(CreateDialogWindow<TWindow, TViewModel>);
 
         try
         {
@@ -314,42 +280,16 @@ public class WindowManager : IWindowManager, IDisposable
         return (window, viewModel);
     }
 
-    private async Task ConfigureAsModalDialog(Window window)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            ConfigureModalWindow(window);
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(() => ConfigureModalWindow(window));
-        }
-    }
+    private Task ConfigureAsModalDialog(Window window) =>
+        _dispatcher.InvokeAsync(() => ConfigureModalWindow(window));
 
     private static void ConfigureModalWindow(Window window) =>
         window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-    private static async Task<bool?> ShowDialogInternal(Window window, Window owner)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            return await window.ShowDialog<bool?>(owner);
-        }
+    private Task<bool?> ShowDialogInternal(Window window, Window owner) =>
+        _dispatcher.InvokeAsync(() => window.ShowDialog<bool?>(owner));
 
-        return await Dispatcher.UIThread.InvokeAsync(async () => await window.ShowDialog<bool?>(owner));
-    }
-
-    private async Task CloseDialogSafe(Window window)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            window.Close();
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(() => window.Close());
-        }
-    }
+    private Task CloseDialogSafe(Window window) => _dispatcher.InvokeAsync(window.Close);
 
     public void CloseWindow<TWindow>() where TWindow : Window
     {
@@ -360,14 +300,7 @@ public class WindowManager : IWindowManager, IDisposable
 
         // Invoke, not InvokeAsync: this method returns void, so posting the close and walking away
         // would let the caller observe an open window and lose any failure.
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            window.Close();
-        }
-        else
-        {
-            Dispatcher.UIThread.Invoke(window.Close);
-        }
+        _dispatcher.Invoke(window.Close);
     }
 
     public void CloseAllWindows()
@@ -384,14 +317,7 @@ public class WindowManager : IWindowManager, IDisposable
             }
         }
 
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            CloseEach(windowsToClose);
-        }
-        else
-        {
-            Dispatcher.UIThread.Invoke(() => CloseEach(windowsToClose));
-        }
+        _dispatcher.Invoke(() => CloseEach(windowsToClose));
     }
 
     private static void CloseEach(List<Window> windows)

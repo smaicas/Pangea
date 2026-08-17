@@ -4,6 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
+using CdCSharp.Pangea.Tests.Infrastructure;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -22,46 +23,19 @@ public class WindowManagerTests
 
     public sealed class SampleViewModel;
 
-    private static WindowManager Create(PangeaOptions? options = null) =>
-        new(new StubServices(),
+    private static WindowManager Create(PangeaOptions? options = null) => Create(out _, options);
+
+    private static WindowManager Create(out PumpingDispatcher dispatcher, PangeaOptions? options = null)
+    {
+        dispatcher = new PumpingDispatcher();
+
+        return new WindowManager(
+            new StubServices(),
             new ClassicDesktopStyleApplicationLifetime(),
             Options.Create(options ?? new PangeaOptions { Window = { AutoDiscoverMainWindow = false } }),
             new TypeRegistry(),
+            dispatcher,
             NullLogger<WindowManager>.Instance);
-
-    /// <summary>
-    /// Whether Avalonia's dispatcher refuses work from other threads on this platform.
-    /// </summary>
-    /// <remarks>
-    /// The headless dispatcher has thread affinity on Windows and not on the Linux runner. Where it
-    /// has none, a call that marshals is indistinguishable from one that does not - it runs inline
-    /// either way - so "this call waited for the UI thread" is simply not observable there. The
-    /// window manager still talks to Avalonia's dispatcher directly instead of through
-    /// IUIDispatcher, which is what would make this injectable and the same everywhere.
-    /// </remarks>
-    private static bool DispatcherHasThreadAffinity()
-    {
-        bool otherThreadWasAccepted = false;
-
-        Thread probe = new(() => otherThreadWasAccepted = Dispatcher.UIThread.CheckAccess());
-        probe.Start();
-        probe.Join();
-
-        return !otherThreadWasAccepted;
-    }
-
-    /// <summary>Pumps the dispatcher until <paramref name="work"/> finishes.</summary>
-    /// <remarks>
-    /// The test body owns the UI thread, so anything hopping onto it from a background thread only
-    /// runs while we keep pumping. A real application's message loop does this for us.
-    /// </remarks>
-    private static void PumpUntilComplete(params Task[] work)
-    {
-        while (!work.All(task => task.IsCompleted))
-        {
-            Dispatcher.UIThread.RunJobs();
-            Thread.Sleep(1);
-        }
     }
 
     [AvaloniaFact]
@@ -80,18 +54,29 @@ public class WindowManagerTests
         Assert.NotSame((Window)manager.GetOrCreateWindow<SampleWindow>(), manager.GetOrCreateWindow<OtherWindow>());
     }
 
+    /// <summary>
+    /// Both callers miss the cache and race to build a window; only one may survive. The dispatcher
+    /// is what serialises them, so the test drives it rather than Avalonia's.
+    /// </summary>
     [AvaloniaFact]
     public void ConcurrentCallers_GetTheSameWindow()
     {
-        // Both callers miss the cache and race to build one; only one window may survive.
-        WindowManager manager = Create();
+        WindowManager manager = Create(out PumpingDispatcher dispatcher);
 
-        Task<SampleWindow> first = Task.Run(() => manager.GetOrCreateWindow<SampleWindow>());
-        Task<SampleWindow> second = Task.Run(() => manager.GetOrCreateWindow<SampleWindow>());
-        PumpUntilComplete(first, second);
+        SampleWindow? first = null;
+        SampleWindow? second = null;
 
-        Assert.Same(first.Result, second.Result);
-        Assert.Same(first.Result, manager.GetOrCreateWindow<SampleWindow>());
+        Thread one = new(() => first = manager.GetOrCreateWindow<SampleWindow>());
+        Thread two = new(() => second = manager.GetOrCreateWindow<SampleWindow>());
+
+        one.Start();
+        two.Start();
+
+        dispatcher.DrainUntil(() => one.Join(1) && two.Join(1));
+
+        Assert.NotNull(first);
+        Assert.Same(first, second);
+        Assert.Same(first, manager.GetOrCreateWindow<SampleWindow>());
     }
 
     [AvaloniaFact]
@@ -129,6 +114,7 @@ public class WindowManagerTests
             lifetime,
             Options.Create(new PangeaOptions { Window = { AutoDiscoverMainWindow = false } }),
             new TypeRegistry(),
+            new PumpingDispatcher(),
             NullLogger<WindowManager>.Instance);
 
         SampleWindow window = new();
@@ -169,45 +155,46 @@ public class WindowManagerTests
     }
 
     /// <summary>
-    /// Nothing pumps the UI thread while the test body holds it, so a call that genuinely marshals
-    /// cannot finish until we pump. A call that posts and walks away finishes immediately - which
-    /// is the difference between "the window is closed when this returns" and a promise.
+    /// CloseWindow returns void, so the caller can only assume the window is closed when it
+    /// returns. Posting the work and walking away breaks that quietly.
     /// </summary>
     [AvaloniaFact]
-    public void CloseWindow_FromABackgroundThread_DoesNotReturnUntilTheWindowIsClosed()
+    public void CloseWindow_FromAnotherThread_DoesNotReturnUntilTheWindowIsClosed()
     {
-        WindowManager manager = Create();
+        WindowManager manager = Create(out PumpingDispatcher dispatcher);
         SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
         window.Show();
 
-        Assert.SkipUnless(DispatcherHasThreadAffinity(),
-            "This platform's dispatcher accepts work from any thread, so waiting for it is not observable.");
+        Thread worker = new(manager.CloseWindow<SampleWindow>);
+        worker.Start();
 
-        Task closing = Task.Run(manager.CloseWindow<SampleWindow>);
+        // Nothing has run the queued work, so a call that marshals cannot have returned.
+        Assert.False(worker.Join(TimeSpan.FromMilliseconds(200)),
+            "CloseWindow returned before the UI thread had run anything.");
 
-        Assert.False(closing.Wait(TimeSpan.FromMilliseconds(250)),
-            "CloseWindow returned before the UI thread had a chance to close the window.");
+        dispatcher.Drain();
+        worker.Join();
 
-        PumpUntilComplete(closing);
+        Assert.Equal(1, dispatcher.MarshalledCount);
         Assert.False(window.IsVisible);
     }
 
     [AvaloniaFact]
-    public void CloseAllWindows_FromABackgroundThread_DoesNotReturnUntilTheWindowsAreClosed()
+    public void CloseAllWindows_FromAnotherThread_DoesNotReturnUntilTheWindowsAreClosed()
     {
-        WindowManager manager = Create();
+        WindowManager manager = Create(out PumpingDispatcher dispatcher);
         SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
         window.Show();
 
-        Assert.SkipUnless(DispatcherHasThreadAffinity(),
-            "This platform's dispatcher accepts work from any thread, so waiting for it is not observable.");
+        Thread worker = new(manager.CloseAllWindows);
+        worker.Start();
 
-        Task closing = Task.Run(manager.CloseAllWindows);
+        Assert.False(worker.Join(TimeSpan.FromMilliseconds(200)),
+            "CloseAllWindows returned before the UI thread had run anything.");
 
-        Assert.False(closing.Wait(TimeSpan.FromMilliseconds(250)),
-            "CloseAllWindows returned before the UI thread had a chance to close anything.");
+        dispatcher.Drain();
+        worker.Join();
 
-        PumpUntilComplete(closing);
         Assert.False(window.IsVisible);
     }
 

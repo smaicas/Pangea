@@ -208,6 +208,14 @@ public class NavigationServiceTests
 
         public void Invoke(Action action) => action();
 
+        public T Invoke<T>(Func<T> callback) => callback();
+
+        public Task InvokeAsync(Action action)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
         public Task<T> InvokeAsync<T>(Func<Task<T>> callback) => callback();
     }
 
@@ -231,6 +239,14 @@ public class NavigationServiceTests
         {
             if (CheckAccess()) action();
             else _queued.Enqueue(action);
+        }
+
+        public T Invoke<T>(Func<T> callback) => callback();
+
+        public Task InvokeAsync(Action action)
+        {
+            Invoke(action);
+            return Task.CompletedTask;
         }
 
         public Task<T> InvokeAsync<T>(Func<Task<T>> callback)

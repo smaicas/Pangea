@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Core.Abstractions;
+﻿using CdCSharp.Pangea.Core.Abstractions;
 
 namespace CdCSharp.Pangea.Core.Tests.Infrastructure;
 
@@ -41,6 +41,19 @@ internal sealed class FakeUIDispatcher : IUIDispatcher
     {
         InvokeCount++;
         action();
+    }
+
+    public T Invoke<T>(Func<T> callback)
+    {
+        InvokeCount++;
+        return callback();
+    }
+
+    public Task InvokeAsync(Action action)
+    {
+        InvokeCount++;
+        action();
+        return Task.CompletedTask;
     }
 
     public Task<T> InvokeAsync<T>(Func<Task<T>> callback)

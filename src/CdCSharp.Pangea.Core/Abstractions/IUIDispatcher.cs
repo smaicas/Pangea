@@ -1,4 +1,4 @@
-namespace CdCSharp.Pangea.Core.Abstractions;
+﻿namespace CdCSharp.Pangea.Core.Abstractions;
 
 /// <summary>
 /// Marshals work onto the UI thread.
@@ -21,6 +21,21 @@ public interface IUIDispatcher
     /// Runs it inline when already on the UI thread.
     /// </summary>
     void Invoke(Action action);
+
+    /// <summary>
+    /// Runs <paramref name="callback"/> on the UI thread and returns what it produced.
+    /// Runs it inline when already on the UI thread.
+    /// </summary>
+    /// <remarks>
+    /// Note which overload a lambda picks: where the body is an expression that produces a value -
+    /// including an assignment, as in <c>() =&gt; total = Count()</c> - C# prefers this one over
+    /// <see cref="Invoke(Action)"/>, and the result is silently discarded. Write the body as a
+    /// block when the <see cref="Action"/> overload is what you meant.
+    /// </remarks>
+    T Invoke<T>(Func<T> callback);
+
+    /// <summary>Runs <paramref name="action"/> on the UI thread, completing when it has run.</summary>
+    Task InvokeAsync(Action action);
 
     /// <summary>
     /// Runs <paramref name="callback"/> on the UI thread and completes when its task does.
