@@ -1,4 +1,4 @@
-# 🌍 CdCSharp.Pangea
+﻿# 🌍 CdCSharp.Pangea
 
 <div align="center">
 
@@ -411,26 +411,25 @@ conventions, the pitfalls, and the full list of theme resource keys.
 the source generator, so the guidance cannot drift away from the code. That check has already caught
 a generator bug and an API that made the documented approach impossible.
 
-Three ways to get it, most reliable first:
+Two ways to get it:
 
 ```bash
-# 1. The template writes it into your project
+# 1. The template writes it into your project, where agents look for project skills
 dotnet new pangea-app -n MyApp                  # --IncludeSkill is on by default
+# -> MyApp/.claude/skills/pangea/SKILL.md       commit it and the whole team gets it
 ```
 
 ```bash
 # 2. Download the version-pinned skill from the matching release
 curl -L -o pangea-skill.zip \
   https://github.com/smaicas/CdCSharp.Pangea/releases/download/v1.0.0/pangea-skill-1.0.0.zip
-unzip pangea-skill.zip -d ~/.claude/skills/       # or wherever your agent keeps skills
+unzip pangea-skill.zip -d ~/.claude/skills/     # unpacks as pangea/SKILL.md, available everywhere
 ```
 
-3. The NuGet package carries it too, under `tools/pangea-skill/` inside the package. Note this copy
-   lives in the global packages folder rather than your repository, so an agent listing files will
-   not find it — prefer one of the first two.
 
-The skill follows the usual layout: a `SKILL.md` whose frontmatter says what it is and when to reach
-for it, with the bulky key reference in `references/`.
+The skill follows the usual layout: a directory named after the skill, holding a `SKILL.md` whose
+frontmatter says what it is and when to reach for it, with the bulky key reference in `references/`.
+The directory name is the skill's identity, so keep it `pangea`.
 
 > Pin the skill to the Pangea version you use. Guidance from an older release describes an API that
 > has since moved, and an agent will follow it confidently.

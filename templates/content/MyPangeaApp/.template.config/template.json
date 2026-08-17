@@ -38,7 +38,7 @@
       "modifiers": [
         {
           "condition": "(!IncludeSkill)",
-          "exclude": [ "pangea-skill/**" ]
+          "exclude": [ ".claude/**" ]
         },
         {
           "condition": "(!Sample)",

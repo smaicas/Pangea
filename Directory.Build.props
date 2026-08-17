@@ -22,16 +22,6 @@
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="" Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" Visible="false" />
-
-    <!--
-      The agent skill, carried by the main package only: shipping it in every feature package
-      would put five copies of the same guidance on disk.
-    -->
-    <None Include="$(MSBuildThisFileDirectory)tools\pangea-skill\**\*.md"
-          Pack="true"
-          PackagePath="tools\pangea-skill\%(RecursiveDir)%(Filename)%(Extension)"
-          Visible="false"
-          Condition="'$(PackageId)' == 'CdCSharp.Pangea'" />
   </ItemGroup>
 
   <PropertyGroup>

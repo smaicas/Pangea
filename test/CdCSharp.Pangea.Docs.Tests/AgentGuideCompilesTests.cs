@@ -64,13 +64,20 @@ public class AgentGuideCompilesTests
         Assert.True(errors.Count == 0, Describe(errors));
     }
 
+    /// <summary>
+    /// The template packs the skill straight from where it lives. Copying it into the template
+    /// during the build looked equivalent and was not: MSBuild resolves item globs before any
+    /// target runs, so the copy arrived after packing had already decided what to include.
+    /// </summary>
     [Fact]
-    public void TheSkillTravelsWithThePackage()
+    public void TheTemplatePacksTheSkillFromItsSourceDirectory()
     {
-        string props = File.ReadAllText(Path.Combine(DocsPaths.RepositoryRoot, "Directory.Build.props"));
+        string project = File.ReadAllText(
+            Path.Combine(DocsPaths.RepositoryRoot, "templates", "CdCSharp.Pangea.Templates.csproj"));
 
-        Assert.Contains("pangea-skill", props);
-        Assert.Contains("Pack=\"true\"", props);
+        Assert.Contains(@"..\.claude\skills\pangea\**\*.md", project);
+        Assert.Contains(@"PackagePath=""content\MyPangeaApp\.claude\skills\pangea\", project);
+        Assert.DoesNotContain("<Copy ", project);
     }
 
     private static IReadOnlyList<Sample> ReadSamples()

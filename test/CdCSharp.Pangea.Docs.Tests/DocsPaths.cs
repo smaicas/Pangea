@@ -5,7 +5,11 @@ internal static class DocsPaths
 {
     public static string RepositoryRoot { get; } = FindRepositoryRoot();
 
-    public static string SkillDirectory => Path.Combine(RepositoryRoot, "tools", "pangea-skill");
+    /// <summary>
+    /// The skill lives where agents look for it, so the toolkit's own repository picks it up as a
+    /// project skill and everything shipped is a copy of the same directory.
+    /// </summary>
+    public static string SkillDirectory => Path.Combine(RepositoryRoot, ".claude", "skills", "pangea");
 
     public static string AgentGuide => Path.Combine(SkillDirectory, "SKILL.md");
 

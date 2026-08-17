@@ -28,8 +28,15 @@ public class SkillConventionsTests
     }
 
     [Fact]
-    public void SkillFileExistsWhereAgentsLookForIt() =>
+    public void SkillFileExistsWhereAgentsLookForIt()
+    {
         Assert.True(File.Exists(DocsPaths.AgentGuide), $"Expected a skill at '{DocsPaths.AgentGuide}'.");
+
+        // Agents discover skills under a skills/ directory and nowhere else, so a skill kept
+        // anywhere in the tree is a skill nothing loads.
+        string parent = Path.GetFileName(Path.GetDirectoryName(DocsPaths.SkillDirectory)!);
+        Assert.Equal("skills", parent);
+    }
 
     [Fact]
     public void NameIsALowercaseSlugMatchingTheDirectory()
@@ -37,7 +44,9 @@ public class SkillConventionsTests
         string name = Field("name");
 
         Assert.Matches("^[a-z0-9]+(-[a-z0-9]+)*$", name);
-        Assert.Equal(Path.GetFileName(DocsPaths.SkillDirectory), $"{name}-skill");
+
+        // The directory name is the skill's identity; a mismatch makes the frontmatter a lie.
+        Assert.Equal(name, Path.GetFileName(DocsPaths.SkillDirectory));
     }
 
     [Fact]

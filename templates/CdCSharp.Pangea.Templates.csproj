@@ -26,8 +26,9 @@
                  PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)"
                  Pack="true" />
 
-        <Content Include="$(MSBuildThisFileDirectory)..\tools\pangea-skill\**\*.md"
-                 PackagePath="content\MyPangeaApp\pangea-skill\%(RecursiveDir)%(Filename)%(Extension)"
+        <!-- Placed where coding agents discover project skills: .claude/skills/<name>/SKILL.md -->
+        <Content Include="$(MSBuildThisFileDirectory)..\.claude\skills\pangea\**\*.md"
+                 PackagePath="content\MyPangeaApp\.claude\skills\pangea\%(RecursiveDir)%(Filename)%(Extension)"
                  Pack="true" />
 
         <Compile Remove="**\*" />

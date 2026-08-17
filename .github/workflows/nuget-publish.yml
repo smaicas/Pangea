@@ -248,8 +248,8 @@ jobs:
                 fi
               }
 
-              assert_file "$EXPECT_SKILL"  pangea-skill/SKILL.md
-              assert_file "$EXPECT_SKILL"  pangea-skill/references/resource-keys.md
+              assert_file "$EXPECT_SKILL"  .claude/skills/pangea/SKILL.md
+              assert_file "$EXPECT_SKILL"  .claude/skills/pangea/references/resource-keys.md
               assert_file "$EXPECT_SAMPLE" Themes/AppPalette.cs
 
               dotnet build -c ${{ env.CONFIGURATION }}
@@ -275,17 +275,14 @@ jobs:
           fi
           echo "✅ Binding package carries the source generator"
 
-          # The agent skill travels with the main package, in the layout agents expect.
+          # The skill is deliberately absent from the packages: inside the global packages folder
+          # no agent would ever find it. It ships through the template and the release archive.
           MAIN_PKG="./artifacts/CdCSharp.Pangea.$VERSION.nupkg"
 
-          for entry in tools/pangea-skill/SKILL.md tools/pangea-skill/references/resource-keys.md; do
-            if ! unzip -l "$MAIN_PKG" | grep -q " $entry\$"; then
-              echo "❌ CRITICAL: $entry missing from CdCSharp.Pangea"
-              unzip -l "$MAIN_PKG"
-              exit 1
-            fi
-          done
-          echo "✅ Main package carries the agent skill"
+          if unzip -l "$MAIN_PKG" | grep -q "SKILL.md"; then
+            echo "❌ CRITICAL: the skill is back in CdCSharp.Pangea, where nothing reads it"
+            exit 1
+          fi
 
           echo "📋 Main package dependencies:"
           unzip -p "$MAIN_PKG" CdCSharp.Pangea.nuspec | grep -A 12 "<dependencies>" || true
@@ -347,12 +344,17 @@ jobs:
         run: |
           SKILL="$(pwd)/artifacts/pangea-skill-${{ steps.version.outputs.version }}.zip"
 
-          # Zipped from inside tools/, so it unpacks as pangea-skill/SKILL.md: the skill
-          # directory sits at the root of the archive, which is what agents expect.
-          (cd tools && zip -r "$SKILL" pangea-skill -x '*.DS_Store')
+          # Zipped from inside .claude/skills, so it unpacks as pangea/SKILL.md: the directory
+          # name is the skill's identity, and unzipping into a skills folder is all it takes.
+          (cd .claude/skills && zip -r "$SKILL" pangea -x '*.DS_Store')
 
           echo "📦 Skill contents:"
           unzip -l "$SKILL"
+
+          if ! unzip -l "$SKILL" | grep -q " pangea/SKILL.md\$"; then
+            echo "❌ CRITICAL: the archive does not unpack as pangea/SKILL.md"
+            exit 1
+          fi
 
       - name: Publish GitHub Release
         env:
