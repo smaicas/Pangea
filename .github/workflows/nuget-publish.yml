@@ -229,60 +229,39 @@ jobs:
             )
           done
 
-      - name: Verify Main Package Content
+      - name: Verify Package Contents
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
           echo "📦 Generated packages:"
           ls -la ./artifacts/
-          
-          echo "🔍 Verifying CdCSharp.Pangea package contains analyzers..."
-          MAIN_PKG="./artifacts/CdCSharp.Pangea.${{ steps.version.outputs.version }}.nupkg"
-          
-          if [[ -f "$MAIN_PKG" ]]; then
-            echo "--- Analyzing main package: $MAIN_PKG ---"
-          
-            # Crear directorio temporal
-            mkdir -p temp_extract
-            unzip -q "$MAIN_PKG" -d temp_extract
-          
-            # Verificar estructura general
-            echo "📋 Package structure:"
-            find temp_extract -type f -name "*.dll" | head -20
-          
-            # Verificar analyzers específicamente
-            echo "🔍 Checking analyzers folder..."
-            if [[ -d "temp_extract/analyzers/dotnet/cs" ]]; then
-              echo "✅ Analyzers folder exists!"
-              echo "📁 Analyzer contents:"
-              ls -la temp_extract/analyzers/dotnet/cs/
-          
-              # Verificar analyzers específicos
-              if [[ -f "temp_extract/analyzers/dotnet/cs/CdCSharp.Pangea.Binding.CodeGeneration.dll" ]]; then
-                echo "✅ Binding analyzer found!"
-              else
-                echo "❌ Binding analyzer MISSING!"
-              fi
-          
-            else
-              echo "❌ Analyzers folder NOT found!"
-              echo "Available directories:"
-              find temp_extract -type d | head -10
-          
-              echo "❌ CRITICAL: Analyzers missing from package!"
-              exit 1
-            fi
-          
-            # Verificar dependencies
-            echo "📋 Package dependencies (from nuspec):"
-            if [[ -f "temp_extract/CdCSharp.Pangea.nuspec" ]]; then
-              grep -A 10 "<dependencies>" temp_extract/CdCSharp.Pangea.nuspec || echo "No dependencies section found"
-            fi
-          
-            # Limpiar
-            rm -rf temp_extract
-          else
-            echo "❌ Main package not found: $MAIN_PKG"
+
+          # The generator ships with the attribute it reads, in CdCSharp.Pangea.Binding.
+          # The meta package picks it up transitively, so it is verified where it lives.
+          BINDING_PKG="./artifacts/CdCSharp.Pangea.Binding.$VERSION.nupkg"
+          ANALYZER="analyzers/dotnet/cs/CdCSharp.Pangea.Binding.CodeGeneration.dll"
+
+          if ! unzip -l "$BINDING_PKG" | grep -q "$ANALYZER"; then
+            echo "❌ CRITICAL: $ANALYZER missing from CdCSharp.Pangea.Binding"
+            unzip -l "$BINDING_PKG"
             exit 1
           fi
+          echo "✅ Binding package carries the source generator"
+
+          # The agent skill travels with the main package, in the layout agents expect.
+          MAIN_PKG="./artifacts/CdCSharp.Pangea.$VERSION.nupkg"
+
+          for entry in tools/pangea-skill/SKILL.md tools/pangea-skill/references/resource-keys.md; do
+            if ! unzip -l "$MAIN_PKG" | grep -q " $entry\$"; then
+              echo "❌ CRITICAL: $entry missing from CdCSharp.Pangea"
+              unzip -l "$MAIN_PKG"
+              exit 1
+            fi
+          done
+          echo "✅ Main package carries the agent skill"
+
+          echo "📋 Main package dependencies:"
+          unzip -p "$MAIN_PKG" CdCSharp.Pangea.nuspec | grep -A 12 "<dependencies>" || true
 
       # 🚀 Publish to NuGet
       - name: Publish to NuGet
