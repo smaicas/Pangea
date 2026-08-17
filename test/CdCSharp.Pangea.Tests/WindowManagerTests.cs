@@ -29,6 +29,27 @@ public class WindowManagerTests
             new TypeRegistry(),
             NullLogger<WindowManager>.Instance);
 
+    /// <summary>
+    /// Whether Avalonia's dispatcher refuses work from other threads on this platform.
+    /// </summary>
+    /// <remarks>
+    /// The headless dispatcher has thread affinity on Windows and not on the Linux runner. Where it
+    /// has none, a call that marshals is indistinguishable from one that does not - it runs inline
+    /// either way - so "this call waited for the UI thread" is simply not observable there. The
+    /// window manager still talks to Avalonia's dispatcher directly instead of through
+    /// IUIDispatcher, which is what would make this injectable and the same everywhere.
+    /// </remarks>
+    private static bool DispatcherHasThreadAffinity()
+    {
+        bool otherThreadWasAccepted = false;
+
+        Thread probe = new(() => otherThreadWasAccepted = Dispatcher.UIThread.CheckAccess());
+        probe.Start();
+        probe.Join();
+
+        return !otherThreadWasAccepted;
+    }
+
     /// <summary>Pumps the dispatcher until <paramref name="work"/> finishes.</summary>
     /// <remarks>
     /// The test body owns the UI thread, so anything hopping onto it from a background thread only
@@ -159,6 +180,9 @@ public class WindowManagerTests
         SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
         window.Show();
 
+        Assert.SkipUnless(DispatcherHasThreadAffinity(),
+            "This platform's dispatcher accepts work from any thread, so waiting for it is not observable.");
+
         Task closing = Task.Run(manager.CloseWindow<SampleWindow>);
 
         Assert.False(closing.Wait(TimeSpan.FromMilliseconds(250)),
@@ -174,6 +198,9 @@ public class WindowManagerTests
         WindowManager manager = Create();
         SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
         window.Show();
+
+        Assert.SkipUnless(DispatcherHasThreadAffinity(),
+            "This platform's dispatcher accepts work from any thread, so waiting for it is not observable.");
 
         Task closing = Task.Run(manager.CloseAllWindows);
 

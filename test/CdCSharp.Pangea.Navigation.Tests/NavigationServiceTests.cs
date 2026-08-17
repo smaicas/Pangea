@@ -173,24 +173,23 @@ public class NavigationServiceTests
     /// through <see cref="IUIDispatcher"/> at all instead of running wherever it was called.
     /// </remarks>
     [Fact]
-    public async Task NavigatingFromABackgroundThread_RunsTheHookOnTheOwningThread()
+    public async Task NavigatingFromABackgroundThread_MarshalsThroughTheDispatcher()
     {
         QueueingDispatcher dispatcher = new();
         NavigationService navigation = new(new StubServices(), dispatcher);
 
-        Task<bool> navigating = Task.Run(
-            () => navigation.NavigateToAsync<ThreadRecordingViewModel>(),
-            TestContext.Current.CancellationToken);
+        // A dedicated thread, not the pool: a test body is itself pool work, and awaiting hands
+        // its thread back, so Task.Run can legitimately reuse the very thread that owns the
+        // dispatcher - and then nothing marshals and the test measures nothing.
+        Task<bool> navigating = null!;
+        Thread worker = new(() => navigating = navigation.NavigateToAsync<ThreadRecordingViewModel>());
+        worker.Start();
+        worker.Join();
 
-        // Nothing has drained the queue, so a navigation that marshals cannot have finished.
-        Task first = await Task.WhenAny(
-            navigating,
-            Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken));
+        // No timing involved: the work is queued and only this thread can run it.
+        Assert.Equal(1, dispatcher.QueuedCount);
+        Assert.False(navigating.IsCompleted);
 
-        Assert.NotSame(navigating, first);
-
-        // Whatever thread the await resumed on is the one that drains, so it is the one the hook
-        // has to have run on.
         int drainingThread = Environment.CurrentManagedThreadId;
         dispatcher.Drain();
 
@@ -221,6 +220,9 @@ public class NavigationServiceTests
         private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
         private readonly ConcurrentQueue<Action> _queued = new();
 
+        /// <summary>How much work was marshalled rather than run where it was called.</summary>
+        public int QueuedCount { get; private set; }
+
         public bool CheckAccess() => Environment.CurrentManagedThreadId == _ownerThreadId;
 
         public void Post(Action action) => _queued.Enqueue(action);
@@ -236,6 +238,7 @@ public class NavigationServiceTests
             if (CheckAccess()) return callback();
 
             TaskCompletionSource<T> completion = new();
+            QueuedCount++;
 
             _queued.Enqueue(async void () =>
             {
