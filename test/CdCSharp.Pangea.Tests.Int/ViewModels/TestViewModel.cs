@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Binding.Attributes;
+﻿using CdCSharp.Pangea.Binding.Attributes;
 using CdCSharp.Pangea.Core.Base;
 using System;
 using System.Collections.ObjectModel;
@@ -30,7 +30,7 @@ public partial class TestViewModel : ViewModelBase
     [Binding] private string _password = string.Empty;
     [Binding] private string _confirmPassword = string.Empty;
     [Binding] private bool _isLoading;
-    [Binding] private bool _hasErrors;
+    [Binding] private bool _hasValidationFailure;
     [Binding] private int _itemCount;
     [Binding] private bool _isOnline;
     [Binding] private bool _isAuthenticated;
@@ -61,7 +61,7 @@ public partial class TestViewModel : ViewModelBase
 
     // Computed property con múltiples dependencias
     public string Status => IsLoading ? "Loading..." : 
-                           HasErrors ? "Error" : 
+                           HasValidationFailure ? "Error" : 
                            IsOnline ? "Online" : "Offline";
 
     #endregion
@@ -108,7 +108,7 @@ public partial class TestViewModel : ViewModelBase
     #region CanExecute Methods
 
     // CanExecute simple
-    public bool CanSave => !IsLoading && !HasErrors;
+    public bool CanSave => !IsLoading && !HasValidationFailure;
 
     // CanExecute con múltiples condiciones
     public bool CanSubmit => !IsLoading && IsPasswordValid && CanProceed;
@@ -200,7 +200,7 @@ public partial class TestViewModel : ViewModelBase
     private async Task SaveAsync()
     {
         IsLoading = true;
-        HasErrors = false;
+        HasValidationFailure = false;
 
         try
         {
@@ -209,7 +209,7 @@ public partial class TestViewModel : ViewModelBase
         }
         catch
         {
-            HasErrors = true;
+            HasValidationFailure = true;
         }
         finally
         {
@@ -220,7 +220,7 @@ public partial class TestViewModel : ViewModelBase
     private async Task SubmitAsync()
     {
         IsLoading = true;
-        HasErrors = false;
+        HasValidationFailure = false;
 
         try
         {
@@ -230,7 +230,7 @@ public partial class TestViewModel : ViewModelBase
         }
         catch
         {
-            HasErrors = true;
+            HasValidationFailure = true;
         }
         finally
         {
@@ -296,7 +296,7 @@ public partial class TestViewModel : ViewModelBase
         }
         catch
         {
-            HasErrors = true;
+            HasValidationFailure = true;
         }
         finally
         {
@@ -403,7 +403,7 @@ public partial class TestViewModel : ViewModelBase
         UpdateAllCanExecute();
     }
 
-    partial void OnHasErrorsChanged()
+    partial void OnHasValidationFailureChanged()
     {
         NotifyErrorStateChanged();
         UpdateAllCanExecute();
@@ -458,22 +458,22 @@ public partial class TestViewModel : ViewModelBase
 
     private void ValidateName()
     {
-        HasErrors = string.IsNullOrEmpty(Name) || string.IsNullOrEmpty(FirstName) || string.IsNullOrEmpty(LastName);
+        HasValidationFailure = string.IsNullOrEmpty(Name) || string.IsNullOrEmpty(FirstName) || string.IsNullOrEmpty(LastName);
     }
 
     private void ValidateAge()
     {
-        HasErrors = Age < 0 || Age > 120;
+        HasValidationFailure = Age < 0 || Age > 120;
     }
 
     private void ValidatePassword()
     {
-        HasErrors = string.IsNullOrEmpty(Password) || Password.Length < 8;
+        HasValidationFailure = string.IsNullOrEmpty(Password) || Password.Length < 8;
     }
 
     private void CheckPasswordMatch()
     {
-        HasErrors = Password != ConfirmPassword;
+        HasValidationFailure = Password != ConfirmPassword;
     }
 
     private void UpdateDisplayText()

@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -198,8 +198,38 @@ partial class ProductViewModel
 **When it cannot generate**, it says so instead of letting the compiler complain about a file you
 did not write: a class that is not `partial` (`PGB001`), one whose base supplies no change
 notification (`PGB002`), two fields that would produce the same property (`PGB003`), a name the
-class already declares (`PGB004`), or `[Binding]` on a `static` field (`PGB005`, a warning). A class
+class already declares (`PGB004`), `[Binding]` on a `static` field (`PGB005`), or a generated
+property that hides a base member (`PGB006`). The last two are warnings. A class
 with an error generates nothing, so the symptom is a property that is not there.
+
+### Validation
+
+Rules go on the field. The generator copies them onto the generated property and validates on every
+set, through `INotifyDataErrorInfo` — which Avalonia already listens to.
+
+```csharp
+public partial class SignUpViewModel : ViewModelBase
+{
+    [Binding]
+    [Required(ErrorMessage = "An email is required.")]
+    [EmailAddress] private string _email = "";
+
+    [Binding, Range(18, 120)] private int _age;
+
+    // HasErrors comes from ViewModelBase and moves as the user types
+    public RelayCommand SignUpCommand => CreateCommand(SignUp, () => !HasErrors);
+}
+```
+
+```xml
+<!-- nothing to wire: the control decorates itself -->
+<TextBox Text="{Binding Email}" />
+```
+
+Any `ValidationAttribute` works, including your own — the rules are evaluated by
+`System.ComponentModel.DataAnnotations`, not reimplemented in generated code. A property is
+validated when it is set, so an untouched form shows nothing; `ValidateAll()` checks everything and
+tells you whether the view model is valid, which is what a Save button asks first.
 
 ### Commands
 
@@ -406,6 +436,27 @@ up:
 public override void Configure(IServiceCollection services) =>
     services.AddLogging(builder => builder.AddConsole());
 ```
+
+---
+
+## 💬 Dialogs
+
+Two questions, answered without a window being written for them.
+
+```csharp
+bool confirmed = await _dialogs.ConfirmAsync(
+    "Delete order", "This cannot be undone.", "Delete it", "Keep it");
+
+await _dialogs.AlertAsync("Saved", "Your changes have been saved.");
+```
+
+Dismissing the dialog by its window chrome is read as a cancel, so `ConfirmAsync` never returns
+`true` without the user saying so. The dialog takes the application's theme, and needs a main window
+to own it.
+
+For a dialog with its own fields, or a result that is not a bool, write a view model and a window
+and show it with `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>` — `IDialogService`
+is deliberately only these two questions.
 
 ---
 

@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
+using CdCSharp.Pangea.Dialogs;
 using CdCSharp.Pangea.Services;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,6 +69,7 @@ public static class PangeaExtensions
         services.AddSingleton<IRelayCommandFactory, RelayCommandFactory>();
         services.AddSingleton(GetApplicationLifetime(application));
         services.AddSingleton<IWindowManager, WindowManager>();
+        services.AddSingleton<IDialogService, DialogService>();
     }
 
     private static IApplicationLifetime GetApplicationLifetime(Application application) =>

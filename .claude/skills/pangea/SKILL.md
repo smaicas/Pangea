@@ -128,6 +128,50 @@ public partial class OrderViewModel : ViewModelBase
 
 ---
 
+## Validation
+
+Rules go on the field, beside the value they constrain. The generator copies them onto the
+generated property and validates on every set, through `INotifyDataErrorInfo` - which Avalonia
+already listens to, so a `TextBox` shows the error without being told.
+
+```csharp
+using CdCSharp.Pangea.Binding.Attributes;
+using CdCSharp.Pangea.Core.Base;
+using System.ComponentModel.DataAnnotations;
+
+namespace MyApp.ViewModels;
+
+public partial class SignUpViewModel : ViewModelBase
+{
+    public SignUpViewModel(IServiceProvider services) : base(services) { }
+
+    [Binding]
+    [Required(ErrorMessage = "An email is required.")]
+    [EmailAddress(ErrorMessage = "That is not an email.")]
+    private string _email = "";
+
+    [Binding]
+    [Range(18, 120)] private int _age;
+
+    // HasErrors comes from ViewModelBase and changes as the user types
+    public RelayCommand SignUpCommand => CreateCommand(SignUp, () => !HasErrors);
+
+    private void SignUp() { }
+}
+```
+
+**Rules that matter when writing validation**
+
+- Any `ValidationAttribute` works, including one the application writes itself. The rules are
+  evaluated by `System.ComponentModel.DataAnnotations`, not re-implemented by the generator.
+- A property is validated when it is **set**, so a form that has not been touched shows no errors.
+  Call `ValidateAll()` - on `ViewModelBase`, returns whether the view model is now valid - before
+  saving.
+- `HasErrors` raises `PropertyChanged`, so a command guarded by it is re-evaluated on its own.
+- `GetErrors(propertyName)` returns that property's messages; `GetErrors(null)` returns all of them.
+
+---
+
 ## Commands
 
 `CreateCommand` is on `ViewModelBase`. Two contracts matter and both are easy to get wrong.
@@ -418,46 +462,54 @@ Put a host where the content belongs:
 
 ---
 
+## Dialogs
+
+Two questions the toolkit answers without a window being written for them.
+
+```csharp
+using CdCSharp.Pangea.Core.Base;
+using CdCSharp.Pangea.Dialogs;
+
+namespace MyApp.ViewModels;
+
+public partial class OrdersViewModel : ViewModelBase
+{
+    private readonly IDialogService _dialogs;
+
+    public OrdersViewModel(IServiceProvider services, IDialogService dialogs) : base(services) =>
+        _dialogs = dialogs;
+
+    public RelayCommand DeleteCommand => CreateCommand(DeleteAsync);
+
+    private async Task DeleteAsync()
+    {
+        bool confirmed = await _dialogs.ConfirmAsync(
+            "Delete order", "This cannot be undone.", "Delete it", "Keep it");
+
+        if (!confirmed) return;
+
+        await _dialogs.AlertAsync("Deleted", "The order is gone.");
+    }
+}
+```
+
+**Rules that matter when writing dialog code**
+
+- Dismissing the dialog by its window chrome is read as a cancel, so `ConfirmAsync` returns
+  `false`. It never returns `true` without the user saying so.
+- A dialog needs a main window to own it, and says so if there is none.
+- The dialog takes the application's theme; there is nothing to style.
+- For a dialog with its own fields or a result that is not a bool, write a view model and a window
+  and use `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>`. `IDialogService` is
+  deliberately only these two questions.
+
+---
+
 ## Adding a feature
 
-```csharp
-using CdCSharp.Pangea.Core.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-
-public class TelemetryFeature : IPangeaFeature
-{
-    public string Name => "Telemetry";
-    public Version Version => new(1, 0, 0);
-
-    public void ConfigureServices(IServiceCollection services) =>
-        services.AddSingleton<ITelemetry, Telemetry>();
-
-    public void ConfigureApplication(IServiceProvider services, IPangeaApplicationContext context)
-    {
-        // Runs after the container is built, with the application available.
-    }
-}
-```
-
-Discovery is by interface: any non-abstract `IPangeaFeature` in a scanned assembly is instantiated
-and registered. It needs a public parameterless constructor. A feature that throws while configuring
-**aborts startup** naming itself — that is intentional, a half-configured feature is worse than none.
-
-Assemblies reachable from the entry assembly are scanned automatically. For anything else:
-
-```csharp
-using CdCSharp.Pangea;
-using CdCSharp.Pangea.Core.Configuration;
-
-public partial class PluginApp : PangeaApplication
-{
-    public override PangeaOptions ConfigurePangeaOptions(PangeaOptions options)
-    {
-        options.DI.AdditionalAssemblies.Add(typeof(TelemetryFeature).Assembly);
-        return options;   // the return value is what gets used
-    }
-}
-```
+Extending the toolkit itself - writing an `IPangeaFeature` that registers its own services and
+configures the running application - is described in
+[references/extending-pangea.md](references/extending-pangea.md).
 
 ---
 
@@ -508,6 +560,7 @@ code, these are the mistakes it catches:
 | `PGB003` | Two `[Binding]` fields would generate the same property |
 | `PGB004` | The generated property name is already declared in the class |
 | `PGB005` | `[Binding]` on a `static` field, which is ignored (warning) |
+| `PGB006` | The generated property hides a member of a base class (warning) |
 
 A class that trips an error generates nothing, so a missing property is the symptom to look for.
 

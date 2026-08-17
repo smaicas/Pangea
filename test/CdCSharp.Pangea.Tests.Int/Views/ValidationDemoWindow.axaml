@@ -1,0 +1,66 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels"
+        x:Class="CdCSharp.Pangea.Tests.Int.Views.ValidationDemoWindow"
+        x:DataType="vm:ValidationDemoViewModel"
+        Title="Validation"
+        Width="680" Height="560"
+        WindowStartupLocation="CenterOwner">
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="16">
+
+            <TextBlock Text="✅ Validation" FontSize="20" FontWeight="Bold" />
+            <TextBlock TextWrapping="Wrap" Opacity="0.75"
+                       Text="Every field below binds only its value. No validation triggers, no error templates, no converters - the decoration and the messages come from the rules declared on the fields." />
+
+            <Separator />
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Email" FontWeight="SemiBold" />
+                <TextBlock Text="[Required] [EmailAddress]" FontSize="11" Opacity="0.6" />
+                <TextBox Text="{Binding Email}" PlaceholderText="ada@example.com" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Age" FontWeight="SemiBold" />
+                <TextBlock Text="[Range(18, 120)]" FontSize="11" Opacity="0.6" />
+                <TextBox Text="{Binding Age}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Display name" FontWeight="SemiBold" />
+                <TextBlock Text="[Required] [StringLength(3..20)] [NoShouting] — the last one is written by this app, not by the toolkit"
+                           FontSize="11" Opacity="0.6" TextWrapping="Wrap" />
+                <TextBox Text="{Binding DisplayName}" PlaceholderText="try SHOUTING" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Notes" FontWeight="SemiBold" />
+                <TextBlock Text="no rules — never decorated, never in the summary" FontSize="11" Opacity="0.6" />
+                <TextBox Text="{Binding Notes}" AcceptsReturn="True" Height="60" />
+            </StackPanel>
+
+            <Separator />
+
+            <Border Background="{DynamicResource ThemeControlHighlightLowBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+                    BorderThickness="1" CornerRadius="6" Padding="16">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{Binding HasErrors, StringFormat=HasErrors: {0}}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ErrorSummary}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="💾 Save" Command="{Binding SaveCommand}" Padding="14,8" />
+                <Button Content="🔍 ValidateAll()" Command="{Binding CheckEverythingCommand}" Padding="14,8" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding LastAction}" Opacity="0.75" />
+            <TextBlock TextWrapping="Wrap" Opacity="0.6" FontSize="11"
+                       Text="Save is guarded by !HasErrors and re-enables itself as the errors move. A form nobody has touched has never been validated, so it looks valid until ValidateAll() asks." />
+
+        </StackPanel>
+    </ScrollViewer>
+</Window>

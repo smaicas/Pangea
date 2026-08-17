@@ -48,6 +48,14 @@ internal static class BindingDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    internal static readonly DiagnosticDescriptor PropertyHidesInheritedMember = new(
+        id: "PGB006",
+        title: "The generated property hides a member of a base class",
+        messageFormat: "'{0}' generates property '{1}', which hides the '{1}' declared by '{2}'; rename the field, or the base member becomes unreachable through this class",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     internal static readonly DiagnosticDescriptor StaticFieldNotSupported = new(
         id: "PGB005",
         title: "[Binding] does not apply to static fields",

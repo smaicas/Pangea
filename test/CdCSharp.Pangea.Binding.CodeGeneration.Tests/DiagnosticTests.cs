@@ -150,6 +150,29 @@ public class DiagnosticTests
         Assert.NotEmpty(result.Sources);
     }
 
+    /// <summary>
+    /// Adding HasErrors to ViewModelBase collided with a view model that already had one. The
+    /// compiler does report it - against the generated file, about code the author cannot edit.
+    /// </summary>
+    [Fact]
+    public void APropertyThatHidesABaseMember_IsReportedAgainstTheField()
+    {
+        IReadOnlyList<Diagnostic> diagnostics = Diagnose("""
+            public partial class ShadowViewModel : ViewModelBase
+            {
+                public ShadowViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private bool _hasErrors;
+            }
+            """);
+
+        Diagnostic reported = Single(diagnostics, "PGB006");
+
+        Assert.Equal(DiagnosticSeverity.Warning, reported.Severity);
+        Assert.Contains("_hasErrors", reported.GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("HasErrors", reported.GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("ViewModelBase", reported.GetMessage(), StringComparison.Ordinal);
+    }
+
     /// <summary>The one that said nothing at all: the attribute was simply ignored.</summary>
     [Fact]
     public void ABindingOnAStaticField_IsReportedAsIgnored()

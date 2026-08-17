@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CdCSharp.Pangea.Tests.Int.ViewModels"
         xmlns:theming="using:CdCSharp.Pangea.Theming.Controls"
@@ -117,6 +117,57 @@
                                 Command="{Binding OpenNavigationDemoCommand}"
                                 HorizontalAlignment="Left"
                                 Padding="12,8" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Validation Section -->
+                <Border Background="{DynamicResource ThemeControlHighlightLowBrush}"
+                        BorderBrush="{DynamicResource ThemeAccentBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Validation"
+                                   FontWeight="SemiBold"
+                                   FontSize="18" />
+                        <TextBlock Text="Rules declared on the fields, decoration and messages with nothing wired in the view"
+                                   FontSize="14" />
+                        <Button Content="✅ Open Validation Demo"
+                                Command="{Binding OpenValidationDemoCommand}"
+                                HorizontalAlignment="Left"
+                                Padding="12,8" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Dialogs Section -->
+                <Border Background="{DynamicResource ThemeControlHighlightLowBrush}"
+                        BorderBrush="{DynamicResource ThemeAccentBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Dialogs"
+                                   FontWeight="SemiBold"
+                                   FontSize="18" />
+                        <TextBlock Text="Ask a question without writing a window; the answer comes back as a bool"
+                                   FontSize="14" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="🗑️ Confirm"
+                                    Command="{Binding AskToDeleteCommand}"
+                                    Padding="12,8" />
+                            <Button Content="💬 Alert"
+                                    Command="{Binding AnnounceCommand}"
+                                    Padding="12,8" />
+                        </StackPanel>
+                        <Border Background="{DynamicResource ThemeControlLowBrush}"
+                                CornerRadius="4"
+                                Padding="12,8">
+                            <TextBlock Text="{Binding LastDialogResult}"
+                                       FontFamily="Consolas,Menlo,monospace"
+                                       TextWrapping="Wrap" />
+                        </Border>
+                        <TextBlock Text="Try cancelling, pressing Escape, and closing with the window button — all three come back false."
+                                   FontSize="11" Opacity="0.6" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
 

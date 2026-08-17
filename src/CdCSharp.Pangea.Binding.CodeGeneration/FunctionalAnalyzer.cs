@@ -1503,8 +1503,28 @@ public class FunctionalAnalyzer
             {
                 analysis.Diagnostics.Add(Diagnostic.Create(
                     BindingDiagnostics.PropertyNameAlreadyTaken, location, field.FieldName, field.PropertyName));
+                continue;
+            }
+
+            // Hiding compiles, so this is a warning - but the compiler would report it against the
+            // generated file, and the member being hidden may be one the toolkit relies on.
+            if (classSymbol != null && FindHidingBase(classSymbol, field.PropertyName) is { } hidden)
+            {
+                analysis.Diagnostics.Add(Diagnostic.Create(
+                    BindingDiagnostics.PropertyHidesInheritedMember,
+                    location, field.FieldName, field.PropertyName, hidden.Name));
             }
         }
+    }
+
+    private static INamedTypeSymbol? FindHidingBase(INamedTypeSymbol classSymbol, string propertyName)
+    {
+        for (INamedTypeSymbol? current = classSymbol.BaseType; current != null; current = current.BaseType)
+        {
+            if (current.GetMembers(propertyName).Length > 0) return current;
+        }
+
+        return null;
     }
 
     private static Location FindFieldLocation(IReadOnlyList<ViewModelPart> parts, string fieldName)
@@ -1546,6 +1566,7 @@ public class FunctionalAnalyzer
 
         (string? customPropertyName, bool readOnly) = GetBindingConfiguration(attribute);
         string propertyName = customPropertyName ?? GeneratePropertyName(fieldSymbol.Name);
+        List<string> validationAttributes = ExtractValidationAttributes(fieldSymbol);
 
         return new BindingFieldInfo
         {
@@ -1554,8 +1575,53 @@ public class FunctionalAnalyzer
             FieldName = fieldSymbol.Name,
             FieldType = fieldSymbol.Type.ToDisplayString(),
             PropertyName = propertyName,
-            ReadOnly = readOnly
+            ReadOnly = readOnly,
+            ValidationAttributes = validationAttributes
         };
+    }
+
+    /// <summary>
+    /// Validation attributes on a field, as they were written, ready to be re-emitted.
+    /// </summary>
+    /// <remarks>
+    /// Recognised by deriving from ValidationAttribute rather than by a list of known names, so an
+    /// application's own rules travel to the generated property exactly like the built-in ones.
+    /// The original source is reused so that arguments, named arguments and constants survive
+    /// without the generator having to render them back.
+    /// </remarks>
+    private List<string> ExtractValidationAttributes(IFieldSymbol fieldSymbol)
+    {
+        List<string> attributes = new List<string>();
+
+        foreach (AttributeData attribute in fieldSymbol.GetAttributes())
+        {
+            if (!IsValidationAttribute(attribute.AttributeClass)) continue;
+
+            if (attribute.AttributeClass == null) continue;
+
+            // Fully qualified: the generated file does not share the using directives of the file
+            // the field was written in, and a short name can mean something else there entirely -
+            // [Range] would bind to System.Range.
+            string typeName = "global::" + attribute.AttributeClass.ToDisplayString();
+
+            string arguments = attribute.ApplicationSyntaxReference?.GetSyntax() is AttributeSyntax syntax
+                ? syntax.ArgumentList?.ToString() ?? ""
+                : "";
+
+            attributes.Add(typeName + arguments);
+        }
+
+        return attributes;
+    }
+
+    private static bool IsValidationAttribute(INamedTypeSymbol? attributeClass)
+    {
+        for (INamedTypeSymbol? current = attributeClass; current != null; current = current.BaseType)
+        {
+            if (current.Name == "ValidationAttribute") return true;
+        }
+
+        return false;
     }
 
     private (string? propertyName, bool readOnly) GetBindingConfiguration(AttributeData? attribute)
@@ -1693,6 +1759,16 @@ public class ViewModelAnalysis
 
 public class BindingFieldInfo
 {
+    /// <summary>
+    /// Validation attributes written on the field, as source, to be re-emitted on the property.
+    /// </summary>
+    /// <remarks>
+    /// An attribute on a field does not reach the property generated from it, and validation reads
+    /// the property. Copying them across is what lets an application declare rules where it declares
+    /// the field.
+    /// </remarks>
+    public List<string> ValidationAttributes { get; set; } = new List<string>();
+
     public string ClassName { get; set; } = "";
     public string Namespace { get; set; } = "";
     public string FieldName { get; set; } = "";

@@ -10,3 +10,4 @@ PGB002  | CdCSharp.Pangea.Binding  | Error    | A view model with [Binding] fiel
 PGB003  | CdCSharp.Pangea.Binding  | Error    | Two [Binding] fields produce the same property
 PGB004  | CdCSharp.Pangea.Binding  | Error    | The generated property name is already declared
 PGB005  | CdCSharp.Pangea.Binding  | Warning  | [Binding] does not apply to static fields
+PGB006  | CdCSharp.Pangea.Binding  | Warning  | The generated property hides a member of a base class

@@ -287,6 +287,12 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
 
         sb.AppendLine($"    /// </summary>");
 
+        // The rules travel from the field to the property, because validation reads the property.
+        foreach (string validation in field.ValidationAttributes)
+        {
+            sb.AppendLine($"    [{validation}]");
+        }
+
         sb.AppendLine($"    public {field.FieldType} {field.PropertyName}");
         sb.AppendLine("    {");
         sb.AppendLine($"        get => {field.FieldName};");
@@ -299,6 +305,11 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
             sb.AppendLine("            {");
 
             // Llamar método parcial
+            if (field.ValidationAttributes.Count > 0)
+            {
+                sb.AppendLine($"                ValidateProperty(value, nameof({field.PropertyName}));");
+            }
+
             sb.AppendLine($"                On{field.PropertyName}Changed();");
 
             // Generar notificaciones basadas en análisis funcional
