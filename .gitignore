@@ -372,4 +372,3 @@ obj/
 *.db-wal
 *.db
 /.vscode_config
-templates/content/MyPangeaApp/pangea-skill/

@@ -225,6 +225,33 @@ jobs:
           </configuration>
           EOF
 
+              # Presence is asserted, not assumed: a file the build does not compile can go
+              # missing without the build ever noticing.
+              case "$options" in
+                *"--IncludeSkill false"*) EXPECT_SKILL=0 ;;
+                *)                        EXPECT_SKILL=1 ;;
+              esac
+              case "$options" in
+                *"--Sample false"*) EXPECT_SAMPLE=0 ;;
+                *)                  EXPECT_SAMPLE=1 ;;
+              esac
+
+              assert_file() {
+                if [ "$1" = 1 ] && [ ! -f "$2" ]; then
+                  echo "❌ CRITICAL: '$2' missing from 'dotnet new pangea-app $options'"
+                  find . -path ./obj -prune -o -type f -print
+                  exit 1
+                fi
+                if [ "$1" = 0 ] && [ -f "$2" ]; then
+                  echo "❌ CRITICAL: '$2' present despite 'dotnet new pangea-app $options'"
+                  exit 1
+                fi
+              }
+
+              assert_file "$EXPECT_SKILL"  pangea-skill/SKILL.md
+              assert_file "$EXPECT_SKILL"  pangea-skill/references/resource-keys.md
+              assert_file "$EXPECT_SAMPLE" Themes/AppPalette.cs
+
               dotnet build -c ${{ env.CONFIGURATION }}
             )
           done

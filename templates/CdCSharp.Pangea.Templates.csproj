@@ -9,30 +9,29 @@
         <TargetFramework>netstandard2.0</TargetFramework>
         <IncludeContentInPack>true</IncludeContentInPack>
         <IncludeBuildOutput>false</IncludeBuildOutput>
-        <ContentTargetFolders>content</ContentTargetFolders>
         <EnableDefaultItems>false</EnableDefaultItems>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
         <!-- A template package ships no assemblies -->
         <NoWarn>$(NoWarn);NU5128</NoWarn>
     </PropertyGroup>
 
+    <!--
+        Every entry states its package path explicitly. MSBuild evaluates item globs before any
+        target runs, so a file produced during the build is invisible to packing: the skill is
+        packed from where it lives rather than copied into the template beforehand.
+    -->
     <ItemGroup>
-        <Content Include="content\**\*" Exclude="content\**\bin\**;content\**\obj\**" />
+        <Content Include="content\**\*"
+                 Exclude="content\**\bin\**;content\**\obj\**"
+                 PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)"
+                 Pack="true" />
+
+        <Content Include="$(MSBuildThisFileDirectory)..\tools\pangea-skill\**\*.md"
+                 PackagePath="content\MyPangeaApp\pangea-skill\%(RecursiveDir)%(Filename)%(Extension)"
+                 Pack="true" />
+
         <Compile Remove="**\*" />
     </ItemGroup>
-
-    <!--
-        The skill is copied in rather than duplicated in source control, so the template hands out
-        the same guidance the toolkit publishes.
-    -->
-    <Target Name="CopyAgentSkill" BeforeTargets="Build;Pack">
-        <ItemGroup>
-            <SkillFiles Include="$(MSBuildThisFileDirectory)..\tools\pangea-skill\**\*.md" />
-        </ItemGroup>
-
-        <Copy SourceFiles="@(SkillFiles)"
-              DestinationFiles="@(SkillFiles->'$(MSBuildThisFileDirectory)content\MyPangeaApp\pangea-skill\%(RecursiveDir)%(Filename)%(Extension)')" />
-    </Target>
 
     <!--
         Point the generated projects at the version being published. Matched by shape rather than by
