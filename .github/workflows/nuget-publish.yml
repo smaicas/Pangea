@@ -59,15 +59,17 @@ jobs:
       # that the --no-build pack steps rely on.
       - name: Test
         run: |
-          for project in \
-            test/CdCSharp.Pangea.Core.Tests/CdCSharp.Pangea.Core.Tests.csproj \
-            test/CdCSharp.Pangea.Tests/CdCSharp.Pangea.Tests.csproj \
-            test/CdCSharp.Pangea.Localization.Tests/CdCSharp.Pangea.Localization.Tests.csproj \
-            test/CdCSharp.Pangea.Storage.Tests/CdCSharp.Pangea.Storage.Tests.csproj \
-            test/CdCSharp.Pangea.Docs.Tests/CdCSharp.Pangea.Docs.Tests.csproj \
-            test/CdCSharp.Pangea.Binding.CodeGeneration.Tests/CdCSharp.Pangea.Binding.CodeGeneration.Tests.csproj \
-            test/CdCSharp.Pangea.Theming.Tests/CdCSharp.Pangea.Theming.Tests.csproj
-          do
+          # Discovered, not listed: a test project added later has to run without anyone
+          # remembering to add it here. The gallery is not a test project and does not match.
+          mapfile -t PROJECTS < <(find test -name '*.Tests.csproj' | sort)
+
+          if [ "${#PROJECTS[@]}" -lt 7 ]; then
+            echo "❌ Found only ${#PROJECTS[@]} test projects; discovery is broken"
+            find test -name '*.csproj'
+            exit 1
+          fi
+
+          for project in "${PROJECTS[@]}"; do
             echo "🧪 $project"
             dotnet test --project "$project" -c ${{ env.CONFIGURATION }} --verbosity normal
           done

@@ -1,0 +1,117 @@
+name: CI
+
+# Publishing is manual, so this is what actually guards master: every push and every pull request
+# builds the solution, runs the suite, and puts the template through the same motions a user does.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  CONFIGURATION: 'Release'
+  # Not a version anyone publishes, and not one that exists on nuget.org, so the local feed is
+  # unambiguously what the template resolves against.
+  CI_VERSION: '0.0.1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      # Warnings are errors repository-wide, so this step is also the warning gate.
+      - name: Build
+        run: dotnet build --no-restore -c ${{ env.CONFIGURATION }}
+
+      # Discovered, not listed: a test project added later has to run without anyone remembering
+      # to add it here. The gallery is not a test project and does not match.
+      - name: Test
+        run: |
+          mapfile -t PROJECTS < <(find test -name '*.Tests.csproj' | sort)
+
+          if [ "${#PROJECTS[@]}" -lt 7 ]; then
+            echo "❌ Found only ${#PROJECTS[@]} test projects; discovery is broken"
+            find test -name '*.csproj'
+            exit 1
+          fi
+
+          for project in "${PROJECTS[@]}"; do
+            echo "🧪 $project"
+            dotnet test --project "$project" -c ${{ env.CONFIGURATION }} --no-build
+          done
+
+      # The template project is in the solution, so one pack covers the packages and the template.
+      - name: Pack to a local feed
+        run: |
+          dotnet pack -c ${{ env.CONFIGURATION }} --no-build -o ./artifacts \
+            -p:Version=${{ env.CI_VERSION }} -p:PackageVersion=${{ env.CI_VERSION }}
+
+          echo "📦 Local feed:"
+          ls -1 ./artifacts
+
+      # The template is only useful if what it produces compiles, and the files it promises are
+      # actually in it. Both have been wrong before while the build stayed green.
+      - name: Verify template output
+        run: |
+          FEED="$(pwd)/artifacts"
+          dotnet new install "$FEED/CdCSharp.Pangea.Templates.${{ env.CI_VERSION }}.nupkg"
+
+          for options in "" "--IncludeSkill false" "--Sample false" "--IncludeSkill false --Sample false"; do
+            WORK="$(mktemp -d)"
+            echo "🧪 dotnet new pangea-app $options"
+
+            (
+              cd "$WORK"
+              dotnet new pangea-app -n Generated -o . --PangeaVersion "${{ env.CI_VERSION }}" $options
+
+              cat > nuget.config <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$FEED" />
+              <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+
+              case "$options" in
+                *"--IncludeSkill false"*) EXPECT_SKILL=0 ;;
+                *)                        EXPECT_SKILL=1 ;;
+              esac
+              case "$options" in
+                *"--Sample false"*) EXPECT_SAMPLE=0 ;;
+                *)                  EXPECT_SAMPLE=1 ;;
+              esac
+
+              assert_file() {
+                if [ "$1" = 1 ] && [ ! -f "$2" ]; then
+                  echo "❌ '$2' missing from 'dotnet new pangea-app $options'"
+                  find . -path ./obj -prune -o -type f -print
+                  exit 1
+                fi
+                if [ "$1" = 0 ] && [ -f "$2" ]; then
+                  echo "❌ '$2' present despite 'dotnet new pangea-app $options'"
+                  exit 1
+                fi
+              }
+
+              assert_file "$EXPECT_SKILL"  .claude/skills/pangea/SKILL.md
+              assert_file "$EXPECT_SKILL"  .claude/skills/pangea/references/resource-keys.md
+              assert_file "$EXPECT_SAMPLE" Themes/AppPalette.cs
+
+              dotnet build -c ${{ env.CONFIGURATION }}
+            )
+          done
