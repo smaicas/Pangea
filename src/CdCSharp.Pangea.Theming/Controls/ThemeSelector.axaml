@@ -1,11 +1,19 @@
-﻿<UserControl
+<UserControl
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:CdCSharp.Pangea.Theming.Controls"
     x:Class="CdCSharp.Pangea.Theming.Controls.ThemeSelector"
+    x:Name="Root"
     x:DataType="controls:ThemeSelectorViewModel">
 
+    <!--
+        The content reads the view model off the control, never off the control's own DataContext.
+        Assigning DataContext here would destroy it: ViewModel is bound against the DataContext
+        inherited from whatever hosts this, and overwriting that leaves the binding with nowhere
+        to read from.
+    -->
     <ToggleButton
+        DataContext="{Binding #Root.ViewModel}"
         IsChecked="{Binding IsDark, Mode=TwoWay}"
         HorizontalAlignment="Left"
         ToolTip.Tip="{Binding VariantTooltip}"

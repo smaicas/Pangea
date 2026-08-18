@@ -17,7 +17,10 @@
 
         <StackPanel Spacing="6">
             <TextBlock Text="{Binding Strings[Settings_Appearance]}" FontWeight="SemiBold" />
-            <ToggleSwitch IsChecked="{Binding IsDark}" />
+            <!-- On/Off means nothing here; the switch says which appearance it is on. -->
+            <ToggleSwitch IsChecked="{Binding IsDark}"
+                          OnContent="{Binding Strings[Settings_Dark]}"
+                          OffContent="{Binding Strings[Settings_Light]}" />
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Spacing="12">

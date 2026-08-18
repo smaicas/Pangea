@@ -24,13 +24,23 @@ public partial class LanguageSelector : UserControl
         set => SetValue(ViewModelProperty, value);
     }
 
+    /// <summary>
+    /// Adopts a view model handed over as the DataContext, which is the other way this control gets
+    /// used.
+    /// </summary>
+    /// <remarks>
+    /// The reverse - assigning DataContext from ViewModel - cannot work: <c>ViewModel</c> is bound
+    /// against the DataContext inherited from whatever hosts the control, so overwriting that
+    /// DataContext leaves the binding reading from an object that has no such property, and the
+    /// view model it just delivered is replaced with null.
+    /// </remarks>
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == ViewModelProperty)
+        if (change.Property == DataContextProperty && change.NewValue is LanguageSelectorViewModel adopted)
         {
-            DataContext = change.NewValue as LanguageSelectorViewModel;
+            ViewModel = adopted;
         }
     }
 }

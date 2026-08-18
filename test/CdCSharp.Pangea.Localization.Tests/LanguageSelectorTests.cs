@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using Avalonia.Headless.XUnit;
 using CdCSharp.Pangea.Localization.Controls;
 using CdCSharp.Pangea.Localization.Tests.Infrastructure;
@@ -99,35 +100,62 @@ public class LanguageSelectorTests
         Assert.Equal("en-US", selector.SelectedLanguage?.Name);
     }
 
-    /// <summary>
-    /// The control gets no constructor injection, so being handed a view model is the whole of its
-    /// wiring - and the only part that can silently not happen.
-    /// </summary>
-    [AvaloniaFact]
-    public void TheControl_TakesItsDataContextFromTheViewModelItIsGiven()
+    /// <summary>Stands in for the window's view model, which is what the binding reads.</summary>
+    private sealed class Host
     {
-        LanguageSelectorViewModel selector = Build(out _);
-        LanguageSelector control = new() { ViewModel = selector };
+        public Host(LanguageSelectorViewModel selector) => LanguageSelector = selector;
 
-        Assert.Same(selector, control.DataContext);
-
-        control.ViewModel = null;
-
-        Assert.Null(control.DataContext);
+        public LanguageSelectorViewModel LanguageSelector { get; }
     }
 
+    /// <summary>
+    /// The documented usage, exercised the way a window does it.
+    /// </summary>
+    /// <remarks>
+    /// <c>ViewModel="{Binding LanguageSelector}"</c> resolves against the DataContext the control
+    /// inherits from its host, so the control must never overwrite that DataContext: doing so
+    /// leaves the binding reading from an object with no such property, and the picker ends up
+    /// empty. Setting the property on a control with no parent never notices.
+    /// </remarks>
     [AvaloniaFact]
-    public void TheControl_ShowsOneEntryPerLanguage()
+    public void BoundToAHostsViewModel_ThePickerIsFilled()
     {
         LanguageSelectorViewModel selector = Build(out _);
-        LanguageSelector control = new() { ViewModel = selector };
 
-        Window window = new() { Content = control };
+        LanguageSelector control = new();
+        control.Bind(LanguageSelector.ViewModelProperty,
+            new Avalonia.Data.Binding(nameof(Host.LanguageSelector)));
+
+        Window window = new()
+        {
+            DataContext = new Host(selector),
+            Content = control,
+            Width = 300,
+            Height = 200
+        };
+
         window.Show();
 
-        ComboBox combo = Assert.IsType<ComboBox>(control.Content);
+        Assert.Same(selector, control.ViewModel);
 
-        Assert.Equal(selector.AvailableLanguages, combo.ItemsSource);
+        ComboBox combo = control.GetVisualDescendants().OfType<ComboBox>().Single();
+
+        Assert.NotNull(combo.ItemsSource);
+        Assert.Equal(selector.AvailableLanguages.Count, combo.ItemsSource!.Cast<object>().Count());
         Assert.Same(selector.SelectedLanguage, combo.SelectedItem);
+    }
+
+    /// <summary>Handing it a DataContext is the other way in, and still has to work.</summary>
+    [AvaloniaFact]
+    public void GivenAsADataContext_ThePickerAdoptsIt()
+    {
+        LanguageSelectorViewModel selector = Build(out _);
+        LanguageSelector control = new() { DataContext = selector };
+
+        Window window = new() { Content = control, Width = 300, Height = 200 };
+        window.Show();
+
+        Assert.Same(selector, control.ViewModel);
+        Assert.NotEmpty(control.GetVisualDescendants().OfType<ComboBox>().Single().ItemsSource!.Cast<object>());
     }
 }

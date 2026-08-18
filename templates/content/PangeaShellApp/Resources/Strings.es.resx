@@ -51,6 +51,12 @@
   <data name="Settings_Appearance" xml:space="preserve">
     <value>Apariencia</value>
   </data>
+  <data name="Settings_Light" xml:space="preserve">
+    <value>Claro</value>
+  </data>
+  <data name="Settings_Dark" xml:space="preserve">
+    <value>Oscuro</value>
+  </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Guardar</value>
   </data>

@@ -3,9 +3,17 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:CdCSharp.Pangea.Localization.Controls"
     x:Class="CdCSharp.Pangea.Localization.Controls.LanguageSelector"
+    x:Name="Root"
     x:DataType="controls:LanguageSelectorViewModel">
 
+    <!--
+        The content reads the view model off the control, never off the control's own DataContext.
+        Assigning DataContext here would destroy it: ViewModel is bound against the DataContext
+        inherited from whatever hosts this, and overwriting that leaves the binding with nowhere
+        to read from.
+    -->
     <ComboBox
+        DataContext="{Binding #Root.ViewModel}"
         ItemsSource="{Binding AvailableLanguages}"
         SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
         MinWidth="180"

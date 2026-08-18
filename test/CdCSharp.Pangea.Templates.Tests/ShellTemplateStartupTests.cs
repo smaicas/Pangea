@@ -147,6 +147,7 @@ public class ShellTemplateStartupTests
         "Home_Title", "Home_Subtitle", "Home_Customer", "Home_Add", "Home_Open", "Home_Empty",
         "Order_Title", "Order_Customer", "Order_Reference",
         "Settings_Title", "Settings_Language", "Settings_Appearance", "Settings_Save",
+        "Settings_Light", "Settings_Dark",
         "Settings_Saved", "Settings_Unsaved",
         "Settings_Discard_Title", "Settings_Discard_Message",
         "Settings_Discard_Confirm", "Settings_Discard_Cancel"
