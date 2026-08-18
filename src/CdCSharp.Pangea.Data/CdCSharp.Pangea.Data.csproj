@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Data</PackageId>
+        <Description>Database feature for CdCSharp.Pangea - Entity Framework Core for desktop applications: per-platform database paths, migrations on the user's machine, backup and restore. Install a provider package alongside it.</Description>
+        <PackageTags>$(PackageTags);database;entity-framework;efcore;sqlite</PackageTags>
+    </PropertyGroup>
+
+    <!--
+        EF Core is not trim-safe and says so: its own API carries [RequiresUnreferencedCode] and
+        [RequiresDynamicCode]. This package passes that on rather than hiding it, so an application
+        that publishes trimmed is warned at the call it makes instead of failing at the first query.
+        Nothing else in Pangea depends on this package, so the rest of the toolkit is unaffected.
+    -->
+    <PropertyGroup>
+        <IsTrimmable>false</IsTrimmable>
+        <IsAotCompatible>false</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Builds the analyzer and applies it to this project too -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Data.CodeAnalysis\CdCSharp.Pangea.Data.CodeAnalysis.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" PrivateAssets="none" />
+        <!-- Where the database file goes is the storage feature's question, already answered
+             per platform and already aware of portable mode. -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" PrivateAssets="none" />
+    </ItemGroup>
+
+    <!--
+        The analyzer ships with the feature it checks, for the same reason the binding generator
+        ships with [Binding]: installing the package has to be enough. It lives here rather than in
+        the provider package so that every engine gets it.
+    -->
+    <ItemGroup>
+        <None Include="..\CdCSharp.Pangea.Data.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Data.CodeAnalysis.dll"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Data.CodeAnalysis.dll"
+              Visible="false" />
+
+        <None Include="..\CdCSharp.Pangea.Data.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Data.CodeAnalysis.pdb"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Data.CodeAnalysis.pdb"
+              Visible="false"
+              Condition="Exists('..\CdCSharp.Pangea.Data.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Data.CodeAnalysis.pdb')" />
+    </ItemGroup>
+
+    <Target Name="EnsureAnalyzerExistsBeforePack" BeforeTargets="GenerateNuspec;Pack">
+        <Error Condition="!Exists('..\CdCSharp.Pangea.Data.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Data.CodeAnalysis.dll')"
+               Text="Data analyzer not found. Build CdCSharp.Pangea.Data.CodeAnalysis first." />
+    </Target>
+</Project>

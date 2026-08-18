@@ -20,5 +20,7 @@
         <ProjectReference Include="..\CdCSharp.Pangea.Templates.Compile\CdCSharp.Pangea.Templates.Compile.csproj" />
         <!-- Used the way a generated project would use it, which is also how it is exercised. -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
+        <!-- The data template's screen is driven against a real database, as its own tests would. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Testing\CdCSharp.Pangea.Data.Testing.csproj" />
     </ItemGroup>
 </Project>

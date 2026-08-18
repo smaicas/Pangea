@@ -36,6 +36,10 @@
                  PackagePath="content\PangeaShellApp\.claude\skills\pangea\%(RecursiveDir)%(Filename)%(Extension)"
                  Pack="true" />
 
+        <Content Include="$(MSBuildThisFileDirectory)..\.claude\skills\pangea\**\*.md"
+                 PackagePath="content\PangeaDataApp\.claude\skills\pangea\%(RecursiveDir)%(Filename)%(Extension)"
+                 Pack="true" />
+
         <Compile Remove="**\*" />
     </ItemGroup>
 

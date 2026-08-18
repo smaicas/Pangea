@@ -141,7 +141,12 @@ public class AgentGuideCompilesTests
                      typeof(PangeaApplication), typeof(ViewModelBase), typeof(PangeaPalette),
                      typeof(IStorageService), typeof(Avalonia.Application), typeof(Avalonia.Media.Color),
                      typeof(CdCSharp.Pangea.Navigation.Abstractions.INavigationService),
-                     typeof(CdCSharp.Pangea.Testing.PangeaTestServices)
+                     typeof(CdCSharp.Pangea.Testing.PangeaTestServices),
+                     typeof(CdCSharp.Pangea.Data.Abstractions.IPangeaDbProvider),
+                     typeof(CdCSharp.Pangea.Data.Sqlite.SqliteDbProvider),
+                     typeof(CdCSharp.Pangea.Data.Testing.PangeaTestDatabase<>),
+                     typeof(Microsoft.EntityFrameworkCore.DbContext),
+                     typeof(Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<>)
                  })
         {
             string location = anchor.Assembly.Location;

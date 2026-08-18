@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -39,7 +39,7 @@ registering its own services.
 dotnet new install CdCSharp.Pangea.Templates
 ```
 
-Two starting points. `pangea-app` is the smaller one: the startup wiring, a window, and a sample
+Three starting points. `pangea-app` is the smallest one: the startup wiring, a window, and a sample
 view model and palette showing the toolkit's conventions.
 
 ```bash
@@ -69,8 +69,24 @@ cd MyApp && dotnet run
 | `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
 | `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
 
-Start from `pangea-shell` when you want to see how a feature is meant to be used; start from
-`pangea-app` when you want an empty room.
+`pangea-data` is the same idea for the [database feature](#-database), which the shell template
+deliberately leaves out — it keeps its settings in a JSON file, and one application showing two ways
+to store things teaches neither. This one is a list backed by SQLite: a context and a migration, the
+migration applied at startup behind a splash window with a backup taken first, a seeder, and backup
+and compact offered to the user.
+
+```bash
+dotnet new pangea-data -n MyApp
+cd MyApp && dotnet run
+```
+
+| Option | Default | |
+|---|---|---|
+| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+
+Start from `pangea-shell` when you want to see how a feature is meant to be used, `pangea-data` when
+the application has a database in it, and `pangea-app` when you want an empty room.
 
 ### Add to an existing project
 
@@ -89,6 +105,9 @@ Installing it also puts the whole build-time toolchain into the project, with no
 | Startup catalog generator | Replaces the assembly scan at startup — see [What startup does instead of scanning](#what-startup-does-instead-of-scanning) |
 | Localization analyzer | `PGL001`/`PGL002` on resource keys — see [Keys checked at compile time](#keys-checked-at-compile-time) |
 
+The database feature brings one more, `PGD001`–`PGD003`, but only to a project that installs it —
+see [Checked at compile time](#checked-at-compile-time).
+
 Each one also travels with the feature package it belongs to, so a project that installs only
 `CdCSharp.Pangea.Binding` still gets the generator that makes `[Binding]` mean anything.
 
@@ -103,10 +122,18 @@ dotnet add package CdCSharp.Pangea.Localization  # cultures and resource strings
 dotnet add package CdCSharp.Pangea.Navigation    # typed navigation requests and a host
 ```
 
+The database feature is the one thing the meta-package does **not** pull in, because EF Core and a
+native SQLite driver are megabytes an application that never queries anything should not carry:
+
+```bash
+dotnet add package CdCSharp.Pangea.Data.Sqlite   # EF Core on SQLite, and CdCSharp.Pangea.Data with it
+```
+
 And, for the test project rather than the application:
 
 ```bash
 dotnet add package CdCSharp.Pangea.Testing       # test doubles: see Testing your own application
+dotnet add package CdCSharp.Pangea.Data.Testing  # a real SQLite database, deleted with the test
 ```
 
 Targets **.NET 10** and **Avalonia 12.1**.
@@ -391,6 +418,219 @@ Writes create the folders they need. Reads do not: `ReadTextAsync` fails on a mi
 
 ---
 
+## 🗄️ Database
+
+Entity Framework Core, wired the way a desktop application needs it rather than the way a web
+request does. It is not part of the `CdCSharp.Pangea` package: EF Core plus a native SQLite driver
+is several megabytes that an application storing its state in a JSON file should not carry. The
+engine comes with its provider package.
+
+```bash
+dotnet add package CdCSharp.Pangea.Data.Sqlite   # brings CdCSharp.Pangea.Data with it
+```
+
+Register a context in `App.Configure`, beside everything else the application registers:
+
+```csharp
+services.AddPangeaDbContext<AppDbContext>(db =>
+{
+    db.UseSqlite("notes.db");                                 // the provider, and the file name
+    db.Options.Migration = MigrationStrategy.MigrateWithBackup;
+});
+```
+
+The file goes in the folder the [storage feature](#-storage) keeps this application's data in —
+`%APPDATA%` on Windows, `~/.config` on Linux, `~/Library/Application Support` on macOS, or beside
+the executable in portable mode. That is the reason this feature exists rather than a bare
+`UseSqlite` call.
+
+The context is an ordinary `DbContext` with the constructor the factory uses:
+
+```csharp
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+{
+    public DbSet<Note> Notes => Set<Note>();
+}
+```
+
+### Reaching it from a view model
+
+Ask for `IPangeaDbContext<AppDbContext>`, never for the context itself:
+
+```csharp
+public partial class NotesViewModel : ViewModelBase
+{
+    private readonly IPangeaDbContext<AppDbContext> _db;
+
+    [Binding] private ObservableCollection<Note> _notes = [];
+
+    public NotesViewModel(IServiceProvider services) : base(services) =>
+        _db = services.GetRequiredService<IPangeaDbContext<AppDbContext>>();
+
+    public async Task LoadAsync() =>
+        Notes = await _db.ToObservableAsync(context => context.Notes.OrderBy(note => note.Title));
+
+    public Task AddAsync(string title) => _db.WriteAsync((context, token) =>
+    {
+        context.Notes.Add(new Note { Title = title });
+        return Task.CompletedTask;
+    });
+}
+```
+
+Each call builds a context from the pooled factory, uses it and disposes it. A `DbContext` is a
+unit of work: it is not thread-safe, and it remembers every entity it has loaded. Both are fine for
+a request that lives for milliseconds and wrong for a window that stays open all day — a context
+injected into a view model and kept would grow without bound and serve values that changed hours
+ago. Registering a context therefore *removes* EF's own registration of it, so injecting one is a
+startup error rather than a leak nobody notices.
+
+| | |
+|---|---|
+| `ReadAsync` | Runs a query with tracking off — what comes back is data for the UI |
+| `WriteAsync` | Runs a change and saves it, one write at a time |
+| `ToObservableAsync` | A query whose result is built on the UI thread, ready to bind to |
+| `Create()` | A context of your own, for a transaction or a bulk load |
+
+### Migrations on the user's machine
+
+Nobody is going to run `dotnet ef database update` on a machine you do not have. So pending
+migrations are applied at startup, which makes it the one part of startup that can destroy
+something — hence the default:
+
+| `MigrationStrategy` | |
+|---|---|
+| `MigrateWithBackup` | **Default.** Copies the database, migrates, and puts the copy back if the migration fails |
+| `Migrate` | Applies pending migrations |
+| `EnsureCreated` | Creates the schema from the model if there is no database yet. No history, so the next model change needs the file deleted |
+| `None` | The application looks after its own schema |
+
+The work runs behind a splash window rather than on the UI thread — see
+[Work that has to finish first](#work-that-has-to-finish-first). If it fails, the splash says why
+and the main window never opens: an application whose database did not open has nothing to show.
+
+Writing a migration is the ordinary EF workflow. What the template adds is an
+`IDesignTimeDbContextFactory`, without which the tooling starts the Avalonia application looking
+for a context:
+
+```bash
+dotnet tool install --global dotnet-ef
+dotnet ef migrations add AddSomething --output-dir Data/Migrations
+```
+
+There is no `database update` step. The application applies its own migrations.
+
+### Backup, restore and size
+
+There is no database administrator behind a desktop application, so whatever the user will be told
+to do has to be a button in the application:
+
+```csharp
+public class SettingsViewModel(IDatabaseMaintenance<AppDbContext> maintenance)
+{
+    public async Task ShowAsync()
+    {
+        DatabaseInfo info = await maintenance.GetInfoAsync();
+        // info.FilePath, info.SizeBytes, info.AppliedMigrations, info.PendingMigrations
+    }
+
+    public Task<string> BackUpAsync() => maintenance.BackupAsync();
+
+    public Task CompactAsync() => maintenance.CompactAsync();
+}
+```
+
+SQLite backups are taken with `VACUUM INTO`, not by copying the file: a copy of a live database may
+be missing pages that are still in the write-ahead log. Automatic backups are pruned to
+`BackupsToKeep`.
+
+### Seeding
+
+```csharp
+public sealed class WelcomeNoteSeeder : IDataSeeder<AppDbContext>
+{
+    public async Task SeedAsync(AppDbContext context, CancellationToken cancellationToken)
+    {
+        if (await context.Notes.AnyAsync(cancellationToken)) return;
+
+        context.Notes.Add(new Note { Title = "Welcome" });
+    }
+}
+```
+
+```csharp
+services.AddDataSeeder<AppDbContext, WelcomeNoteSeeder>();
+```
+
+Seeders run at startup after the schema is up to date, in `Order`, on **every** run — so the check
+above is not optional. Whatever is left pending on the context is saved for you.
+
+### What the SQLite provider sets, and why
+
+Write-ahead logging, so a read does not block behind a write. A busy timeout, so a contended write
+waits instead of failing. Foreign keys on, because SQLite leaves them off. And writes taken one at
+a time, because the engine has exactly one writer whatever the callers think — without that, the
+second concurrent save reports "database is locked" to a user who has no idea what that means.
+
+### Checked at compile time
+
+Installing the feature brings an analyzer with it. Three rules, all warnings, all for mistakes that
+compile and then surface much later than they were made:
+
+| | |
+|---|---|
+| `PGD001` | `AddPangeaDbContext` with no `UseSqlite()` — the container throws when it is built, naming a call that is nowhere near the registration |
+| `PGD002` | `GetRequiredService<AppDbContext>()` — the context is deliberately not registered, and asking for one is the leak this feature exists to prevent. A context the application registered itself with EF's own `AddDbContext` is left alone |
+| `PGD003` | `SaveChangesAsync` inside `WriteAsync`, which saves for you. Harmless and invisible: the second save finds nothing to do |
+
+Turn one down in a `.globalconfig` where it does not suit the project.
+
+### Trimming
+
+EF Core is not trim-safe and says so: its API carries `[RequiresUnreferencedCode]` and
+`[RequiresDynamicCode]`. Published with `TrimMode=full` and no compiled model, a SQLite application
+builds and then throws `MissingMethodException` on the first query. Nothing else in Pangea depends
+on these packages, so the rest of the toolkit is unaffected.
+
+If you need to trim, the verified recipe is to keep EF out of it:
+
+```xml
+<TrimMode>partial</TrimMode>
+<ItemGroup>
+  <TrimmerRootAssembly Include="Microsoft.EntityFrameworkCore" />
+  <TrimmerRootAssembly Include="Microsoft.EntityFrameworkCore.Relational" />
+  <TrimmerRootAssembly Include="Microsoft.EntityFrameworkCore.Sqlite" />
+</ItemGroup>
+```
+
+EF's compiled models make full trimming work too, but they are not wired in here on purpose: a
+compiled model that was not regenerated after a model change does not complain — it writes the
+wrong columns. NativeAOT is out regardless, because building the design-time model a migration
+needs is not something it supports.
+
+### Testing
+
+```bash
+dotnet add package CdCSharp.Pangea.Data.Testing
+```
+
+A real SQLite database in a directory of its own, registered through the same
+`AddPangeaDbContext` path the application uses, and deleted with the test:
+
+```csharp
+await using PangeaTestDatabase<AppDbContext> database = await PangeaTestDatabase<AppDbContext>.CreateAsync();
+
+await database.Db.WriteAsync((context, token) =>
+{
+    context.Notes.Add(new Note { Title = "first" });
+    return Task.CompletedTask;
+});
+
+Assert.Equal(1, await database.Db.ReadAsync((context, token) => context.Notes.CountAsync(token)));
+```
+
+---
+
 ## 🌐 Localization
 
 ```csharp
@@ -533,6 +773,48 @@ public partial class App : PangeaApplication
     }
 }
 ```
+
+### Work that has to finish first
+
+`IPangeaFeature.ConfigureApplication` runs on the UI thread and returns nothing, so the only thing a
+feature can do with slow work there is start it and hope. That is right for work whose result merely
+replaces a default — the shell template restores the saved culture that way — and wrong for work the
+first screen cannot do without.
+
+```csharp
+public sealed class WarmCacheInitializer(ICatalog catalog) : IPangeaAsyncInitializer
+{
+    public string Name => "Loading the catalog";   // shown on the splash while it runs
+
+    public int Order => 0;                          // lower runs first
+
+    public Task InitializeAsync(CancellationToken cancellationToken) =>
+        catalog.LoadAsync(cancellationToken);
+}
+```
+
+```csharp
+services.AddSingleton<IPangeaAsyncInitializer, WarmCacheInitializer>();
+```
+
+Every registered initializer is awaited, in order, off the UI thread, while a splash window stands
+in for the main one. Register none and startup is exactly what it always was: the main window is
+created and shown with nothing in between. The database feature registers one for you.
+
+```csharp
+options.Startup.ShowSplash = true;                  // false leaves the screen empty until the main window
+options.Startup.SplashWindowType = typeof(Splash);  // your own; implement IPangeaSplashView for the status
+options.Startup.Timeout = TimeSpan.FromMinutes(2);  // null waits forever
+options.Startup.FailureBehavior = StartupFailureBehavior.Report;
+```
+
+`Report` is the default: the splash becomes the failure report and stays there, because a process
+that vanishes with no window and no message is worse than one that says why. `Continue` logs it and
+opens the main window anyway; `Throw` rethrows on the UI thread, where the application's unhandled
+exception handling can see it.
+
+Running past `Timeout` is one of those failures, reported as a `TimeoutException` naming the
+initializer that was still going — not as the bare `A task was canceled` underneath it.
 
 ### Writing a feature
 

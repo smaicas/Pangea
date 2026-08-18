@@ -45,3 +45,19 @@ public partial class PluginApp : PangeaApplication
 ```
 
 ---
+
+---
+
+## Generated startup
+
+A source generator writes a `PangeaCatalog` per project, listing the features, view models, views
+and navigation requests it declares. Startup reads it instead of scanning assemblies, and view
+models are built by generated constructor calls rather than by reflection.
+
+Nothing to write and nothing to configure. What it means when reading code:
+
+- A type in `CdCSharp.Pangea.Generated.*` is generated. Do not edit it, and do not reference it.
+- A view model is registered because it derives from `ViewModelBase`, whether or not anything else
+  mentions it. That has not changed.
+- `options.DI.AdditionalAssemblies` still works and still costs a scan: nothing was compiled
+  alongside an assembly named at runtime.

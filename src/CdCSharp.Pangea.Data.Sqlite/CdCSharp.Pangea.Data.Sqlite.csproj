@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Data.Sqlite</PackageId>
+        <Description>SQLite provider for CdCSharp.Pangea.Data - a database file in the per-platform data directory, WAL journalling, and backups taken with VACUUM INTO.</Description>
+        <PackageTags>$(PackageTags);database;sqlite;efcore</PackageTags>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <IsTrimmable>false</IsTrimmable>
+        <IsAotCompatible>false</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+
+        <!--
+            Referenced directly to move off the version EF Core brings in. SQLitePCLRaw 2.1.11 - what
+            Microsoft.EntityFrameworkCore.Sqlite 10.0.9 depends on - carries a known high severity
+            advisory (GHSA-2m69-gcr7-jv3q), which NuGet audit reports as NU1903 and this repository's
+            TreatWarningsAsErrors turns into a failed build. It would fail every consumer's build the
+            same way. Both are the same native e_sqlite3, so the newer one is a drop-in.
+        -->
+        <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CdCSharp.Pangea.Data\CdCSharp.Pangea.Data.csproj" PrivateAssets="none" />
+    </ItemGroup>
+</Project>

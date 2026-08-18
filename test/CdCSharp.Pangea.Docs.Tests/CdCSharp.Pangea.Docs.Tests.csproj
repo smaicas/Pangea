@@ -24,6 +24,9 @@
         <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
         <!-- The guide's testing samples are compiled against the doubles they use -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
+        <!-- The database reference's samples are compiled against the engine they use -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Testing\CdCSharp.Pangea.Data.Testing.csproj" />
         <!-- Referenced as an assembly so the samples can be compiled through the generator -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj" />
     </ItemGroup>

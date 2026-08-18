@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+        <PackageReference Include="CdCSharp.Pangea" Version="PANGEA_VERSION" />
+
+        <!-- The engine ships separately from the data feature, so an application carries the one
+             driver it uses. This one brings CdCSharp.Pangea.Data with it. -->
+        <PackageReference Include="CdCSharp.Pangea.Data.Sqlite" Version="PANGEA_VERSION" />
+
+        <!--
+            What `dotnet ef migrations add` needs to run. PrivateAssets keeps it out of the published
+            application: migrations are written on this machine and applied on the user's.
+        -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>

@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PangeaDataApp.ViewModels"
+        xmlns:data="using:PangeaDataApp.Data"
+        x:Class="PangeaDataApp.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="PangeaDataApp"
+        Width="760" Height="560">
+
+    <Border Background="{DynamicResource ThemeBackgroundBrush}" Padding="24">
+        <DockPanel LastChildFill="True">
+
+            <!-- What the application can say about its own database. There is nobody else to ask. -->
+            <Border DockPanel.Dock="Bottom"
+                    Margin="0,16,0,0"
+                    Padding="12"
+                    CornerRadius="6"
+                    Background="{DynamicResource ThemeBackgroundLowBrush}">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Content="Back up" Command="{Binding BackupCommand}" />
+                        <Button Content="Compact" Command="{Binding CompactCommand}" />
+                        <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding DatabaseSummary}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                </DockPanel>
+            </Border>
+
+            <TextBlock DockPanel.Dock="Bottom"
+                       Margin="0,12,0,0"
+                       Text="{Binding Status}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource ThemeAccentBrush}" />
+
+            <StackPanel DockPanel.Dock="Top" Spacing="8">
+                <TextBlock Text="Notes"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ThemeForegroundBrush}" />
+
+                <TextBlock Text="Stored in a SQLite file in this platform's application data folder."
+                           Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+            </StackPanel>
+
+            <Grid DockPanel.Dock="Top" Margin="0,16,0,12" ColumnDefinitions="2*,3*,Auto,Auto" >
+                <TextBox Grid.Column="0"
+                         Text="{Binding NewTitle}"
+                         PlaceholderText="Title"
+                         Margin="0,0,8,0" />
+
+                <TextBox Grid.Column="1"
+                         Text="{Binding NewBody}"
+                         PlaceholderText="Body (optional)"
+                         Margin="0,0,8,0" />
+
+                <Button Grid.Column="2"
+                        Content="Add"
+                        Command="{Binding AddNoteCommand}"
+                        Margin="0,0,8,0" />
+
+                <Button Grid.Column="3"
+                        Content="Delete"
+                        Command="{Binding DeleteNoteCommand}" />
+            </Grid>
+
+            <ListBox ItemsSource="{Binding Notes}"
+                     SelectedItem="{Binding SelectedNote}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="data:Note">
+                        <StackPanel Spacing="2" Margin="0,4">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Body}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding Body, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                       Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                            <TextBlock Text="{Binding CreatedUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm} UTC'}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+    </Border>
+</Window>

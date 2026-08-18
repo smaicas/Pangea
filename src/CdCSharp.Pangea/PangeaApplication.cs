@@ -1,9 +1,10 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Configuration;
 using CdCSharp.Pangea.Services;
+using CdCSharp.Pangea.Startup;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,16 +29,12 @@ public abstract class PangeaApplication : Application
             // A window belongs to a lifetime. Without one - a headless test session, a XAML
             // designer - there is nowhere to show it, and the features above have already done
             // the part of startup that does not depend on having somewhere.
-            if (ApplicationLifetime is not null)
-            {
-                IWindowManager? windowManager = serviceProvider.GetService<IWindowManager>();
-
-                if (windowManager is not null)
-                {
-                    windowManager.Initialize();
-                    windowManager.GetMainWindow()?.Show();
-                }
-            }
+            //
+            // Started rather than awaited, and it must be: with initializers registered the work
+            // finishes only after the splash has been on screen for a while, and the UI thread has
+            // to be back in the message loop for that to happen at all. Start observes the failure
+            // that an abandoned task would otherwise swallow.
+            if (ApplicationLifetime is not null) StartupSequence.Start(serviceProvider);
         }
 
         base.OnFrameworkInitializationCompleted();

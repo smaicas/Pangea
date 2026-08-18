@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <RootNamespace>CdCSharp.Pangea.Data.CodeAnalysis.Tests</RootNamespace>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Referenced as an ordinary assembly: the analyzer is what is under test, not what runs. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.CodeAnalysis\CdCSharp.Pangea.Data.CodeAnalysis.csproj" />
+        <!-- The samples are compiled against the real feature, so a rename here fails the tests. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
+    </ItemGroup>
+</Project>

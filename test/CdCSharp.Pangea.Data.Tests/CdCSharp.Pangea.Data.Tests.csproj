@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data\CdCSharp.Pangea.Data.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Testing\CdCSharp.Pangea.Data.Testing.csproj" />
+        <!-- The storage-backed locator is what an application actually gets. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" />
+    </ItemGroup>
+</Project>

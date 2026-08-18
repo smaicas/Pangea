@@ -52,10 +52,20 @@
         <PackageReference Include="Avalonia" Version="12.1.1" />
         <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+
+        <!--
+            The data template's design-time factory is what `dotnet ef` looks for, so the type has to
+            be available here too. Referenced plainly rather than with the development-dependency
+            metadata the template uses: that form excludes the compile assets of the package and of
+            everything under it, which is the whole of EF Core, and nothing here is published.
+        -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
+        <!-- What the data template installs. It brings CdCSharp.Pangea.Data with it. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false" />

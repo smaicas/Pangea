@@ -10,9 +10,6 @@ Write Avalonia applications with the **CdCSharp.Pangea** toolkit.
 Every C# block below is compiled against the real assemblies by `CdCSharp.Pangea.Docs.Tests`, so
 what is written here builds. If an example disagrees with something you remember, the example wins.
 
-The full list of theme resource keys is in `references/resource-keys.md`; read it when writing XAML
-that binds to theme colours.
-
 This skill describes the version of Pangea it shipped with. Match it to the package version in use.
 
 ---
@@ -285,6 +282,14 @@ on a missing file the way `File.ReadAllTextAsync` does; `ReadJsonAsync` returns 
 that may legitimately not exist yet.
 
 Configure with `StorageOptions`: `ApplicationName`, `UsePortableMode`, `CustomDataPath`.
+
+---
+
+## Database
+
+Entity Framework Core, installed separately (`CdCSharp.Pangea.Data.Sqlite`). A view model asks for
+`IPangeaDbContext<TContext>` and never for a `DbContext`; migrations run at startup, behind the
+splash window, with a backup taken first. Read `references/database.md` before writing data access.
 
 ---
 
@@ -573,17 +578,9 @@ Read `references/testing.md` before writing tests for a Pangea application.
 
 ## Generated startup
 
-A source generator writes a `PangeaCatalog` per project, listing the features, view models, views
-and navigation requests it declares. Startup reads it instead of scanning assemblies, and view
-models are built by generated constructor calls rather than by reflection.
-
-Nothing to write and nothing to configure. What it means when reading code:
-
-- A type in `CdCSharp.Pangea.Generated.*` is generated. Do not edit it, and do not reference it.
-- A view model is registered because it derives from `ViewModelBase`, whether or not anything else
-  mentions it. That has not changed.
-- `options.DI.AdditionalAssemblies` still works and still costs a scan: nothing was compiled
-  alongside an assembly named at runtime.
+Startup reads a generated catalog rather than scanning assemblies. Nothing to write and nothing to
+configure; a type in `CdCSharp.Pangea.Generated.*` is generated, so do not edit or reference it.
+The rest is in `references/extending-pangea.md`.
 
 ---
 

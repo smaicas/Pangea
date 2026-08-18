@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Data.Testing</PackageId>
+        <Description>A real SQLite database for tests of CdCSharp.Pangea.Data - migrated, seeded and thrown away with the test.</Description>
+        <PackageTags>$(PackageTags);testing;database;sqlite;integration-testing</PackageTags>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <IsTrimmable>false</IsTrimmable>
+        <IsAotCompatible>false</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!--
+            The harness is SQLite-backed on purpose. A test against a fake provider proves the test
+            double works; the point of testing data access is the engine's own behaviour - its
+            constraints, its locking, its migrations - and a real file gives all three.
+        -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" PrivateAssets="none" />
+    </ItemGroup>
+</Project>
