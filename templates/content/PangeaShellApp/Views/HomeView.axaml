@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PangeaShellApp.ViewModels"
+             x:Class="PangeaShellApp.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <DockPanel Margin="24">
+
+        <StackPanel DockPanel.Dock="Top" Spacing="4">
+            <TextBlock Text="{Binding Strings[Home_Title]}" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Strings[Home_Subtitle]}" Opacity="0.7" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- The form. Nothing here mentions validation: the rules are on the fields, and
+             DataValidationErrors is what the theme already does with them. -->
+        <Grid DockPanel.Dock="Bottom" Margin="0,16,0,0"
+              ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+
+            <TextBox Grid.Column="0"
+                     Text="{Binding NewCustomer}"
+                     PlaceholderText="{Binding Strings[Home_Customer]}" />
+
+            <Button Grid.Column="1"
+                    Content="{Binding Strings[Home_Add]}"
+                    Command="{Binding AddOrderCommand}"
+                    VerticalAlignment="Top" />
+
+            <Button Grid.Column="2"
+                    Content="{Binding Strings[Home_Open]}"
+                    Command="{Binding OpenOrderCommand}"
+                    CommandParameter="{Binding SelectedOrder}"
+                    VerticalAlignment="Top" />
+        </Grid>
+
+        <Panel Margin="0,16,0,0">
+            <ListBox ItemsSource="{Binding Orders}"
+                     SelectedItem="{Binding SelectedOrder}"
+                     IsVisible="{Binding HasOrders}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="vm:OrderSummary">
+                        <Grid ColumnDefinitions="120,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Reference}" Opacity="0.7" />
+                            <TextBlock Grid.Column="1" Text="{Binding Customer}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Text="{Binding Strings[Home_Empty]}"
+                       IsVisible="{Binding !HasOrders}"
+                       Opacity="0.7"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+        </Panel>
+
+    </DockPanel>
+</UserControl>

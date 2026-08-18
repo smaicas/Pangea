@@ -63,7 +63,7 @@ jobs:
           # remembering to add it here. The gallery is not a test project and does not match.
           mapfile -t PROJECTS < <(find test -name '*.Tests.csproj' | sort)
 
-          if [ "${#PROJECTS[@]}" -lt 8 ]; then
+          if [ "${#PROJECTS[@]}" -lt 12 ]; then
             echo "❌ Found only ${#PROJECTS[@]} test projects; discovery is broken"
             find test -name '*.csproj'
             exit 1
@@ -76,17 +76,32 @@ jobs:
 
       - name: Build Solution
         run: |
-          echo "🔧 Step 1: Building the analyzer first (REQUIRED for main package)..."
+          echo "🔧 Step 1: Building the analyzers first (REQUIRED for the packages that ship them)..."
           dotnet build src/CdCSharp.Pangea.Binding.CodeGeneration/CdCSharp.Pangea.Binding.CodeGeneration.csproj \
             -c ${{ env.CONFIGURATION }} \
             -p:Version=${{ steps.version.outputs.version }} \
             -p:AssemblyVersion=${{ steps.version.outputs.version }} \
             -p:FileVersion=${{ steps.version.outputs.version }} \
             -v normal
-          
 
-          echo "✅ Analyzer built successfully. Verifying..."
+          dotnet build src/CdCSharp.Pangea.Localization.CodeAnalysis/CdCSharp.Pangea.Localization.CodeAnalysis.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+          dotnet build src/CdCSharp.Pangea.CodeGeneration/CdCSharp.Pangea.CodeGeneration.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+          echo "✅ Analyzers built successfully. Verifying..."
           ls -la src/CdCSharp.Pangea.Binding.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
+          ls -la src/CdCSharp.Pangea.Localization.CodeAnalysis/bin/${{ env.CONFIGURATION }}/netstandard2.0/
+          ls -la src/CdCSharp.Pangea.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
 
           echo "🔧 Step 2: Building Core..."
           dotnet build src/CdCSharp.Pangea.Core/CdCSharp.Pangea.Core.csproj \
@@ -134,6 +149,14 @@ jobs:
 
           echo "🔧 Step 4: Building Main project (will embed analyzers)..."
           dotnet build src/CdCSharp.Pangea/CdCSharp.Pangea.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
+          echo "🔧 Step 5: Building the test doubles, which sit on top of everything above..."
+          dotnet build src/CdCSharp.Pangea.Testing/CdCSharp.Pangea.Testing.csproj \
             -c ${{ env.CONFIGURATION }} \
             -p:Version=${{ steps.version.outputs.version }} \
             -p:AssemblyVersion=${{ steps.version.outputs.version }} \
@@ -212,6 +235,14 @@ jobs:
             --no-build \
             -v normal
 
+          dotnet pack src/CdCSharp.Pangea.Testing/CdCSharp.Pangea.Testing.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -o ./artifacts \
+            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --no-build \
+            -v normal
+
       - name: Pack Template
         run: |
           dotnet pack templates/CdCSharp.Pangea.Templates.csproj             -c ${{ env.CONFIGURATION }}             -o ./artifacts             -p:PackageVersion=${{ steps.version.outputs.version }}             -p:Version=${{ steps.version.outputs.version }}             -v normal
@@ -273,6 +304,103 @@ jobs:
             )
           done
 
+          # The shell template is the worked example for every feature, so what it promises to
+          # contain is part of what it is.
+          for options in "" "--IncludeSkill false"; do
+            WORK="$(mktemp -d)"
+            echo "🧪 dotnet new pangea-shell $options"
+
+            (
+              cd "$WORK"
+              dotnet new pangea-shell -n Generated -o . --PangeaVersion "${{ steps.version.outputs.version }}" $options
+
+              cat > nuget.config <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$FEED" />
+              <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+
+              case "$options" in
+                *"--IncludeSkill false"*) EXPECT_SKILL=0 ;;
+                *)                        EXPECT_SKILL=1 ;;
+              esac
+
+              assert_file() {
+                if [ "$1" = 1 ] && [ ! -f "$2" ]; then
+                  echo "❌ CRITICAL: '$2' missing from 'dotnet new pangea-shell $options'"
+                  find . -path ./obj -prune -o -type f -print
+                  exit 1
+                fi
+                if [ "$1" = 0 ] && [ -f "$2" ]; then
+                  echo "❌ CRITICAL: '$2' present despite 'dotnet new pangea-shell $options'"
+                  exit 1
+                fi
+              }
+
+              assert_file "$EXPECT_SKILL" .claude/skills/pangea/SKILL.md
+              assert_file 1               Views/HomeView.axaml
+              assert_file 1               Views/SettingsView.axaml
+              assert_file 1               Navigation/ShowOrderDetail.cs
+              assert_file 1               Services/AppStartupFeature.cs
+              assert_file 1               Resources/Strings.es.resx
+
+              dotnet build -c ${{ env.CONFIGURATION }}
+            )
+          done
+
+      # Everything above proves the generated project compiles. This proves it compiles *with the
+      # toolkit's generators and analyzers*, which reach it only as package assets: one that
+      # silently stops running leaves a project that still builds, just without any of the checking
+      # the toolkit exists to provide.
+      - name: Verify the generators and analyzers reach a generated project
+        run: |
+          FEED="$(pwd)/artifacts"
+          WORK="$(mktemp -d)"
+
+          cd "$WORK"
+          dotnet new pangea-shell -n Generated -o . --PangeaVersion "${{ steps.version.outputs.version }}"
+
+          cat > nuget.config <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$FEED" />
+              <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+
+          dotnet build -c ${{ env.CONFIGURATION }} --no-incremental \
+            -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=obj/generated
+
+          # Without the startup catalog the application falls back to scanning assemblies, and
+          # nothing anywhere says so.
+          for generated in PangeaCatalog.g.cs HomeViewModel.Binding.g.cs; do
+            if ! find obj/generated -name "*$generated" | grep -q .; then
+              echo "❌ CRITICAL: '$generated' was not generated in a project that only references the package"
+              find obj/generated -type f
+              exit 1
+            fi
+          done
+          echo "✅ The source generators run in a generated project"
+
+          # The localization analyzer only sees .resx files through the package's buildTransitive
+          # targets. Shipping them under build/ alone is silent: the analyzer loads and checks
+          # nothing.
+          sed -i 's/"Settings_Saved"/"Settings_Savd"/' ViewModels/SettingsViewModel.cs
+
+          if ! dotnet build -c ${{ env.CONFIGURATION }} --no-incremental 2>&1 | grep -q "PGL001"; then
+            echo "❌ CRITICAL: the localization analyzer did not see the project's .resx files"
+            exit 1
+          fi
+          echo "✅ The localization analyzer checks resource keys in a generated project"
+
       - name: Verify Package Contents
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -291,6 +419,38 @@ jobs:
             exit 1
           fi
           echo "✅ Binding package carries the source generator"
+
+          # The localization analyzer ships with the attribute it reads, and with the .targets that
+          # hands it the .resx files. Without either one it is installed and silent.
+          LOCALIZATION_PKG="./artifacts/CdCSharp.Pangea.Localization.$VERSION.nupkg"
+
+          # buildTransitive is the one that matters: 'build' reaches only a project that
+          # references this package directly, and almost nobody does - they install
+          # CdCSharp.Pangea. Without it the analyzer ships, loads, and checks nothing.
+          for entry in \
+            "analyzers/dotnet/cs/CdCSharp.Pangea.Localization.CodeAnalysis.dll" \
+            "build/CdCSharp.Pangea.Localization.targets" \
+            "buildTransitive/CdCSharp.Pangea.Localization.targets"
+          do
+            if ! unzip -l "$LOCALIZATION_PKG" | grep -q "$entry"; then
+              echo "❌ CRITICAL: $entry missing from CdCSharp.Pangea.Localization"
+              unzip -l "$LOCALIZATION_PKG"
+              exit 1
+            fi
+          done
+          echo "✅ Localization package carries the analyzer and its build targets"
+
+          # The startup catalog generator ships in Core, because every package depends on it and a
+          # catalog is only worth having when every assembly in the application has one.
+          CORE_PKG="./artifacts/CdCSharp.Pangea.Core.$VERSION.nupkg"
+          CATALOG="analyzers/dotnet/cs/CdCSharp.Pangea.CodeGeneration.dll"
+
+          if ! unzip -l "$CORE_PKG" | grep -q "$CATALOG"; then
+            echo "❌ CRITICAL: $CATALOG missing from CdCSharp.Pangea.Core"
+            unzip -l "$CORE_PKG"
+            exit 1
+          fi
+          echo "✅ Core package carries the startup catalog generator"
 
           # The skill is deliberately absent from the packages: inside the global packages folder
           # no agent would ever find it. It ships through the template and the release archive.
@@ -359,8 +519,8 @@ jobs:
             -s https://api.nuget.org/v3/index.json \
             --skip-duplicate \
             --no-symbols
-          
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg" \
+
+          dotnet nuget push "./artifacts/CdCSharp.Pangea.Testing.${{ steps.version.outputs.version }}.nupkg" \
             -k ${{ secrets.NUGET_API_KEY }} \
             -s https://api.nuget.org/v3/index.json \
             --skip-duplicate \
@@ -409,7 +569,8 @@ jobs:
           echo "  📦 Version: ${{ steps.version.outputs.version }}"
           echo "  🔧 Configuration: ${{ env.CONFIGURATION }}"
           echo "  ✅ Main package: CdCSharp.Pangea (with embedded analyzers)"
-          echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization"
+          echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization, Navigation"
+          echo "  ✅ Test doubles: CdCSharp.Pangea.Testing"
           echo "  🤖 Agent skill: attached to release v${{ steps.version.outputs.version }}"
           echo "  📐 Template: dotnet new install CdCSharp.Pangea.Templates"
           echo "  🎯 Install command: dotnet add package CdCSharp.Pangea"

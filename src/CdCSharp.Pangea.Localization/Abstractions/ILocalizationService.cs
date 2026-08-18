@@ -6,7 +6,8 @@ public interface ILocalizationService
     CultureInfo CurrentCulture { get; }
     IEnumerable<CultureInfo> SupportedCultures { get; }
     
-    string GetString(string key);
+    /// <summary>The string for <paramref name="key"/> in the current culture, or the key itself.</summary>
+    string GetString([LocalizationKey] string key);
     void SetCulture(string cultureName);
     
     event EventHandler<CultureChangedEventArgs>? CultureChanged;

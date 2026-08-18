@@ -18,19 +18,25 @@ public abstract class PangeaApplication : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime != null)
-        {
-            IServiceProvider serviceProvider = GetServiceProvider();
+        IServiceProvider serviceProvider = GetServiceProvider();
 
-            IPangeaApplicationContext applicationContext = new PangeaApplicationContext(Current!, serviceProvider);
+        if (serviceProvider is not null)
+        {
+            IPangeaApplicationContext applicationContext = new PangeaApplicationContext(this, serviceProvider);
             serviceProvider.GetRequiredService<FeatureRegistry>().ConfigureApplication(serviceProvider, applicationContext);
-        
-            // Main window creation and display
-            IWindowManager? windowManager = serviceProvider.GetService<IWindowManager>();
-            if (windowManager != null)
+
+            // A window belongs to a lifetime. Without one - a headless test session, a XAML
+            // designer - there is nowhere to show it, and the features above have already done
+            // the part of startup that does not depend on having somewhere.
+            if (ApplicationLifetime is not null)
             {
-                windowManager.Initialize();
-                windowManager.GetMainWindow()?.Show();
+                IWindowManager? windowManager = serviceProvider.GetService<IWindowManager>();
+
+                if (windowManager is not null)
+                {
+                    windowManager.Initialize();
+                    windowManager.GetMainWindow()?.Show();
+                }
             }
         }
 

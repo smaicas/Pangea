@@ -40,6 +40,7 @@ features and shows the main window.
 
 ```csharp
 using Avalonia;
+using Avalonia.Markup.Xaml;
 using CdCSharp.Pangea;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -47,6 +48,10 @@ namespace MyApp;
 
 public partial class App : PangeaApplication
 {
+    // Loads App.axaml, as in any Avalonia application. PangeaApplication overrides
+    // OnFrameworkInitializationCompleted, not Initialize.
+    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+
     public override void Configure(IServiceCollection services)
     {
         // Your own services. View models deriving from ViewModelBase are registered
@@ -65,8 +70,8 @@ public static class Program
 }
 ```
 
-**Do not** call `AvaloniaXamlLoader.Load(this)` yourself in `App.Initialize()` if you inherit from
-`PangeaApplication` — the base class handles the lifecycle. Keep `App.axaml` as usual.
+**Do not** override `OnFrameworkInitializationCompleted` — that is the one `PangeaApplication`
+uses to run the features and show the main window. Keep `App.axaml` as usual.
 
 ---
 
@@ -308,8 +313,28 @@ public static class LocalizationRegistration
 than blank. `SetCulture` applies to the whole application, including threads started afterwards, and
 raises `CultureChanged`. It throws `NotSupportedException` for a culture outside `SupportedCultures`.
 
----
+### Changing language while the application runs
 
+Bind labels through `LocalizedStrings` and offer the choice with `LanguageSelector`, both taken from
+the container - the feature registers them. Do **not** write your own indexer for this.
+
+```xml
+<TextBlock Text="{Binding Strings[Home_Title]}" />
+<loc:LanguageSelector ViewModel="{Binding LanguageSelector}" />
+```
+
+Dates, numbers and `StringFormat` do not follow: they are formatted by the binding, which nothing
+has told to run again.
+
+### Keys are checked against the .resx files
+
+An analyzer reads the project's `.resx` files and reports a key that is in none of them (`PGL001`),
+or one the neutral file has and a translation does not (`PGL002`). Both are warnings.
+
+Read `references/localization.md` before writing localized code: it covers the picker, the indexer
+XAML binds to, `[LocalizationKey]` on wrappers of your own, and changing the rules' severity.
+
+---
 ## Navigation
 
 A navigation request declares where it goes. The call site infers the destination, and the
@@ -523,6 +548,42 @@ code, these are the mistakes it catches:
 | `PGB006` | The generated property hides a member of a base class (warning) |
 
 A class that trips an error generates nothing, so a missing property is the symptom to look for.
+
+### What the localization analyzer reports
+
+| | |
+|---|---|
+| `PGL001` | The resource key is in none of the project's `.resx` files |
+| `PGL002` | The key is in the neutral `.resx` but missing from a translation |
+
+Both are warnings, so they fail a build that treats warnings as errors. Lower one to `suggestion`
+in a `.globalconfig` where translation lags the code on purpose.
+
+---
+
+## Testing a view model
+
+`CdCSharp.Pangea.Testing` is the package for the test project: `PangeaTestServices` is the container
+a view model needs, with test doubles in it. Commands run inline, dialogs answer from a script,
+navigations are recorded rather than performed, and storage stays in memory.
+
+Read `references/testing.md` before writing tests for a Pangea application.
+
+---
+
+## Generated startup
+
+A source generator writes a `PangeaCatalog` per project, listing the features, view models, views
+and navigation requests it declares. Startup reads it instead of scanning assemblies, and view
+models are built by generated constructor calls rather than by reflection.
+
+Nothing to write and nothing to configure. What it means when reading code:
+
+- A type in `CdCSharp.Pangea.Generated.*` is generated. Do not edit it, and do not reference it.
+- A view model is registered because it derives from `ViewModelBase`, whether or not anything else
+  mentions it. That has not changed.
+- `options.DI.AdditionalAssemblies` still works and still costs a scan: nothing was compiled
+  alongside an assembly named at runtime.
 
 ---
 

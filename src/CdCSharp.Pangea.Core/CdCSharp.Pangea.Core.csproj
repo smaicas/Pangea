@@ -16,4 +16,27 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
 		<PackageReference Include="Microsoft.Extensions.Options" Version="10.0.11" />
 	</ItemGroup>
+
+	<!--
+		The catalog generator ships here because everything depends on Core, and a catalog is only
+		useful when every assembly in the application has one. An analyzer travels with the package
+		that carries it, so referencing any part of the toolkit is enough to get it.
+	-->
+	<ItemGroup>
+		<None Include="..\CdCSharp.Pangea.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.CodeGeneration.dll"
+		      Pack="true"
+		      PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.CodeGeneration.dll"
+		      Visible="false" />
+
+		<None Include="..\CdCSharp.Pangea.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.CodeGeneration.pdb"
+		      Pack="true"
+		      PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.CodeGeneration.pdb"
+		      Visible="false"
+		      Condition="Exists('..\CdCSharp.Pangea.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.CodeGeneration.pdb')" />
+	</ItemGroup>
+
+	<Target Name="EnsureCatalogGeneratorExistsBeforePack" BeforeTargets="GenerateNuspec;Pack">
+		<Error Condition="!Exists('..\CdCSharp.Pangea.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.CodeGeneration.dll')"
+		       Text="Catalog generator not found. Build CdCSharp.Pangea.CodeGeneration first." />
+	</Target>
 </Project>

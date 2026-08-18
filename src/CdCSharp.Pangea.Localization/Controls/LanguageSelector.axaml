@@ -1,0 +1,23 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:CdCSharp.Pangea.Localization.Controls"
+    x:Class="CdCSharp.Pangea.Localization.Controls.LanguageSelector"
+    x:DataType="controls:LanguageSelectorViewModel">
+
+    <ComboBox
+        ItemsSource="{Binding AvailableLanguages}"
+        SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
+        MinWidth="180"
+        HorizontalAlignment="Left"
+        AutomationProperties.Name="{Binding AutomationName}">
+
+        <ComboBox.ItemTemplate>
+            <DataTemplate DataType="controls:LanguageOption">
+                <TextBlock Text="{Binding DisplayName}" />
+            </DataTemplate>
+        </ComboBox.ItemTemplate>
+
+    </ComboBox>
+
+</UserControl>

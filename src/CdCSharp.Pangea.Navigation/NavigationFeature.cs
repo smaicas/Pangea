@@ -19,8 +19,16 @@ public class NavigationFeature : IPangeaFeature
 
     public void ConfigureApplication(IServiceProvider serviceProvider, IPangeaApplicationContext applicationContext)
     {
-        TypeRegistry typeRegistry = serviceProvider.GetRequiredService<TypeRegistry>();
-        VerifyRequestsReachTheirDestination(typeRegistry);
+        PangeaCatalogIndex catalog = serviceProvider.GetService<PangeaCatalogIndex>() ?? PangeaCatalogIndex.Empty;
+
+        if (catalog.IsEmpty)
+        {
+            VerifyRequestsReachTheirDestination(serviceProvider.GetRequiredService<TypeRegistry>());
+        }
+        else
+        {
+            VerifyRequestsReachTheirDestination(catalog);
+        }
 
         // Published on the application because a NavigationHost built by XAML has no constructor
         // to inject into.
@@ -38,6 +46,28 @@ public class NavigationFeature : IPangeaFeature
     /// </summary>
     private static void VerifyRequestsReachTheirDestination(TypeRegistry typeRegistry) =>
         VerifyRequestsReachTheirDestination(typeRegistry.GetTypesImplementing(typeof(INavigationRequest<>)));
+
+    /// <summary>
+    /// The same check against the generated catalog, which already knows every request and where
+    /// each one says it goes.
+    /// </summary>
+    private static void VerifyRequestsReachTheirDestination(PangeaCatalogIndex catalog)
+    {
+        List<string> broken = [];
+
+        foreach (PangeaNavigationEntry entry in catalog.NavigationRequests)
+        {
+            Type expected = typeof(INavigationAware<>).MakeGenericType(entry.RequestType);
+
+            if (!expected.IsAssignableFrom(entry.DestinationType))
+            {
+                broken.Add($"'{entry.RequestType.Name}' navigates to '{entry.DestinationType.Name}', which does not implement " +
+                           $"INavigationAware<{entry.RequestType.Name}> and would never receive it");
+            }
+        }
+
+        Report(broken);
+    }
 
     internal static void VerifyRequestsReachTheirDestination(IEnumerable<Type> requestTypes)
     {
@@ -66,6 +96,11 @@ public class NavigationFeature : IPangeaFeature
             }
         }
 
+        Report(broken);
+    }
+
+    private static void Report(List<string> broken)
+    {
         if (broken.Count > 0)
         {
             throw new InvalidOperationException(

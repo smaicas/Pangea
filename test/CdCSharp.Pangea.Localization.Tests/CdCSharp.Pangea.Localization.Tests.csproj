@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -13,6 +13,8 @@
     <ItemGroup>
         <PackageReference Include="xunit.v3" Version="3.2.2" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+        <!-- The language selector is a control, so it needs a real (headless) Avalonia application -->
+        <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,4 +1,4 @@
-﻿# 🌍 CdCSharp.Pangea
+# 🌍 CdCSharp.Pangea
 
 <div align="center">
 
@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -33,22 +33,44 @@ registering its own services.
 
 ## 📦 Installation
 
-### Start from the template
+### Start from a template
 
 ```bash
 dotnet new install CdCSharp.Pangea.Templates
+```
+
+Two starting points. `pangea-app` is the smaller one: the startup wiring, a window, and a sample
+view model and palette showing the toolkit's conventions.
+
+```bash
 dotnet new pangea-app -n MyApp
 cd MyApp && dotnet run
 ```
-
-You get a running Avalonia application: the startup wiring, a window, and a sample view model and
-palette showing the toolkit's conventions.
 
 | Option | Default | |
 |---|---|---|
 | `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
 | `--Sample` | `true` | Include the sample view model and palette |
 | `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+
+`pangea-shell` is the worked example. It is an application with a menu, three screens and every
+feature wired: navigation with a typed request, strings localized into two cultures, settings saved
+to the per-platform data directory and restored on the next run by an application's own feature,
+validation rules on a form, a confirmation dialog refusing to leave a screen with unsaved changes,
+and a custom theme.
+
+```bash
+dotnet new pangea-shell -n MyApp
+cd MyApp && dotnet run
+```
+
+| Option | Default | |
+|---|---|---|
+| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+
+Start from `pangea-shell` when you want to see how a feature is meant to be used; start from
+`pangea-app` when you want an empty room.
 
 ### Add to an existing project
 
@@ -59,6 +81,17 @@ dotnet add package CdCSharp.Pangea
 That is the package to install: besides pulling in every feature, it is where the application model
 lives — `PangeaApplication`, `UsePangea()` and the window manager.
 
+Installing it also puts the whole build-time toolchain into the project, with nothing to configure:
+
+| | |
+|---|---|
+| `[Binding]` source generator | Fields become observable properties, with `PGB001`–`PGB006` when they cannot |
+| Startup catalog generator | Replaces the assembly scan at startup — see [What startup does instead of scanning](#what-startup-does-instead-of-scanning) |
+| Localization analyzer | `PGL001`/`PGL002` on resource keys — see [Keys checked at compile time](#keys-checked-at-compile-time) |
+
+Each one also travels with the feature package it belongs to, so a project that installs only
+`CdCSharp.Pangea.Binding` still gets the generator that makes `[Binding]` mean anything.
+
 The features are also published on their own, for using a piece of the toolkit as a plain library
 without the Pangea application model. Each depends only on `CdCSharp.Pangea.Core`:
 
@@ -68,6 +101,12 @@ dotnet add package CdCSharp.Pangea.Theming       # palettes, themes, theme servi
 dotnet add package CdCSharp.Pangea.Storage       # per-platform paths and file access
 dotnet add package CdCSharp.Pangea.Localization  # cultures and resource strings
 dotnet add package CdCSharp.Pangea.Navigation    # typed navigation requests and a host
+```
+
+And, for the test project rather than the application:
+
+```bash
+dotnet add package CdCSharp.Pangea.Testing       # test doubles: see Testing your own application
 ```
 
 Targets **.NET 10** and **Avalonia 12.1**.
@@ -381,6 +420,96 @@ An unresolved key comes back as itself, so a missing translation is visible rath
 `SetCulture` applies to the whole application, including threads started afterwards, and raises
 `CultureChanged`.
 
+### Changing language while the application runs
+
+`SetCulture` changes the culture, but nothing on screen re-reads its text unless something tells it
+to. `LocalizedStrings` is what does: one object every binding goes through, registered for you, that
+announces a change of culture as a change to every string it holds.
+
+```xml
+<TextBlock Text="{Binding Strings[Home_Title]}" />
+```
+
+```csharp
+public class HomeViewModel : ViewModelBase
+{
+    public HomeViewModel(IServiceProvider services) : base(services) =>
+        Strings = services.GetRequiredService<LocalizedStrings>();
+
+    // The whole window follows a change of culture, because every label is one of these.
+    public LocalizedStrings Strings { get; }
+}
+```
+
+`LanguageSelector` is the picker, handed the view model the container built — the same arrangement
+as `ThemeSelector`:
+
+```xml
+<loc:LanguageSelector ViewModel="{Binding LanguageSelector}" />
+```
+
+```csharp
+public LanguageSelectorViewModel LanguageSelector { get; } =
+    services.GetRequiredService<LanguageSelectorViewModel>();
+```
+
+It lists the supported cultures by their **native** names — someone hunting for Spanish in an
+English window is looking for "Español" — applies the choice immediately, rolls back if the service
+refuses it, and follows a culture changed anywhere else.
+
+> What this does **not** refresh is anything the culture affects without going through
+> `LocalizedStrings`: a `StringFormat`, a date, a number. Those are formatted by the binding itself,
+> and a binding that has not been told anything changed will not run again. Re-raise those
+> properties yourself from `CultureChanged` if a screen shows them.
+
+### Keys checked at compile time
+
+That fallback is also why a mistyped key can ship: the application keeps working and shows
+`WelcomeMessage` to the user. The package carries an analyzer that reads the project's `.resx`
+files and says so first.
+
+| | |
+|---|---|
+| `PGL001` | The key is in none of the `.resx` files |
+| `PGL002` | The key is in the neutral `.resx` but missing from a translation |
+
+`GetString` declares its parameter as a key, and so does `LocalizedStrings`, so every
+`Strings["..."]` in the application is checked already. Put `[LocalizationKey]` on wrappers of your
+own and their call sites are checked the same way:
+
+```csharp
+// Same rules, one call site: Greeting("Welcome_Back", name) is checked like any other key.
+public string Greeting([LocalizationKey] string key, string name) =>
+    string.Format(_localization.GetString(key), name);
+```
+
+Only constant keys are checked; one built at runtime is left alone. Keys named in XAML are not
+seen either — they are not C# — but `PGL002` is about the resource files themselves, so it reports
+whether or not any code reads the key.
+
+Both are warnings. A key that resolves to nothing and a language that is missing one are defects
+with no other symptom — nothing else in the build, and nothing at runtime, will ever mention them.
+
+Change that where it does not suit the project, with a `.globalconfig` beside it (`PGL002` is
+reported against `.resx` files and once per compilation, which no `.editorconfig` section matches
+reliably):
+
+```ini
+is_global = true
+
+# Stricter, for a project where an untranslated string must not ship:
+dotnet_diagnostic.PGL002.severity = error
+
+# Or quieter, where translation lags the code on purpose:
+# dotnet_diagnostic.PGL002.severity = suggestion
+```
+
+```xml
+<ItemGroup>
+  <GlobalAnalyzerConfigFiles Include="localization.globalconfig" />
+</ItemGroup>
+```
+
 ---
 
 ## 🔧 Configuration
@@ -436,6 +565,33 @@ up:
 public override void Configure(IServiceCollection services) =>
     services.AddLogging(builder => builder.AddConsole());
 ```
+
+### What startup does instead of scanning
+
+Discovering features, view models and views used to mean walking every assembly the application can
+reach and reading every type in it. All of that is knowable while the code is being compiled, so a
+source generator writes it down: each project gets a `PangeaCatalog` listing what it contributes,
+registered from a module initializer before anything asks.
+
+Nothing to configure — the generator ships with the packages. What changes:
+
+- Startup does no assembly scan. `TypeRegistry` is still there and still registered, but nothing
+  makes it read anything unless something asks it a question the catalog cannot answer.
+- View models are registered with a generated factory — a plain `new` with each dependency resolved
+  by type — rather than left for the container to construct by reflection.
+- Views and windows are created by generated constructor calls rather than `Activator`.
+- Navigation requests are checked against their destinations from the catalog.
+
+A project the generator never ran in falls back to the old path in full, and so does an application
+that names extra assemblies through `options.DI.AdditionalAssemblies` — nothing was compiled
+alongside those, so they are still read. The catalog is used only when the application's own
+assembly has one, because the toolkit's assemblies always do and that on its own proves nothing
+about the application.
+
+This is also what makes trimming and ahead-of-time compilation reachable: a constructor called by
+generated code is a constructor the trimmer can see. Reflection has not left the toolkit entirely —
+validation attributes, the typed navigation arrival hook and resource discovery still use it — so
+treat this as the first step rather than the finished job.
 
 ---
 
@@ -570,21 +726,61 @@ The directory name is the skill's identity, so keep it `pangea`.
 
 ---
 
+## 🧪 Testing your own application
+
+```bash
+dotnet add package CdCSharp.Pangea.Testing
+```
+
+A view model takes an `IServiceProvider` and asks it for what it needs, so testing one otherwise
+means starting Avalonia, building the real container and waiting for a window. `PangeaTestServices`
+is the same shape with test doubles in it:
+
+```csharp
+PangeaTestServices services = new();
+services.Dialogs.Answering(true);
+
+OrderViewModel screen = new(services);
+screen.DeleteCommand.Execute(null);
+
+Assert.True(screen.Deleted);
+Assert.Equal("Delete ORD-0001?", services.Dialogs.Confirmations.Single().Message);
+```
+
+Commands run inline, so a command has finished when `Execute` returns. Register the application's
+own services with `services.Add<IOrders>(new FakeOrders())`.
+
+| | |
+|---|---|
+| `InlineUIDispatcher` | Runs everything where it was called. The default |
+| `PumpingUIDispatcher` | Owned by the calling thread, runs queued work on `Drain()` — for when the question is whether a call waited |
+| `RecordingDialogService` | Answers from a script and remembers how the question was worded |
+| `RecordingNavigationService` | Records where a navigation was headed and what it carried |
+| `InMemoryStorageService` | The same paths and the same JSON round trip, with nothing on disk |
+| `DictionaryLocalizationService` | Strings from a dictionary, without satellite assemblies |
+| `RecordingThemeService` | Tracks theme and variant without an application's styles |
+
+---
+
 ## 🧪 Tests
 
 ```bash
 dotnet test --project test/CdCSharp.Pangea.Core.Tests/CdCSharp.Pangea.Core.Tests.csproj
 ```
 
-Seven suites cover the source generator, the theme (structure, resource resolution per variant,
+The suites cover the source generator, the theme (structure, resource resolution per variant,
 control template smoke tests, drift against upstream Avalonia), commands and threading, startup
-registries, storage, localization, and the agent skill's samples.
+registries, storage, localization, navigation, the agent skill's samples, and the templates.
 `test/CdCSharp.Pangea.Tests.Int` is a sample application with a control gallery for looking at the
 theme by eye.
 
-The theming and window tests run on `Avalonia.Headless`, so they need no display. The template is
-verified in CI instead: every option combination is generated against the packages just built and
-compiled for real.
+The theming, window and template tests run on `Avalonia.Headless`, so they need no display.
+`test/CdCSharp.Pangea.Templates.Compile` compiles the shipped templates against the toolkit in the
+working tree, so a template that stops building fails the build rather than the next person who
+generates one; `CdCSharp.Pangea.Templates.Tests` then starts the shell template's application and
+checks that startup, the view locator and a typed navigation request all still work. CI goes one
+step further: every option combination of both templates is generated from the packed package
+against the packages just built, and compiled for real.
 
 ---
 

@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
+using CdCSharp.Pangea.Testing.Dispatchers;
 using CdCSharp.Pangea.Tests.Infrastructure;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,11 +23,6 @@ namespace CdCSharp.Pangea.Tests;
 /// </remarks>
 public class WindowFocusTests
 {
-    private sealed class StubServices : IServiceProvider
-    {
-        public object? GetService(Type serviceType) => Activator.CreateInstance(serviceType);
-    }
-
     public sealed class FormWindow : Window
     {
         public FormWindow()
@@ -76,10 +72,9 @@ public class WindowFocusTests
 
     private static WindowManager Create() =>
         new(new StubServices(),
-            new ClassicDesktopStyleApplicationLifetime(),
             Options.Create(new PangeaOptions { Window = { AutoDiscoverMainWindow = false } }),
             new TypeRegistry(),
-            new PumpingDispatcher(),
+            new PumpingUIDispatcher(),
             NullLogger<WindowManager>.Instance);
 
     private static void Pump()

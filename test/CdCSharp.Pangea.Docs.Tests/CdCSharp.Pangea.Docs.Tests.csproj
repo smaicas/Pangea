@@ -16,10 +16,14 @@
         <!-- UsePlatformDetect lives here, and the setup sample uses it -->
         <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+        <!-- UseHeadless lives here, and the testing reference shows how to start an application -->
+        <PackageReference Include="Avalonia.Headless" Version="12.1.1" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
+        <!-- The guide's testing samples are compiled against the doubles they use -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
         <!-- Referenced as an assembly so the samples can be compiled through the generator -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj" />
     </ItemGroup>

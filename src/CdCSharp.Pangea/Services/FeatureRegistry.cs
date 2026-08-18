@@ -21,10 +21,19 @@ namespace CdCSharp.Pangea.Services;
 public class FeatureRegistry
 {
     private readonly TypeRegistry _typeRegistry;
+    private readonly PangeaCatalogIndex _catalog;
     private readonly List<IPangeaFeature> _features = [];
 
-    public FeatureRegistry(TypeRegistry typeRegistry) =>
+    /// <param name="typeRegistry">Where features are found when nothing was generated.</param>
+    /// <param name="catalog">
+    /// The generated catalogs. When they carry features, each one is built by a constructor call
+    /// the compiler wrote rather than by <c>Activator</c>, and no assembly is read to find them.
+    /// </param>
+    public FeatureRegistry(TypeRegistry typeRegistry, PangeaCatalogIndex? catalog = null)
+    {
         _typeRegistry = typeRegistry ?? throw new ArgumentNullException(nameof(typeRegistry));
+        _catalog = catalog ?? PangeaCatalogIndex.Empty;
+    }
 
     /// <summary>Features discovered so far, in discovery order.</summary>
     public IReadOnlyList<IPangeaFeature> Features => _features;
@@ -36,16 +45,31 @@ public class FeatureRegistry
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        foreach (Type featureType in _typeRegistry.GetTypesImplementing<IPangeaFeature>()
-                     .Where(type => type is { IsAbstract: false, IsInterface: false })
-                     .OrderBy(type => type.FullName, StringComparer.Ordinal))
+        foreach (IPangeaFeature instance in Discover())
         {
-            if (_features.Any(feature => feature.GetType() == featureType)) continue;
+            if (_features.Any(feature => feature.GetType() == instance.GetType())) continue;
 
-            IPangeaFeature instance = Create(featureType);
             instance.ConfigureServices(services);
             _features.Add(instance);
         }
+    }
+
+    /// <summary>
+    /// Every feature available, in a stable order so services are registered the same way twice.
+    /// </summary>
+    private IEnumerable<IPangeaFeature> Discover()
+    {
+        if (!_catalog.IsEmpty)
+        {
+            return _catalog.Features
+                .Select(build => build())
+                .OrderBy(feature => feature.GetType().FullName, StringComparer.Ordinal);
+        }
+
+        return _typeRegistry.GetTypesImplementing<IPangeaFeature>()
+            .Where(type => type is { IsAbstract: false, IsInterface: false })
+            .OrderBy(type => type.FullName, StringComparer.Ordinal)
+            .Select(Create);
     }
 
     /// <summary>

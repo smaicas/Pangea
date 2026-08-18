@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -7,11 +7,67 @@
 
         <!-- Package Metadata -->
         <PackageId>CdCSharp.Pangea.Localization</PackageId>
-        <Description>Localization feature for CdCSharp.Pangea - Multi-language support with resource management</Description>
+        <Description>Localization feature for CdCSharp.Pangea - Resource strings, runtime language switching and a language picker</Description>
         <PackageTags>avalonia;localization;i18n;resources</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" />
+        <!-- The language selector is a control, like the theme selector next door. -->
+        <PackageReference Include="Avalonia" Version="12.1.1" />
     </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" PrivateAssets="none" />
+        <ProjectReference Include="..\CdCSharp.Pangea.CodeGeneration\CdCSharp.Pangea.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <!-- Builds the analyzer and applies it to this project too -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Localization.CodeAnalysis\CdCSharp.Pangea.Localization.CodeAnalysis.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+    </ItemGroup>
+
+    <!--
+        The analyzer ships with the attribute it reads, for the same reason the binding generator
+        ships with [Binding]: installing this package alone has to be enough, or [LocalizationKey]
+        is an attribute that silently does nothing.
+
+        The .targets file beside it is what hands the .resx files to the compiler, without which
+        the analyzer has nothing to check against and stays quiet.
+    -->
+    <ItemGroup>
+        <None Include="..\CdCSharp.Pangea.Localization.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Localization.CodeAnalysis.dll"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Localization.CodeAnalysis.dll"
+              Visible="false" />
+
+        <None Include="..\CdCSharp.Pangea.Localization.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Localization.CodeAnalysis.pdb"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Localization.CodeAnalysis.pdb"
+              Visible="false"
+              Condition="Exists('..\CdCSharp.Pangea.Localization.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Localization.CodeAnalysis.pdb')" />
+
+        <!--
+            Both folders on purpose. NuGet applies 'build' only to a project that references this
+            package directly, and 'buildTransitive' to one that reaches it through another - which
+            is every application, since CdCSharp.Pangea is the package people install. Without the
+            second one the analyzer ships, loads, and finds no .resx to check against.
+        -->
+        <None Include="build\CdCSharp.Pangea.Localization.targets"
+              Pack="true"
+              PackagePath="build\CdCSharp.Pangea.Localization.targets"
+              Visible="false" />
+
+        <None Include="build\CdCSharp.Pangea.Localization.targets"
+              Pack="true"
+              PackagePath="buildTransitive\CdCSharp.Pangea.Localization.targets"
+              Visible="false" />
+    </ItemGroup>
+
+    <Target Name="EnsureAnalyzerExistsBeforePack" BeforeTargets="GenerateNuspec;Pack">
+        <Error Condition="!Exists('..\CdCSharp.Pangea.Localization.CodeAnalysis\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Localization.CodeAnalysis.dll')"
+               Text="Localization analyzer not found. Build CdCSharp.Pangea.Localization.CodeAnalysis first." />
+    </Target>
 </Project>

@@ -17,5 +17,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
+        <!-- The dispatchers these tests drive are the ones the toolkit ships for the purpose. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
     </ItemGroup>
 </Project>

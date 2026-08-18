@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -27,13 +27,23 @@
 		<InternalsVisibleTo Include="CdCSharp.Pangea.Tests" />
 	</ItemGroup>
 
+	<!--
+		PrivateAssets="none" on every feature, because this is the package people install and the
+		generators live in the ones underneath it. The default would pack these as
+		exclude="Build,Analyzers", which says the opposite of what the toolkit needs: no [Binding]
+		properties, no startup catalog, no resource key checking in the application that installs it.
+	-->
 	<ItemGroup>
-		<ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" />
-		<ProjectReference Include="..\CdCSharp.Pangea.Binding\CdCSharp.Pangea.Binding.csproj" />
-		<ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" />
-		<ProjectReference Include="..\CdCSharp.Pangea.Theming\CdCSharp.Pangea.Theming.csproj" />
-		<ProjectReference Include="..\CdCSharp.Pangea.Localization\CdCSharp.Pangea.Localization.csproj" />
-		<ProjectReference Include="..\CdCSharp.Pangea.Navigation\CdCSharp.Pangea.Navigation.csproj" />
+		<ProjectReference Include="..\CdCSharp.Pangea.CodeGeneration\CdCSharp.Pangea.CodeGeneration.csproj"
+		                  OutputItemType="Analyzer"
+		                  ReferenceOutputAssembly="false"
+		                  PrivateAssets="all" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" PrivateAssets="none" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Binding\CdCSharp.Pangea.Binding.csproj" PrivateAssets="none" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" PrivateAssets="none" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Theming\CdCSharp.Pangea.Theming.csproj" PrivateAssets="none" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Localization\CdCSharp.Pangea.Localization.csproj" PrivateAssets="none" />
+		<ProjectReference Include="..\CdCSharp.Pangea.Navigation\CdCSharp.Pangea.Navigation.csproj" PrivateAssets="none" />
 	</ItemGroup>
 
 

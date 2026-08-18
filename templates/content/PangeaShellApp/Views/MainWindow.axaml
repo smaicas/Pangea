@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PangeaShellApp.ViewModels"
+        xmlns:nav="using:CdCSharp.Pangea.Navigation"
+        xmlns:theming="using:CdCSharp.Pangea.Theming.Controls"
+        x:Class="PangeaShellApp.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="PangeaShellApp"
+        Width="900" Height="560"
+        WindowStartupLocation="CenterScreen">
+
+    <DockPanel>
+
+        <Border DockPanel.Dock="Left" Width="220" Padding="16"
+                BorderThickness="0,0,1,0"
+                BorderBrush="{DynamicResource BorderBrush}">
+            <DockPanel>
+
+                <!-- The toolkit's own control. It needs the view model the container built for it,
+                     because a control created by XAML gets nothing injected. -->
+                <theming:ThemeSelector DockPanel.Dock="Bottom"
+                                       ViewModel="{Binding ThemeSelector}" />
+
+                <StackPanel Spacing="8">
+                    <Button Content="{Binding Strings[Nav_Home]}"
+                            Command="{Binding GoHomeCommand}"
+                            HorizontalAlignment="Stretch" />
+
+                    <Button Content="{Binding Strings[Nav_Settings]}"
+                            Command="{Binding GoToSettingsCommand}"
+                            HorizontalAlignment="Stretch" />
+
+                    <Separator Margin="0,8" />
+
+                    <Button Content="{Binding Strings[Nav_Back]}"
+                            Command="{Binding GoBackCommand}"
+                            IsEnabled="{Binding CanGoBack}"
+                            HorizontalAlignment="Stretch" />
+                </StackPanel>
+
+            </DockPanel>
+        </Border>
+
+        <!-- Neither Service nor Locator is set: both come from what the navigation feature
+             published on the application at startup. -->
+        <nav:NavigationHost />
+
+    </DockPanel>
+</Window>

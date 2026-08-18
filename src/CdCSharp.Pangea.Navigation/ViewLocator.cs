@@ -21,12 +21,15 @@ public class ViewLocator : IViewLocator
 
     private readonly IServiceProvider _serviceProvider;
     private readonly TypeRegistry _typeRegistry;
+    private readonly PangeaCatalogIndex _catalog;
     private readonly ConcurrentDictionary<Type, Type> _registrations = new();
+    private readonly ConcurrentDictionary<Type, Func<object>> _factories = new();
 
-    public ViewLocator(IServiceProvider serviceProvider, TypeRegistry typeRegistry)
+    public ViewLocator(IServiceProvider serviceProvider, TypeRegistry typeRegistry, PangeaCatalogIndex? catalog = null)
     {
         _serviceProvider = serviceProvider;
         _typeRegistry = typeRegistry;
+        _catalog = catalog ?? PangeaCatalogIndex.Empty;
     }
 
     public void Register<TViewModel, TView>()
@@ -42,15 +45,25 @@ public class ViewLocator : IViewLocator
         Type viewType = _registrations.GetOrAdd(viewModelType, ResolveByConvention);
 
         // From the container when it knows how to build it, so a view can take dependencies;
-        // otherwise the parameterless constructor every XAML view has.
+        // otherwise the parameterless constructor every XAML view has - written out by the
+        // generator when there is a catalog, and reflected on when there is not.
         Control view = _serviceProvider.GetService(viewType) as Control
-            ?? Activator.CreateInstance(viewType) as Control
+            ?? Build(viewType) as Control
             ?? throw new InvalidOperationException(
                 $"'{viewType.FullName}' could not be created as a Control for '{viewModelType.Name}'.");
 
         view.DataContext = viewModel;
         return view;
     }
+
+    /// <summary>
+    /// Builds a view with the generated factory when the catalog has one, and by reflection when
+    /// it does not.
+    /// </summary>
+    private object? Build(Type viewType) =>
+        _factories.TryGetValue(viewType, out Func<object>? create)
+            ? create()
+            : Activator.CreateInstance(viewType);
 
     private Type ResolveByConvention(Type viewModelType)
     {
@@ -61,6 +74,21 @@ public class ViewLocator : IViewLocator
             throw new InvalidOperationException(
                 $"'{viewModelType.Name}' does not end in '{ViewModelSuffix}', so no view name can be derived from it. " +
                 "Register its view explicitly with IViewLocator.Register.");
+        }
+
+        // The catalog first: it answers without any assembly having been read.
+        foreach (string candidate in candidates)
+        {
+            if (_catalog.FindView(candidate, viewModelType.Namespace) is not { } entry) continue;
+
+            if (!typeof(Control).IsAssignableFrom(entry.ViewType))
+            {
+                throw new InvalidOperationException(
+                    $"'{entry.ViewType.FullName}' was found for '{viewModelType.Name}' but is not a Control.");
+            }
+
+            _factories[entry.ViewType] = entry.Create;
+            return entry.ViewType;
         }
 
         foreach (string candidate in candidates)

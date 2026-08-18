@@ -1,0 +1,17 @@
+<Project>
+    <!--
+        The analyzer checks resource keys against the project's .resx files, and can only see the
+        files the compiler is given. Done in a target rather than an item group because the SDK's
+        default EmbeddedResource glob is evaluated after this file is imported, so at that point
+        there is nothing to copy yet.
+
+        Anything already passed as an additional file is left alone: naming it twice would have the
+        analyzer read the same resources twice.
+    -->
+    <Target Name="PangeaLocalizationAdditionalFiles" BeforeTargets="CoreCompile">
+        <ItemGroup>
+            <_PangeaResourceFile Include="@(EmbeddedResource)" Condition="'%(Extension)' == '.resx'" />
+            <AdditionalFiles Include="@(_PangeaResourceFile)" Exclude="@(AdditionalFiles)" />
+        </ItemGroup>
+    </Target>
+</Project>

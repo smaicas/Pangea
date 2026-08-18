@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <PackageType>Template</PackageType>
         <PackageId>CdCSharp.Pangea.Templates</PackageId>
@@ -26,12 +26,22 @@
                  PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)"
                  Pack="true" />
 
-        <!-- Placed where coding agents discover project skills: .claude/skills/<name>/SKILL.md -->
+        <!-- Placed where coding agents discover project skills: .claude/skills/<name>/SKILL.md.
+             One entry per template: a package path cannot be built from a cross product. -->
         <Content Include="$(MSBuildThisFileDirectory)..\.claude\skills\pangea\**\*.md"
                  PackagePath="content\MyPangeaApp\.claude\skills\pangea\%(RecursiveDir)%(Filename)%(Extension)"
                  Pack="true" />
 
+        <Content Include="$(MSBuildThisFileDirectory)..\.claude\skills\pangea\**\*.md"
+                 PackagePath="content\PangeaShellApp\.claude\skills\pangea\%(RecursiveDir)%(Filename)%(Extension)"
+                 Pack="true" />
+
         <Compile Remove="**\*" />
+    </ItemGroup>
+
+    <!-- Every template's configuration, so adding one needs no change to the targets below. -->
+    <ItemGroup>
+        <PangeaTemplateConfig Include="$(MSBuildThisFileDirectory)content\*\.template.config\template.json" />
     </ItemGroup>
 
     <!--
@@ -39,9 +49,11 @@
         the literal current value, so re-packing at a different version stamps again: PangeaVersion
         is the only symbol whose default looks like a version number.
     -->
-    <Target Name="StampPangeaVersion" BeforeTargets="GenerateNuspec;Pack" Condition="'$(Version)' != ''">
+    <Target Name="StampPangeaVersion" BeforeTargets="GenerateNuspec;Pack"
+            Condition="'$(Version)' != ''"
+            Outputs="%(PangeaTemplateConfig.Identity)">
         <PropertyGroup>
-            <TemplateConfig>$(MSBuildThisFileDirectory)content\MyPangeaApp\.template.config\template.json</TemplateConfig>
+            <TemplateConfig>%(PangeaTemplateConfig.FullPath)</TemplateConfig>
             <StampedConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), '&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;', '&quot;defaultValue&quot;: &quot;$(Version)&quot;'))</StampedConfig>
         </PropertyGroup>
 
@@ -49,9 +61,11 @@
     </Target>
 
     <!-- Leave the working tree as it was found: the stamp belongs in the package, not in source. -->
-    <Target Name="RestorePangeaVersion" AfterTargets="Pack" Condition="'$(Version)' != ''">
+    <Target Name="RestorePangeaVersion" AfterTargets="Pack"
+            Condition="'$(Version)' != ''"
+            Outputs="%(PangeaTemplateConfig.Identity)">
         <PropertyGroup>
-            <TemplateConfig>$(MSBuildThisFileDirectory)content\MyPangeaApp\.template.config\template.json</TemplateConfig>
+            <TemplateConfig>%(PangeaTemplateConfig.FullPath)</TemplateConfig>
             <RestoredConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), '&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;', '&quot;defaultValue&quot;: &quot;1.0.0&quot;'))</RestoredConfig>
         </PropertyGroup>
 

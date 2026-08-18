@@ -66,13 +66,23 @@ public class BootstrapTests
         Assert.Throws<InvalidOperationException>(() => PangeaExtensions.ConfigureServices(null));
     }
 
+    /// <summary>
+    /// An application with no lifetime - a headless test session, a XAML designer - has no windows
+    /// to manage and everything else it is made of still works, so startup finishes and only what
+    /// actually needs a lifetime says so.
+    /// </summary>
     [AvaloniaFact]
-    public void WithoutAnApplicationLifetime_StartupSaysSo()
+    public void WithoutAnApplicationLifetime_StartupFinishes_AndOnlyTheLifetimeIsMissing()
     {
         StubApplication application = new();
 
+        IServiceProvider services = PangeaExtensions.ConfigureServices(application);
+
+        Assert.NotNull(services.GetRequiredService<IUIDispatcher>());
+        Assert.NotNull(services.GetRequiredService<IWindowManager>());
+
         InvalidOperationException error =
-            Assert.Throws<InvalidOperationException>(() => PangeaExtensions.ConfigureServices(application));
+            Assert.Throws<InvalidOperationException>(services.GetRequiredService<IApplicationLifetime>);
 
         Assert.Contains("ApplicationLifetime", error.Message, StringComparison.Ordinal);
     }

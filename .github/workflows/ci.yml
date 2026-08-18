@@ -41,7 +41,7 @@ jobs:
         run: |
           mapfile -t PROJECTS < <(find test -name '*.Tests.csproj' | sort)
 
-          if [ "${#PROJECTS[@]}" -lt 8 ]; then
+          if [ "${#PROJECTS[@]}" -lt 12 ]; then
             echo "❌ Found only ${#PROJECTS[@]} test projects; discovery is broken"
             find test -name '*.csproj'
             exit 1
@@ -68,13 +68,18 @@ jobs:
           FEED="$(pwd)/artifacts"
           dotnet new install "$FEED/CdCSharp.Pangea.Templates.${{ env.CI_VERSION }}.nupkg"
 
-          for options in "" "--IncludeSkill false" "--Sample false" "--IncludeSkill false --Sample false"; do
-            WORK="$(mktemp -d)"
-            echo "🧪 dotnet new pangea-app $options"
+          # $1 template, $2 options, rest: "<0|1> <path>" pairs the generated project must satisfy.
+          generate_and_build() {
+            local template="$1" options="$2"
+            shift 2
+
+            local work
+            work="$(mktemp -d)"
+            echo "🧪 dotnet new $template $options"
 
             (
-              cd "$WORK"
-              dotnet new pangea-app -n Generated -o . --PangeaVersion "${{ env.CI_VERSION }}" $options
+              cd "$work"
+              dotnet new "$template" -n Generated -o . --PangeaVersion "${{ env.CI_VERSION }}" $options
 
               cat > nuget.config <<EOF
           <?xml version="1.0" encoding="utf-8"?>
@@ -87,31 +92,102 @@ jobs:
           </configuration>
           EOF
 
-              case "$options" in
-                *"--IncludeSkill false"*) EXPECT_SKILL=0 ;;
-                *)                        EXPECT_SKILL=1 ;;
-              esac
-              case "$options" in
-                *"--Sample false"*) EXPECT_SAMPLE=0 ;;
-                *)                  EXPECT_SAMPLE=1 ;;
-              esac
+              while [ "$#" -gt 0 ]; do
+                local expected="$1" path="$2"
+                shift 2
 
-              assert_file() {
-                if [ "$1" = 1 ] && [ ! -f "$2" ]; then
-                  echo "❌ '$2' missing from 'dotnet new pangea-app $options'"
+                if [ "$expected" = 1 ] && [ ! -f "$path" ]; then
+                  echo "❌ '$path' missing from 'dotnet new $template $options'"
                   find . -path ./obj -prune -o -type f -print
                   exit 1
                 fi
-                if [ "$1" = 0 ] && [ -f "$2" ]; then
-                  echo "❌ '$2' present despite 'dotnet new pangea-app $options'"
+                if [ "$expected" = 0 ] && [ -f "$path" ]; then
+                  echo "❌ '$path' present despite 'dotnet new $template $options'"
                   exit 1
                 fi
-              }
-
-              assert_file "$EXPECT_SKILL"  .claude/skills/pangea/SKILL.md
-              assert_file "$EXPECT_SKILL"  .claude/skills/pangea/references/resource-keys.md
-              assert_file "$EXPECT_SAMPLE" Themes/AppPalette.cs
+              done
 
               dotnet build -c ${{ env.CONFIGURATION }}
             )
+          }
+
+          for options in "" "--IncludeSkill false" "--Sample false" "--IncludeSkill false --Sample false"; do
+            case "$options" in
+              *"--IncludeSkill false"*) SKILL=0 ;;
+              *)                        SKILL=1 ;;
+            esac
+            case "$options" in
+              *"--Sample false"*) SAMPLE=0 ;;
+              *)                  SAMPLE=1 ;;
+            esac
+
+            generate_and_build pangea-app "$options" \
+              "$SKILL"  .claude/skills/pangea/SKILL.md \
+              "$SKILL"  .claude/skills/pangea/references/resource-keys.md \
+              "$SAMPLE" Themes/AppPalette.cs
           done
+
+          # The shell template is the worked example for every feature, so what it promises to
+          # contain is part of what it is.
+          for options in "" "--IncludeSkill false"; do
+            case "$options" in
+              *"--IncludeSkill false"*) SKILL=0 ;;
+              *)                        SKILL=1 ;;
+            esac
+
+            generate_and_build pangea-shell "$options" \
+              "$SKILL" .claude/skills/pangea/SKILL.md \
+              1        Views/HomeView.axaml \
+              1        Views/SettingsView.axaml \
+              1        Navigation/ShowOrderDetail.cs \
+              1        Services/AppStartupFeature.cs \
+              1        Resources/Strings.es.resx
+          done
+
+      # Everything above proves the generated project compiles. This proves it compiles *with the
+      # toolkit's generators and analyzers*, which reach it only as package assets: one that
+      # silently stops running leaves a project that still builds, just without any of the checking
+      # the toolkit exists to provide.
+      - name: Verify the generators and analyzers reach a generated project
+        run: |
+          FEED="$(pwd)/artifacts"
+          WORK="$(mktemp -d)"
+
+          cd "$WORK"
+          dotnet new pangea-shell -n Generated -o . --PangeaVersion "${{ env.CI_VERSION }}"
+
+          cat > nuget.config <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$FEED" />
+              <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+
+          dotnet build -c ${{ env.CONFIGURATION }} --no-incremental \
+            -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=obj/generated
+
+          # Without the startup catalog the application falls back to scanning assemblies, and
+          # nothing anywhere says so.
+          for generated in PangeaCatalog.g.cs HomeViewModel.Binding.g.cs; do
+            if ! find obj/generated -name "*$generated" | grep -q .; then
+              echo "❌ CRITICAL: '$generated' was not generated in a project that only references the package"
+              find obj/generated -type f
+              exit 1
+            fi
+          done
+          echo "✅ The source generators run in a generated project"
+
+          # The localization analyzer only sees .resx files through the package's buildTransitive
+          # targets. Shipping them under build/ alone is silent: the analyzer loads and checks
+          # nothing.
+          sed -i 's/"Settings_Saved"/"Settings_Savd"/' ViewModels/SettingsViewModel.cs
+
+          if ! dotnet build -c ${{ env.CONFIGURATION }} --no-incremental 2>&1 | grep -q "PGL001"; then
+            echo "❌ CRITICAL: the localization analyzer did not see the project's .resx files"
+            exit 1
+          fi
+          echo "✅ The localization analyzer checks resource keys in a generated project"

@@ -1,4 +1,4 @@
-﻿using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Localization.Abstractions;
 using CdCSharp.Pangea.Localization.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,5 +16,11 @@ public class LocalizationFeature : IPangeaFeature
         services.Configure<LocalizationOptions>(_ => { });
 
         services.AddSingleton<ILocalizationService, LocalizationService>();
+
+        // A factory rather than a type, because the dispatcher is optional: it is registered by the
+        // Pangea application model, and the localization feature can be used without one.
+        services.AddSingleton(serviceProvider => new LocalizedStrings(
+            serviceProvider.GetRequiredService<ILocalizationService>(),
+            serviceProvider.GetService<IUIDispatcher>()));
     }
 }

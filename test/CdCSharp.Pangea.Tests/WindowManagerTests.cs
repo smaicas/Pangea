@@ -1,9 +1,10 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
+using CdCSharp.Pangea.Testing.Dispatchers;
 using CdCSharp.Pangea.Tests.Infrastructure;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,13 +26,12 @@ public class WindowManagerTests
 
     private static WindowManager Create(PangeaOptions? options = null) => Create(out _, options);
 
-    private static WindowManager Create(out PumpingDispatcher dispatcher, PangeaOptions? options = null)
+    private static WindowManager Create(out PumpingUIDispatcher dispatcher, PangeaOptions? options = null)
     {
-        dispatcher = new PumpingDispatcher();
+        dispatcher = new PumpingUIDispatcher();
 
         return new WindowManager(
             new StubServices(),
-            new ClassicDesktopStyleApplicationLifetime(),
             Options.Create(options ?? new PangeaOptions { Window = { AutoDiscoverMainWindow = false } }),
             new TypeRegistry(),
             dispatcher,
@@ -61,7 +61,7 @@ public class WindowManagerTests
     [AvaloniaFact]
     public void ConcurrentCallers_GetTheSameWindow()
     {
-        WindowManager manager = Create(out PumpingDispatcher dispatcher);
+        WindowManager manager = Create(out PumpingUIDispatcher dispatcher);
 
         SampleWindow? first = null;
         SampleWindow? second = null;
@@ -110,11 +110,10 @@ public class WindowManagerTests
     {
         ClassicDesktopStyleApplicationLifetime lifetime = new();
         WindowManager manager = new(
-            new StubServices(),
-            lifetime,
+            new StubServices(lifetime),
             Options.Create(new PangeaOptions { Window = { AutoDiscoverMainWindow = false } }),
             new TypeRegistry(),
-            new PumpingDispatcher(),
+            new PumpingUIDispatcher(),
             NullLogger<WindowManager>.Instance);
 
         SampleWindow window = new();
@@ -161,7 +160,7 @@ public class WindowManagerTests
     [AvaloniaFact]
     public void CloseWindow_FromAnotherThread_DoesNotReturnUntilTheWindowIsClosed()
     {
-        WindowManager manager = Create(out PumpingDispatcher dispatcher);
+        WindowManager manager = Create(out PumpingUIDispatcher dispatcher);
         SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
         window.Show();
 
@@ -182,7 +181,7 @@ public class WindowManagerTests
     [AvaloniaFact]
     public void CloseAllWindows_FromAnotherThread_DoesNotReturnUntilTheWindowsAreClosed()
     {
-        WindowManager manager = Create(out PumpingDispatcher dispatcher);
+        WindowManager manager = Create(out PumpingUIDispatcher dispatcher);
         SampleWindow window = manager.GetOrCreateWindow<SampleWindow>();
         window.Show();
 
@@ -249,9 +248,4 @@ public class WindowManagerTests
         manager.Dispose();
     }
 
-    /// <summary>Resolves view models the way the container would, by constructing them.</summary>
-    private sealed class StubServices : IServiceProvider
-    {
-        public object? GetService(Type serviceType) => Activator.CreateInstance(serviceType);
-    }
 }

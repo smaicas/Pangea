@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PangeaShellApp.ViewModels"
+             xmlns:loc="using:CdCSharp.Pangea.Localization.Controls"
+             x:Class="PangeaShellApp.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <StackPanel Margin="24" Spacing="16">
+
+        <TextBlock Text="{Binding Strings[Settings_Title]}" FontSize="22" FontWeight="SemiBold" />
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="{Binding Strings[Settings_Language]}" FontWeight="SemiBold" />
+            <!-- The toolkit's picker. It applies the language as soon as one is chosen. -->
+            <loc:LanguageSelector ViewModel="{Binding LanguageSelector}" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="{Binding Strings[Settings_Appearance]}" FontWeight="SemiBold" />
+            <ToggleSwitch IsChecked="{Binding IsDark}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="{Binding Strings[Settings_Save]}" Command="{Binding SaveCommand}" />
+            <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Opacity="0.7" />
+        </StackPanel>
+
+        <TextBlock Text="{Binding Strings[Settings_Unsaved]}"
+                   IsVisible="{Binding HasUnsavedChanges}"
+                   Opacity="0.7"
+                   TextWrapping="Wrap" />
+
+    </StackPanel>
+</UserControl>

@@ -51,27 +51,33 @@ public class WindowManager : IWindowManager, IDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly TypeRegistry _typeRegistry;
     private readonly ILogger<WindowManager> _logger;
-    private readonly IApplicationLifetime _applicationLifetime;
     private readonly IUIDispatcher _dispatcher;
+    private readonly PangeaCatalogIndex _catalog;
     private readonly PangeaOptions _options;
     private Window? _mainWindow;
     private bool _initialized;
     private volatile bool _disposed;
 
+    /// <remarks>
+    /// The application lifetime is deliberately not a constructor parameter. It is needed only
+    /// when a main window is actually attached to it, and taking it here would make every
+    /// application that has no lifetime - a headless test session, a XAML designer - unable to
+    /// build a window manager it was never going to show anything with.
+    /// </remarks>
     public WindowManager(
         IServiceProvider serviceProvider,
-        IApplicationLifetime applicationLifetime,
         IOptions<PangeaOptions> options,
         TypeRegistry typeRegistry,
         IUIDispatcher dispatcher,
-        ILogger<WindowManager> logger)
+        ILogger<WindowManager> logger,
+        PangeaCatalogIndex? catalog = null)
     {
         _serviceProvider = serviceProvider;
         _typeRegistry = typeRegistry;
         _logger = logger;
-        _applicationLifetime = applicationLifetime;
         _dispatcher = dispatcher;
         _options = options.Value;
+        _catalog = catalog ?? PangeaCatalogIndex.Empty;
     }
 
     public void Initialize()
@@ -385,17 +391,31 @@ public class WindowManager : IWindowManager, IDisposable
         Type? windowType = _options.Window.MainWindowType;
         Type? viewModelType = _options.Window.MainViewModelType;
 
+        // The generated catalog first, which also hands over a constructor call for the window.
+        Func<object>? buildWindow = null;
+
+        if (windowType is null && _catalog.FindView("MainWindow") is { } mainView)
+        {
+            windowType = mainView.ViewType;
+            buildWindow = mainView.Create;
+        }
+
+        if (viewModelType is null && _catalog.FindViewModel("MainWindowViewModel") is { } mainViewModel)
+        {
+            viewModelType = mainViewModel.ViewModelType;
+        }
+
         if (windowType == null || viewModelType == null)
         {
             windowType ??= _typeRegistry.GetType("MainWindow");
             viewModelType ??= _typeRegistry.GetType("MainWindowViewModel");
-            
+
             if (windowType == null)
             {
                 Type[] windowTypes = _typeRegistry.FindTypes("Window").ToArray();
                 windowType = windowTypes.FirstOrDefault(t => t.Name.Contains("Main"));
             }
-            
+
             if (viewModelType == null)
             {
                 Type[] viewModelTypes = _typeRegistry.GetTypesDerivedFrom<ViewModelBase>().ToArray();
@@ -408,11 +428,11 @@ public class WindowManager : IWindowManager, IDisposable
             try
             {
                 object viewModel = _serviceProvider.GetRequiredService(viewModelType);
-                
-                Window window = (Window?)Activator.CreateInstance(windowType) ??
+
+                Window window = (Window?)(buildWindow is not null ? buildWindow() : Activator.CreateInstance(windowType)) ??
                                throw new InvalidOperationException($"Unable to instantiate Window of type {windowType.Name}");
                 window.DataContext = viewModel;
-                
+
                 SetMainWindowInternal(window);
             }
             catch (Exception ex)
@@ -436,7 +456,7 @@ public class WindowManager : IWindowManager, IDisposable
     private void SetMainWindowInternal(Window window)
     {
         _mainWindow = window;
-        SetMainWindowForLifetime(_applicationLifetime, _mainWindow);
+        SetMainWindowForLifetime(_serviceProvider.GetRequiredService<IApplicationLifetime>(), _mainWindow);
     }
 
     private static void SetMainWindowForLifetime(IApplicationLifetime applicationLifetime, Window mainWindow)

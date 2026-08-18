@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
 using CdCSharp.Pangea.Dialogs;
+using CdCSharp.Pangea.Testing.Dispatchers;
 using CdCSharp.Pangea.Tests.Infrastructure;
 using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,14 +28,8 @@ public class DialogServiceTests
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(5);
 
-    private sealed class StubServices : IServiceProvider
-    {
-        public object? GetService(Type serviceType) => Activator.CreateInstance(serviceType);
-    }
-
-    private static WindowManager BuildWindows(PumpingDispatcher dispatcher) =>
+    private static WindowManager BuildWindows(PumpingUIDispatcher dispatcher) =>
         new(new StubServices(),
-            new ClassicDesktopStyleApplicationLifetime(),
             Options.Create(new PangeaOptions { Window = { AutoDiscoverMainWindow = false } }),
             new TypeRegistry(),
             dispatcher,
@@ -42,7 +37,7 @@ public class DialogServiceTests
 
     private static (DialogService Dialogs, Window Owner) Arrange()
     {
-        PumpingDispatcher dispatcher = new();
+        PumpingUIDispatcher dispatcher = new();
         WindowManager windows = BuildWindows(dispatcher);
 
         Window owner = new();
@@ -341,7 +336,7 @@ public class DialogServiceTests
     [AvaloniaFact]
     public async Task WithoutAMainWindow_TheDialogSaysWhatIsMissing()
     {
-        PumpingDispatcher dispatcher = new();
+        PumpingUIDispatcher dispatcher = new();
         DialogService dialogs = new(BuildWindows(dispatcher), dispatcher);
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(

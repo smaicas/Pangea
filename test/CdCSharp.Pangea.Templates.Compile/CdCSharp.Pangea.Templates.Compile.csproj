@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!--
+        Compiles the shipped templates against the toolkit in this working tree.
+
+        The templates are the toolkit's worked examples, so they have to keep building as the API
+        moves. There is nothing to run and nothing to assert: a template that no longer compiles
+        fails the build, which is the whole point. The generator, the analyzer and the XAML
+        compiler all run over this code, so a broken [Binding] field or a binding to a property
+        that no longer exists is caught here.
+    -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <EnableDefaultItems>false</EnableDefaultItems>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <!-- A library, so the two Program.Main methods below are ordinary methods. -->
+        <OutputType>Library</OutputType>
+        <!--
+            Resource names are built from the root namespace and the linked path, so the shell
+            template's strings end up under the name its ResourceManager asks for.
+        -->
+        <RootNamespace>PangeaShellApp</RootNamespace>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <TemplateContent>$(MSBuildThisFileDirectory)..\..\templates\content\</TemplateContent>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="$(TemplateContent)**\*.cs"
+                 Exclude="$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**"
+                 Link="%(RecursiveDir)%(Filename)%(Extension)" />
+
+        <AvaloniaXaml Include="$(TemplateContent)**\*.axaml"
+                      Exclude="$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**"
+                      Link="%(RecursiveDir)%(Filename)%(Extension)" />
+
+        <!-- Linked flat under Resources\ so the neutral file and its translation land where
+             PangeaShellApp.Resources.Strings expects them, satellite assembly included. -->
+        <EmbeddedResource Include="$(TemplateContent)PangeaShellApp\Resources\*.resx"
+                          Link="Resources\%(Filename)%(Extension)" />
+
+        <!-- What the shipped .targets does for a consumer of the package. A project reference
+             brings no build assets, so the resource files are named here instead. -->
+        <AdditionalFiles Include="$(TemplateContent)PangeaShellApp\Resources\*.resx" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Localization.CodeAnalysis\CdCSharp.Pangea.Localization.CodeAnalysis.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+        <!-- The startup catalog, so the template's application starts the way a published one does -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.CodeGeneration\CdCSharp.Pangea.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+    </ItemGroup>
+</Project>

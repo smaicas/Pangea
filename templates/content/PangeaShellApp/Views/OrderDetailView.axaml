@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PangeaShellApp.ViewModels"
+             x:Class="PangeaShellApp.Views.OrderDetailView"
+             x:DataType="vm:OrderDetailViewModel">
+
+    <StackPanel Margin="24" Spacing="12">
+
+        <TextBlock Text="{Binding Strings[Order_Title]}" FontSize="22" FontWeight="SemiBold" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="{Binding Strings[Order_Reference]}" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Reference}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="{Binding Strings[Order_Customer]}" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Customer}" />
+        </StackPanel>
+
+    </StackPanel>
+</UserControl>

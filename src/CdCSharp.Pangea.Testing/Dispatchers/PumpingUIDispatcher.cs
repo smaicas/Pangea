@@ -1,7 +1,7 @@
 using CdCSharp.Pangea.Core.Abstractions;
 using System.Collections.Concurrent;
 
-namespace CdCSharp.Pangea.Tests.Infrastructure;
+namespace CdCSharp.Pangea.Testing.Dispatchers;
 
 /// <summary>
 /// A dispatcher owned by the thread that constructs it, which runs queued work only when told to.
@@ -9,10 +9,14 @@ namespace CdCSharp.Pangea.Tests.Infrastructure;
 /// <remarks>
 /// Standing in for Avalonia's dispatcher is what makes "this call waited for the UI thread"
 /// observable at all. Avalonia's own headless dispatcher has thread affinity on Windows and none on
-/// Linux, so a test built on it asserts the platform rather than the window manager - and passes on
-/// one and fails on the other.
+/// Linux, so a test built on it asserts the platform rather than the code under test - and passes
+/// on one and fails on the other.
+/// <para>
+/// Call <see cref="Drain"/> from the owning thread to run what was posted. Reach for
+/// <see cref="InlineUIDispatcher"/> instead when the marshalling is not the point.
+/// </para>
 /// </remarks>
-internal sealed class PumpingDispatcher : IUIDispatcher
+public sealed class PumpingUIDispatcher : IUIDispatcher
 {
     private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
     private readonly ConcurrentQueue<Action> _queued = new();
@@ -133,7 +137,7 @@ internal sealed class PumpingDispatcher : IUIDispatcher
         }
     }
 
-    /// <summary>Keeps running queued work until <paramref name="work"/> finishes.</summary>
+    /// <summary>Keeps running queued work until <paramref name="work"/> reports it is finished.</summary>
     public void DrainUntil(Func<bool> work)
     {
         while (!work())

@@ -50,7 +50,8 @@ public class AgentGuideCompilesTests
         CSharpCompilation compilation = CSharpCompilation.Create(
             "AgentGuideSamples",
             samples.Select(sample =>
-                    CSharpSyntaxTree.ParseText(sample.Code, path: $"line {sample.Line}", cancellationToken: cancellation))
+                    CSharpSyntaxTree.ParseText(
+                        sample.Code, path: $"{sample.File} line {sample.Line}", cancellationToken: cancellation))
                 .Prepend(CSharpSyntaxTree.ParseText(Prelude, cancellationToken: cancellation)),
             References(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -83,14 +84,30 @@ public class AgentGuideCompilesTests
         Assert.DoesNotContain("<Copy ", project);
     }
 
-    private static IReadOnlyList<Sample> ReadSamples()
+    /// <summary>
+    /// Every sample in the skill, including the reference files it sends an agent to.
+    /// </summary>
+    /// <remarks>
+    /// A reference is read exactly when an agent is about to write that kind of code, so a sample
+    /// that has drifted there does more damage than one in the entry point, not less.
+    /// </remarks>
+    private static IReadOnlyList<Sample> ReadSamples() =>
+        Directory
+            .EnumerateFiles(DocsPaths.SkillDirectory, "*.md", SearchOption.AllDirectories)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .SelectMany(SamplesIn)
+            .ToList();
+
+    private static IEnumerable<Sample> SamplesIn(string path)
     {
-        string markdown = File.ReadAllText(DocsPaths.AgentGuide);
+        string markdown = File.ReadAllText(path);
+        string name = Path.GetFileName(path);
 
         return CSharpFence.Matches(markdown)
             .Select(match => new Sample(
                 Code: match.Groups["code"].Value,
-                Line: markdown.Take(match.Index).Count(character => character == '\n') + 1))
+                Line: markdown.Take(match.Index).Count(character => character == '\n') + 1,
+                File: name))
             .ToList();
     }
 
@@ -123,7 +140,8 @@ public class AgentGuideCompilesTests
                  {
                      typeof(PangeaApplication), typeof(ViewModelBase), typeof(PangeaPalette),
                      typeof(IStorageService), typeof(Avalonia.Application), typeof(Avalonia.Media.Color),
-                     typeof(CdCSharp.Pangea.Navigation.Abstractions.INavigationService)
+                     typeof(CdCSharp.Pangea.Navigation.Abstractions.INavigationService),
+                     typeof(CdCSharp.Pangea.Testing.PangeaTestServices)
                  })
         {
             string location = anchor.Assembly.Location;
@@ -138,5 +156,5 @@ public class AgentGuideCompilesTests
         return references;
     }
 
-    private sealed record Sample(string Code, int Line);
+    private sealed record Sample(string Code, int Line, string File);
 }

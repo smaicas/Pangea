@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Testing</PackageId>
+        <Description>Test doubles for CdCSharp.Pangea - drive view models, commands and navigation without an Avalonia application</Description>
+        <PackageTags>$(PackageTags);testing;test-doubles;unit-testing</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CdCSharp.Pangea\CdCSharp.Pangea.csproj" PrivateAssets="none" />
+    </ItemGroup>
+</Project>
