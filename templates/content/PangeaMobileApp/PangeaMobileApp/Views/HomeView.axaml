@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PangeaMobileApp.ViewModels"
+             x:Class="PangeaMobileApp.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <!-- The content region scrolls and the shell fills. A phone is narrow and its keyboard takes
+         half the screen: a layout that assumes otherwise fails on the first device. -->
+    <ScrollViewer>
+        <StackPanel Margin="20,20,20,24" Spacing="18">
+
+            <TextBlock Text="Hello" Classes="title" />
+
+            <TextBlock Text="This screen is a view model, a view, and nothing else registered by hand."
+                       Classes="subtitle" />
+
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBox Height="52"
+                             VerticalContentAlignment="Center"
+                             CornerRadius="14"
+                             Text="{Binding Name}"
+                             PlaceholderText="Your name" />
+
+                    <Button Classes="primary"
+                            Command="{Binding GreetCommand}"
+                            Content="Say hello" />
+
+                    <TextBlock Text="{Binding Greeting}" Classes="subtitle" />
+                </StackPanel>
+            </Border>
+
+            <Button Classes="primary" Command="{Binding AboutCommand}" Content="About" />
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

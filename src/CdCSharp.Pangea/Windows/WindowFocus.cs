@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 
@@ -39,8 +40,53 @@ internal static class WindowFocus
         }
     }
 
-    private static InputElement? FirstFocusable(Window window) =>
-        window.GetVisualDescendants()
+    /// <summary>
+    /// The same rule for a control that is not a window: what a single-view application layers over
+    /// its main view instead of opening a window for it.
+    /// </summary>
+    /// <remarks>
+    /// On <see cref="Visual.AttachedToVisualTree"/> for the reason the window overload waits for
+    /// <c>Opened</c>: a control cannot take focus before it is in a tree that is on screen. An
+    /// overlay that is already attached raises nothing, so that case is handled rather than waited
+    /// for. Focus already inside <paramref name="root"/> is left alone - the overlay placed it
+    /// itself, and it knows better than a general rule does.
+    /// </remarks>
+    internal static void PlaceInitialFocus(Control root, Func<InputElement?>? preferred = null)
+    {
+        if (root.IsAttachedToVisualTree())
+        {
+            Place();
+            return;
+        }
+
+        root.AttachedToVisualTree += OnAttached;
+
+        void OnAttached(object? sender, VisualTreeAttachmentEventArgs e)
+        {
+            root.AttachedToVisualTree -= OnAttached;
+            Place();
+        }
+
+        void Place()
+        {
+            if (TopLevel.GetTopLevel(root)?.FocusManager?.GetFocusedElement() is Visual focused &&
+                IsWithin(focused, root))
+            {
+                return;
+            }
+
+            InputElement? target = preferred?.Invoke() ?? FirstFocusable(root);
+
+            target?.Focus();
+        }
+    }
+
+    private static bool IsWithin(Visual candidate, Visual root) =>
+        ReferenceEquals(candidate, root) ||
+        candidate.GetVisualAncestors().Any(ancestor => ReferenceEquals(ancestor, root));
+
+    private static InputElement? FirstFocusable(Visual root) =>
+        root.GetVisualDescendants()
             .OfType<InputElement>()
             .FirstOrDefault(candidate =>
                 candidate.Focusable && candidate.IsEffectivelyEnabled && candidate.IsEffectivelyVisible);

@@ -191,3 +191,30 @@ jobs:
             exit 1
           fi
           echo "✅ The localization analyzer checks resource keys in a generated project"
+
+  # The platform heads of the mobile templates, which nothing else compiles. They are written
+  # against the Android and iOS SDKs, so they cannot be part of the solution the job above builds:
+  # the ubuntu image carries neither workload, and iOS needs a Mac for its native toolchain.
+  #
+  # Small and worth it. A head is four files of activity plumbing and a Keychain call, and the last
+  # time one of those APIs changed shape the only thing that noticed was an application built from
+  # the template weeks later.
+  mobile-heads:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install the mobile workloads
+        run: dotnet workload install android ios
+
+      # Not in the solution, so it is named outright. The heads compile against the toolkit in this
+      # working tree, which is the point: an API this repository changes has to keep them building.
+      - name: Compile the template heads
+        run: dotnet build test/CdCSharp.Pangea.Templates.Compile.Mobile -c ${{ env.CONFIGURATION }}

@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!--
+        Compiles the shipped templates' platform heads against the toolkit in this working tree.
+
+        Deliberately not in the solution, and deliberately a separate project from
+        CdCSharp.Pangea.Templates.Compile. A head is written against the Android or iOS SDK, which
+        arrives with a workload that not every machine has and that the CI image does not carry:
+        putting these target frameworks in the solution would fail the build for everyone who has
+        not installed them, in order to check four files each.
+
+        So it is opt-in, and it is the only thing that reads that code at all:
+
+            dotnet build test/CdCSharp.Pangea.Templates.Compile.Mobile
+
+        Without it a head is only ever checked by someone generating a project and building it. That
+        is how a Keychain call that no longer exists in .NET iOS 26 sat in the template unnoticed.
+    -->
+    <PropertyGroup>
+        <TargetFrameworks>net10.0-android;net10.0-ios</TargetFrameworks>
+        <!--
+            The same minimums the heads declare. They are what the platform analyzer checks calls
+            against, so a check that guessed them would report failures the real project does not
+            have - and miss the ones it does. A test keeps these two numbers and the templates' in
+            step.
+        -->
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24</SupportedOSPlatformVersion>
+
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <EnableDefaultItems>false</EnableDefaultItems>
+
+        <!--
+            A library, not an application. The heads declare a launcher activity and an application
+            class each, and two of those in one assembly is a packaging conflict rather than a
+            compilation one - a library compiles the code and skips the manifest merge and the
+            bundle, which is all this project is for.
+        -->
+        <OutputType>Library</OutputType>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <TemplateContent>$(MSBuildThisFileDirectory)..\..\templates\content\</TemplateContent>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="$(TemplateContent)**\*.Android\**\*.cs"
+                 Exclude="$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**"
+                 Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'"
+                 Link="%(RecursiveDir)%(Filename)%(Extension)" />
+
+        <Compile Include="$(TemplateContent)**\*.iOS\**\*.cs"
+                 Exclude="$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**"
+                 Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'"
+                 Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.1.1" />
+        <PackageReference Include="Avalonia.Android" Version="12.1.1"
+                          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
+        <PackageReference Include="Avalonia.iOS" Version="12.1.1"
+                          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- The shared libraries the heads start, already compiled from the same template sources. -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Templates.Compile\CdCSharp.Pangea.Templates.Compile.csproj" />
+    </ItemGroup>
+</Project>

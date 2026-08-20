@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PangeaSupabaseApp.ViewModels"
+             xmlns:data="using:PangeaSupabaseApp.Data"
+             x:Class="PangeaSupabaseApp.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <StackPanel Grid.Row="0" Margin="20,16,20,8" Spacing="4">
+            <TextBlock Text="Notes" Classes="title" />
+
+            <!-- Said quietly. Writes waiting for a network are normal on a phone, not a fault. -->
+            <TextBlock Text="{Binding Pending, StringFormat='{}{0} waiting to sync'}"
+                       Classes="subtitle"
+                       FontSize="13"
+                       IsVisible="{Binding HasPending}" />
+        </StackPanel>
+
+        <!-- Pull to refresh: the list may have been changed on another device, and there is no
+             other way to ask. -->
+        <RefreshContainer Grid.Row="1" PullDirection="TopToBottom" RefreshRequested="OnRefreshRequested">
+            <ScrollViewer>
+                <StackPanel Margin="20,4,20,8">
+
+                    <ItemsControl ItemsSource="{Binding Notes}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="data:Note">
+                                <Border Classes="card" Padding="16,14,16,14" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Title}"
+                                                   FontSize="15"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+
+                                        <Button Grid.Column="1"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                MinHeight="44"
+                                                Content="&#x2715;"
+                                                Command="{Binding $parent[ItemsControl].((vm:HomeViewModel)DataContext).DeleteCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Spacing="10" Margin="0,48,0,0" IsVisible="{Binding IsEmpty}">
+                        <TextBlock Text="&#x1F4DD;" FontSize="44" Opacity="0.28" HorizontalAlignment="Center" />
+                        <TextBlock Text="Nothing here yet." Classes="subtitle" TextAlignment="Center" />
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </RefreshContainer>
+
+        <Border Grid.Row="2" Classes="card" Margin="20,8,20,20">
+            <StackPanel Spacing="12">
+                <TextBox Height="52"
+                         VerticalContentAlignment="Center"
+                         CornerRadius="14"
+                         Text="{Binding NewTitle}"
+                         PlaceholderText="A new note" />
+
+                <Button Classes="primary"
+                        IsEnabled="{Binding !IsBusy}"
+                        Command="{Binding AddCommand}"
+                        Content="Add" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

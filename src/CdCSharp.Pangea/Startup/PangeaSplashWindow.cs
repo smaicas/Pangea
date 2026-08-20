@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media;
 using CdCSharp.Pangea.Core.Abstractions;
 using System.Reflection;
 
@@ -14,11 +13,14 @@ namespace CdCSharp.Pangea.Startup;
 /// it takes the application's theme without the package shipping a dictionary of its own. It is
 /// deliberately plain: an application that wants a logo points
 /// <see cref="Core.Configuration.PangeaStartupOptions.SplashWindowType"/> at its own window.
+/// <para>
+/// The visual itself lives in <see cref="SplashPanel"/>, which a single-view application layers
+/// over its shell instead - there being no window to put it in on Android or iOS.
+/// </para>
 /// </remarks>
 internal sealed class PangeaSplashWindow : Window, IPangeaSplashView
 {
-    private readonly TextBlock _status;
-    private readonly ProgressBar _progress;
+    private readonly SplashPanel _panel;
 
     public PangeaSplashWindow(string? title)
     {
@@ -35,41 +37,12 @@ internal sealed class PangeaSplashWindow : Window, IPangeaSplashView
         // button on it would offer to cancel work that has no cancellation to offer.
         WindowDecorations = WindowDecorations.BorderOnly;
 
-        _status = new TextBlock
-        {
-            Text = string.Empty,
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.75
-        };
+        _panel = new SplashPanel(Title);
 
-        _progress = new ProgressBar
-        {
-            IsIndeterminate = true,
-            Height = 4,
-            Margin = new Avalonia.Thickness(0, 16, 0, 12)
-        };
-
-        StackPanel content = new()
-        {
-            Margin = new Avalonia.Thickness(28, 24, 28, 24),
-            Children =
-            {
-                new TextBlock
-                {
-                    Text = Title,
-                    FontSize = 18,
-                    FontWeight = FontWeight.SemiBold,
-                    TextWrapping = TextWrapping.Wrap
-                },
-                _progress,
-                _status
-            }
-        };
-
-        Content = content;
+        Content = _panel;
     }
 
-    public void ReportStatus(string status) => _status.Text = status;
+    public void ReportStatus(string status) => _panel.ReportStatus(status);
 
     /// <summary>
     /// Turns the splash into the failure report. Nothing else is on screen at this point, so the
@@ -77,30 +50,25 @@ internal sealed class PangeaSplashWindow : Window, IPangeaSplashView
     /// </summary>
     public void ReportFailure(string message)
     {
-        _progress.IsIndeterminate = false;
-        _progress.IsVisible = false;
-        _status.Opacity = 1;
-        _status.Text = message;
+        _panel.ReportFailure(message);
 
         // Given up on, so it is now an ordinary window: it can be closed, and closing it ends a
         // desktop application that has nothing else open.
         WindowDecorations = WindowDecorations.Full;
         CanResize = true;
 
-        if (Content is StackPanel panel && !panel.Children.OfType<Button>().Any())
+        Button close = new()
         {
-            Button close = new()
-            {
-                Content = "Close",
-                MinWidth = 88,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Avalonia.Thickness(0, 20, 0, 0),
-                IsDefault = true,
-                IsCancel = true
-            };
+            Content = "Close",
+            MinWidth = 88,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Avalonia.Thickness(0, 20, 0, 0),
+            IsDefault = true,
+            IsCancel = true
+        };
 
-            close.Click += (_, _) => Close();
-            panel.Children.Add(close);
-        }
+        close.Click += (_, _) => Close();
+
+        _panel.AddDismissButton(close);
     }
 }

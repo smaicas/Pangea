@@ -1,0 +1,12 @@
+<Project>
+    <PropertyGroup>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>13.0</LangVersion>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+        <!-- One version for every head, so a package bump cannot leave one platform behind. -->
+        <AvaloniaVersion>AVALONIA_VERSION</AvaloniaVersion>
+        <PangeaVersion>PANGEA_VERSION</PangeaVersion>
+    </PropertyGroup>
+</Project>

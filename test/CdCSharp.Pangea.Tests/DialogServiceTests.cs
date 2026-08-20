@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
 using CdCSharp.Pangea.Dialogs;
+using CdCSharp.Pangea.Shell;
 using CdCSharp.Pangea.Testing.Dispatchers;
 using CdCSharp.Pangea.Tests.Infrastructure;
 using CdCSharp.Pangea.Windows;
@@ -44,7 +45,7 @@ public class DialogServiceTests
         windows.SetMainWindow(owner);
         owner.Show();
 
-        return (new DialogService(windows, dispatcher), owner);
+        return (DialogService.For(new DesktopShellPresenter(new StubServices(), windows), dispatcher), owner);
     }
 
     /// <summary>
@@ -337,7 +338,8 @@ public class DialogServiceTests
     public async Task WithoutAMainWindow_TheDialogSaysWhatIsMissing()
     {
         PumpingUIDispatcher dispatcher = new();
-        DialogService dialogs = new(BuildWindows(dispatcher), dispatcher);
+        DialogService dialogs = DialogService.For(
+            new DesktopShellPresenter(new StubServices(), BuildWindows(dispatcher)), dispatcher);
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(
             () => dialogs.ConfirmAsync("Delete", "Delete the order?"));

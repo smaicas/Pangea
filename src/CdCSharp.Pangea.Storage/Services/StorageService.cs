@@ -1,4 +1,4 @@
-﻿using CdCSharp.Pangea.Storage.Abstractions;
+using CdCSharp.Pangea.Storage.Abstractions;
 using System.Text.Json;
 
 namespace CdCSharp.Pangea.Storage.Services;
@@ -106,6 +106,13 @@ public class StorageService : IStorageService
     /// Deliberately softer than <see cref="ReadTextAsync"/>: the JSON overloads exist for state that
     /// may legitimately not have been written yet, such as settings on a first run.
     /// </remarks>
+    /// <summary>
+    /// The stored object, or <see langword="null"/> when the file has never been written.
+    /// </summary>
+    /// <exception cref="StorageSerializationException">
+    /// The file exists and does not hold this type. Distinct from an <see cref="IOException"/>,
+    /// which says the file could not be read at all.
+    /// </exception>
     public async Task<T?> ReadJsonAsync<T>(string filePath) where T : class
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -113,15 +120,53 @@ public class StorageService : IStorageService
         if (!File.Exists(filePath)) return null;
 
         string json = await ReadTextAsync(filePath);
-        return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            throw new StorageSerializationException(
+                $"The contents of '{filePath}' are not a {typeof(T).Name}. The file was read; what is in it " +
+                "does not match the type it was asked for.",
+                filePath, typeof(T), ex);
+        }
     }
 
+    /// <summary>
+    /// Writes <paramref name="data"/> as JSON.
+    /// </summary>
+    /// <remarks>
+    /// Serialized before the file is touched, so a type that cannot be written leaves whatever was
+    /// there intact rather than truncating it.
+    /// </remarks>
+    /// <exception cref="StorageSerializationException">
+    /// <paramref name="data"/> cannot be turned into JSON. This is a defect in the application
+    /// rather than a condition of the machine: it will fail the same way on every run, so catching
+    /// it alongside <see cref="IOException"/> - the "try again later" case - is how an application
+    /// ends up discarding everything it meant to save.
+    /// </exception>
     public Task WriteJsonAsync<T>(string filePath, T data) where T : class
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(data);
 
-        return WriteTextAsync(filePath, JsonSerializer.Serialize(data, _jsonOptions));
+        string json;
+
+        try
+        {
+            json = JsonSerializer.Serialize(data, _jsonOptions);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            throw new StorageSerializationException(
+                $"A {typeof(T).Name} could not be turned into JSON for '{filePath}', so nothing was written. " +
+                "This is the same failure on every run: the type cannot be serialized as it stands.",
+                filePath, typeof(T), ex);
+        }
+
+        return WriteTextAsync(filePath, json);
     }
 
     public bool FileExists(string filePath) => File.Exists(filePath);

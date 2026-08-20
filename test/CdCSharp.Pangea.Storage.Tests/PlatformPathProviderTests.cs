@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Storage;
+﻿using CdCSharp.Pangea.Storage;
 using CdCSharp.Pangea.Storage.Abstractions;
 using CdCSharp.Pangea.Storage.Providers;
 using Microsoft.Extensions.Options;
@@ -14,7 +14,7 @@ public class PlatformPathProviderTests
 {
     private const string AppName = "PathProbeApp";
 
-    public static TheoryData<string> ProviderNames() => ["windows", "linux", "macos", "portable"];
+    public static TheoryData<string> ProviderNames() => ["windows", "linux", "macos", "mobile", "portable"];
 
     private static IPlatformPathProvider Create(string provider, StorageOptions? options = null)
     {
@@ -25,6 +25,7 @@ public class PlatformPathProviderTests
             "windows" => new WindowsPlatformPathProvider(wrapped),
             "linux" => new LinuxPlatformPathProvider(wrapped),
             "macos" => new MacOSPlatformPathProvider(wrapped),
+            "mobile" => new MobilePlatformPathProvider(wrapped),
             "portable" => new PortablePlatformPathProvider(wrapped),
             _ => throw new ArgumentOutOfRangeException(nameof(provider))
         };
@@ -84,6 +85,7 @@ public class PlatformPathProviderTests
     [InlineData("windows")]
     [InlineData("linux")]
     [InlineData("macos")]
+    [InlineData("mobile")]
     public void EveryPathIsScopedToTheApplicationName(string provider)
     {
         foreach (string path in AllPaths(Create(provider)))

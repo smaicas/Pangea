@@ -29,13 +29,24 @@
         <TemplateContent>$(MSBuildThisFileDirectory)..\..\templates\content\</TemplateContent>
     </PropertyGroup>
 
+    <!--
+        The platform heads are left out of both globs below. They compile against the Android and
+        iOS SDKs, which this project has no reference to and no way to acquire without
+        multi-targeting the whole of it; what they hold is a dozen lines of activity plumbing. The
+        shared library every head starts is compiled, which is where the code worth checking lives.
+    -->
+    <PropertyGroup>
+        <TemplateHeads>$(TemplateContent)**\*.Android\**;$(TemplateContent)**\*.iOS\**;$(TemplateContent)**\*.Browser\**</TemplateHeads>
+        <TemplateOutput>$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**</TemplateOutput>
+    </PropertyGroup>
+
     <ItemGroup>
         <Compile Include="$(TemplateContent)**\*.cs"
-                 Exclude="$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**"
+                 Exclude="$(TemplateOutput);$(TemplateHeads)"
                  Link="%(RecursiveDir)%(Filename)%(Extension)" />
 
         <AvaloniaXaml Include="$(TemplateContent)**\*.axaml"
-                      Exclude="$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**"
+                      Exclude="$(TemplateOutput);$(TemplateHeads)"
                       Link="%(RecursiveDir)%(Filename)%(Extension)" />
 
         <!-- Linked flat under Resources\ so the neutral file and its translation land where
@@ -64,6 +75,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
+        <!-- What the Supabase template installs. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Supabase\CdCSharp.Pangea.Supabase.csproj" />
         <!-- What the data template installs. It brings CdCSharp.Pangea.Data with it. -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj"

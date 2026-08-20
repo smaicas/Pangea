@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        AppCompat, and it has to be: Avalonia's activity derives from AppCompatActivity, which
+        refuses to start under anything else - "You need to use a Theme.AppCompat theme (or
+        descendant) with this activity", thrown from OnCreate before a pixel is drawn.
+
+        DayNight so the system bars follow the phone's own light/dark setting. values-night/ carries
+        the dark colours under the same style name.
+    -->
+    <style name="MyTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">#FFFBF9F4</item>
+        <item name="android:navigationBarColor">#FFFBF9F4</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">#FFFBF9F4</item>
+    </style>
+</resources>

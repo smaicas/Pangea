@@ -1,7 +1,7 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Configuration;
-using CdCSharp.Pangea.Windows;
+using CdCSharp.Pangea.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -78,10 +78,17 @@ internal static class StartupSequence
     /// the lifetime a test builds by hand does not collect it. Handing it back is how the built-in
     /// one can be asserted against at all - which matters more than the custom one, because it is
     /// what an application that configures nothing actually shows.
+    /// <para>
+    /// A window on desktop, and null on a platform that has none: what a single-view application
+    /// puts up instead is a control, and the only caller that wants the splash back is a desktop
+    /// test asserting on the window it opened.
+    /// </para>
     /// </remarks>
     internal static (Task Work, Window? Splash) Begin(IServiceProvider serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        IShellPresenter shell = serviceProvider.GetRequiredService<IShellPresenter>();
 
         List<IPangeaAsyncInitializer> initializers = serviceProvider
             .GetServices<IPangeaAsyncInitializer>()
@@ -90,24 +97,24 @@ internal static class StartupSequence
 
         if (initializers.Count == 0)
         {
-            ShowMainWindow(serviceProvider);
+            shell.ShowMain();
             return (Task.CompletedTask, null);
         }
 
         PangeaStartupOptions options = serviceProvider
             .GetRequiredService<IOptions<PangeaOptions>>().Value.Startup;
 
-        Window? splash = CreateSplash(serviceProvider, options);
-        splash?.Show();
+        Control? splash = shell.ShowSplash(options);
 
-        return (InitializeAsync(serviceProvider, options, initializers, splash), splash);
+        return (InitializeAsync(serviceProvider, shell, options, initializers, splash), splash as Window);
     }
 
     private static async Task InitializeAsync(
         IServiceProvider serviceProvider,
+        IShellPresenter shell,
         PangeaStartupOptions options,
         IReadOnlyList<IPangeaAsyncInitializer> initializers,
-        Window? splash)
+        Control? splash)
     {
         ILogger logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(StartupSequence));
         IPangeaSplashView? report = splash as IPangeaSplashView;
@@ -158,11 +165,11 @@ internal static class StartupSequence
             }
         }
 
-        ShowMainWindow(serviceProvider);
+        shell.ShowMain();
 
-        // After the main window: closing the last window of a desktop application ends it, and for
-        // a moment the splash is the last window.
-        splash?.Close();
+        // After the main UI: closing the last window of a desktop application ends it, and for a
+        // moment the splash is the last window.
+        shell.HideSplash(splash);
     }
 
     /// <summary>
@@ -203,33 +210,4 @@ internal static class StartupSequence
         return innermost.Message;
     }
 
-    private static Window? CreateSplash(IServiceProvider serviceProvider, PangeaStartupOptions options)
-    {
-        if (!options.ShowSplash) return null;
-
-        if (options.SplashWindowType is null) return new PangeaSplashWindow(options.SplashTitle);
-
-        if (!typeof(Window).IsAssignableFrom(options.SplashWindowType))
-        {
-            throw new InvalidOperationException(
-                $"'{options.SplashWindowType.FullName}' is configured as the splash window but does not derive from Window.");
-        }
-
-        // Through the container when it knows the type - a splash with a view model is still a
-        // view - and by constructor otherwise.
-        return (Window)(serviceProvider.GetService(options.SplashWindowType)
-                        ?? Activator.CreateInstance(options.SplashWindowType)
-                        ?? throw new InvalidOperationException(
-                            $"The splash window '{options.SplashWindowType.FullName}' could not be created."));
-    }
-
-    private static void ShowMainWindow(IServiceProvider serviceProvider)
-    {
-        IWindowManager? windowManager = serviceProvider.GetService<IWindowManager>();
-
-        if (windowManager is null) return;
-
-        windowManager.Initialize();
-        windowManager.GetMainWindow()?.Show();
-    }
 }

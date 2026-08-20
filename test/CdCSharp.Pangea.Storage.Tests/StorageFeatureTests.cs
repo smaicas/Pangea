@@ -48,6 +48,7 @@ public class StorageFeatureTests
         IPlatformPathProvider provider = services.GetRequiredService<IPlatformPathProvider>();
 
         Type expected =
+            OperatingSystem.IsAndroid() || OperatingSystem.IsIOS() ? typeof(MobilePlatformPathProvider) :
             OperatingSystem.IsWindows() ? typeof(WindowsPlatformPathProvider) :
             OperatingSystem.IsLinux() ? typeof(LinuxPlatformPathProvider) :
             OperatingSystem.IsMacOS() ? typeof(MacOSPlatformPathProvider) :

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "CdCSharp",
+  "classifications": [ "Avalonia", "Mobile", "Android", "iOS", "MVVM", "Pangea" ],
+  "identity": "CdCSharp.Pangea.Mobile",
+  "name": "Pangea Avalonia Mobile App",
+  "shortName": "pangea-mobile",
+  "sourceName": "PangeaMobileApp",
+  "defaultName": "PangeaMobileApp",
+  "preferNameDirectory": true,
+  "description": "An Avalonia application for phones: one shared library and a head per platform. The desktop head is always generated - it is how a change is seen without waiting for an emulator - and Android and iOS are chosen.",
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "symbols": {
+    "PangeaVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "1.0.0",
+      "replaces": "PANGEA_VERSION",
+      "description": "Version of the Pangea packages to reference."
+    },
+    "AvaloniaVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "12.1.1",
+      "replaces": "AVALONIA_VERSION",
+      "description": "Version of the Avalonia packages to reference."
+    },
+    "Android": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Generate the Android head."
+    },
+    "iOS": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Generate the iOS head."
+    },
+    "ApplicationId": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "com.example.app",
+      "replaces": "APPLICATION_ID",
+      "description": "The bundle identifier for the mobile heads."
+    },
+    "IncludeSkill": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Copy the Pangea agent skill into the project so AI coding agents can read it."
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        { "condition": "(!Android)", "exclude": [ "PangeaMobileApp.Android/**" ] },
+        { "condition": "(!iOS)", "exclude": [ "PangeaMobileApp.iOS/**" ] },
+        { "condition": "(!IncludeSkill)", "exclude": [ ".claude/**" ] }
+      ]
+    }
+  ],
+  "primaryOutputs": [ { "path": "PangeaMobileApp/PangeaMobileApp.csproj" } ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

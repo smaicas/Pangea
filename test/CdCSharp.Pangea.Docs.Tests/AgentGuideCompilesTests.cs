@@ -1,4 +1,4 @@
-﻿using CdCSharp.Pangea;
+using CdCSharp.Pangea;
 using CdCSharp.Pangea.Binding.CodeGeneration;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Storage.Abstractions;
@@ -33,8 +33,18 @@ public class AgentGuideCompilesTests
         public class Telemetry : ITelemetry;
         """;
 
-    private static readonly Regex CSharpFence =
-        new(@"^```csharp\r?$(?<code>.*?)^```\r?$", RegexOptions.Multiline | RegexOptions.Singleline);
+    /// <summary>
+    /// A C# block, and the marker that says this one cannot be compiled here.
+    /// </summary>
+    /// <remarks>
+    /// A mobile head is written against the Android or iOS SDK, which this project has no reference
+    /// to and no way to acquire without multi-targeting the whole of it. The alternative to a marker
+    /// is fencing those blocks as something other than C#, which loses the highlighting exactly
+    /// where an agent is copying code it has no way to check by building.
+    /// </remarks>
+    private static readonly Regex CSharpFence = new(
+        @"(?<skip><!--[ \t]*not-compiled:[^>]*-->[ \t]*\r?\n)?^```csharp\r?$(?<code>.*?)^```\r?$",
+        RegexOptions.Multiline | RegexOptions.Singleline);
 
     [Fact]
     public void EverySampleInTheGuideCompiles()
@@ -104,6 +114,7 @@ public class AgentGuideCompilesTests
         string name = Path.GetFileName(path);
 
         return CSharpFence.Matches(markdown)
+            .Where(match => !match.Groups["skip"].Success)
             .Select(match => new Sample(
                 Code: match.Groups["code"].Value,
                 Line: markdown.Take(match.Index).Count(character => character == '\n') + 1,
@@ -146,7 +157,9 @@ public class AgentGuideCompilesTests
                      typeof(CdCSharp.Pangea.Data.Sqlite.SqliteDbProvider),
                      typeof(CdCSharp.Pangea.Data.Testing.PangeaTestDatabase<>),
                      typeof(Microsoft.EntityFrameworkCore.DbContext),
-                     typeof(Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<>)
+                     typeof(Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<>),
+                     typeof(CdCSharp.Pangea.Supabase.SupabaseFeature),
+                     typeof(CdCSharp.Pangea.Supabase.Abstractions.IOutbox)
                  })
         {
             string location = anchor.Assembly.Location;

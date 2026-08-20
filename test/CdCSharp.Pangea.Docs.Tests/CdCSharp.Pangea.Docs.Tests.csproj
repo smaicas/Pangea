@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -24,6 +24,8 @@
         <ProjectReference Include="..\..\src\CdCSharp.Pangea\CdCSharp.Pangea.csproj" />
         <!-- The guide's testing samples are compiled against the doubles they use -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
+        <!-- The Supabase reference's samples are compiled against the feature they describe -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Supabase\CdCSharp.Pangea.Supabase.csproj" />
         <!-- The database reference's samples are compiled against the engine they use -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Testing\CdCSharp.Pangea.Data.Testing.csproj" />

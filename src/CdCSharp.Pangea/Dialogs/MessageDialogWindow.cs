@@ -1,7 +1,5 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Layout;
-using Avalonia.Media;
 
 namespace CdCSharp.Pangea.Dialogs;
 
@@ -12,9 +10,15 @@ namespace CdCSharp.Pangea.Dialogs;
 /// Built from plain controls so it takes the application's theme like anything else on screen: the
 /// resources it uses are looked up dynamically, so an application that restyles the toolkit
 /// restyles this too, without the package shipping a dictionary of its own.
+/// <para>
+/// The contents live in <see cref="MessageDialogPanel"/>, which <see cref="MessageDialogView"/>
+/// layers over the shell on a platform where there is no window to open.
+/// </para>
 /// </remarks>
 internal sealed class MessageDialogWindow : Window
 {
+    private readonly MessageDialogPanel _panel;
+
     private MessageDialogWindow(string title, string text, string confirmText, string? cancelText)
     {
         Title = title;
@@ -31,68 +35,13 @@ internal sealed class MessageDialogWindow : Window
         CanMinimize = false;
         ShowInTaskbar = false;
 
-        ConfirmButton = new Button
-        {
-            Content = confirmText,
-            MinWidth = 88,
-            IsDefault = true
-        };
-
-        ConfirmButton.Click += (_, _) => Close(true);
-
-        StackPanel buttons = new()
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8
-        };
-
-        if (cancelText is not null)
-        {
-            CancelButton = new Button
-            {
-                Content = cancelText,
-                MinWidth = 88,
-                IsCancel = true
-            };
-
-            CancelButton.Click += (_, _) => Close(false);
-            buttons.Children.Add(CancelButton);
-        }
-
-        buttons.Children.Add(ConfirmButton);
-
-        // The buttons are docked first so they keep their place whatever the message does; the
-        // message fills what is left and scrolls inside it. Sized to content but capped: a long
-        // message used to grow the window past the screen, and with no scroll and no resize the
-        // buttons ended up somewhere unreachable - a dialog nobody could answer.
+        // Sized to content but capped: a long message used to grow the window past the screen, and
+        // with no scroll and no resize the buttons ended up somewhere unreachable.
         MaxHeight = 520;
 
-        buttons.Margin = new Avalonia.Thickness(0, 20, 0, 0);
+        _panel = new MessageDialogPanel(text, confirmText, cancelText, answer => Close(answer));
 
-        ScrollViewer message = new()
-        {
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = new TextBlock
-            {
-                Text = text,
-                TextWrapping = TextWrapping.Wrap
-            }
-        };
-
-        DockPanel content = new()
-        {
-            Margin = new Avalonia.Thickness(24),
-            MaxWidth = 480
-        };
-
-        DockPanel.SetDock(buttons, Dock.Bottom);
-        content.Children.Add(buttons);
-        content.Children.Add(message);
-
-        MessageScroller = message;
-        Content = content;
+        Content = _panel;
 
         // Enter and Escape are routed by IsDefault and IsCancel whatever holds focus, but Space acts
         // on the focused control and Tab needs somewhere to start. The default button is named
@@ -110,11 +59,11 @@ internal sealed class MessageDialogWindow : Window
     internal static event Action<MessageDialogWindow>? Created;
 
     /// <summary>Where the message lives, so a test can prove it is the part that scrolls.</summary>
-    internal ScrollViewer MessageScroller { get; }
+    internal ScrollViewer MessageScroller => _panel.MessageScroller;
 
-    internal Button ConfirmButton { get; }
+    internal Button ConfirmButton => _panel.ConfirmButton;
 
-    internal Button? CancelButton { get; }
+    internal Button? CancelButton => _panel.CancelButton;
 
     /// <summary>Closing by the window chrome is the same answer as cancelling.</summary>
     internal static MessageDialogWindow Question(string title, string message, string confirmText, string cancelText) =>

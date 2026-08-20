@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "CdCSharp",
+  "classifications": [ "Avalonia", "Mobile", "Android", "iOS", "MVVM", "Pangea", "Supabase", "Cloud" ],
+  "identity": "CdCSharp.Pangea.Mobile.Supabase",
+  "name": "Pangea Avalonia Mobile App with Supabase",
+  "shortName": "pangea-mobile-supabase",
+  "sourceName": "PangeaSupabaseApp",
+  "defaultName": "PangeaSupabaseApp",
+  "preferNameDirectory": true,
+  "description": "An Avalonia application for phones with a shared Postgres backend: anonymous sign-in, row level security, a local cache the screens draw from, and an outbox for the writes made offline. Includes the SQL to paste into a new Supabase project.",
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "symbols": {
+    "PangeaVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "1.0.0",
+      "replaces": "PANGEA_VERSION",
+      "description": "Version of the Pangea packages to reference."
+    },
+    "AvaloniaVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "12.1.1",
+      "replaces": "AVALONIA_VERSION",
+      "description": "Version of the Avalonia packages to reference."
+    },
+    "Android": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Generate the Android head."
+    },
+    "iOS": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Generate the iOS head."
+    },
+    "ApplicationId": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "com.example.app",
+      "replaces": "APPLICATION_ID",
+      "description": "The bundle identifier for the mobile heads."
+    },
+    "SupabaseUrl": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "https://YOUR-PROJECT.supabase.co",
+      "replaces": "SUPABASE_URL",
+      "description": "The Supabase project URL. The base URL, not the REST endpoint."
+    },
+    "SupabaseKey": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "YOUR-ANON-KEY",
+      "replaces": "SUPABASE_ANON_KEY",
+      "description": "The project's anon or publishable key. Public by design; never the service_role key."
+    },
+    "IncludeSkill": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Copy the Pangea agent skill into the project so AI coding agents can read it."
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        { "condition": "(!Android)", "exclude": [ "PangeaSupabaseApp.Android/**" ] },
+        { "condition": "(!iOS)", "exclude": [ "PangeaSupabaseApp.iOS/**" ] },
+        { "condition": "(!IncludeSkill)", "exclude": [ ".claude/**" ] }
+      ]
+    }
+  ],
+  "primaryOutputs": [ { "path": "PangeaSupabaseApp/PangeaSupabaseApp.csproj" } ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

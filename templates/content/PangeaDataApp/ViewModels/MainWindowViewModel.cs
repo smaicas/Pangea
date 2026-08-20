@@ -41,7 +41,6 @@ public partial class MainWindowViewModel : ViewModelBase
     [Binding] private Note? _selectedNote;
     [Binding] private string _status = "";
     [Binding] private string _databaseSummary = "";
-    [Binding] private bool _isBusy;
 
     public MainWindowViewModel(IServiceProvider serviceProvider) : base(serviceProvider)
     {
@@ -55,7 +54,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasNotes => Notes.Count > 0;
 
-    /// <summary>Reads NewTitle and IsBusy, so the generator raises CanExecuteChanged from both.</summary>
+    /// <summary>
+    /// Reads NewTitle, so the generator raises CanExecuteChanged from its setter, and IsBusy, which
+    /// ViewModelBase raises for every command when the first one starts and the last one ends.
+    /// </summary>
     public bool CanAddNote => !string.IsNullOrWhiteSpace(NewTitle) && !HasErrors && !IsBusy;
 
     public bool CanDeleteNote => SelectedNote is not null && !IsBusy;
@@ -155,10 +157,8 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </remarks>
     private async Task RunAsync(Func<string?> status, Func<Task> work)
     {
-        if (IsBusy) return;
-
-        IsBusy = true;
-
+        // No busy flag of its own: ViewModelBase.IsBusy is true while any command it created is
+        // running, and a command already refuses to run twice at once.
         try
         {
             await work();
@@ -170,10 +170,6 @@ public partial class MainWindowViewModel : ViewModelBase
             // Shown rather than thrown: a failed query is something the user can retry, and the
             // window is more useful than a crash dialog.
             Status = ex.Message;
-        }
-        finally
-        {
-            IsBusy = false;
         }
     }
 

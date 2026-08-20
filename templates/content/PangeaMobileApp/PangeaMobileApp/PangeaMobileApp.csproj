@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+    </PropertyGroup>
+
+    <!--
+        Everything the application is lives here, and every head is an entry point over it. The
+        library has no windowing platform of its own: Avalonia.Desktop belongs to the desktop head,
+        Avalonia.Android to the Android one, and so on.
+    -->
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
+        <PackageReference Include="CdCSharp.Pangea" Version="$(PangeaVersion)" />
+    </ItemGroup>
+</Project>

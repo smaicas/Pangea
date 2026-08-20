@@ -119,8 +119,14 @@ public sealed class StorageEdgeCaseTests : IDisposable
         string path = _storage.GetDataFilePath("bad.json");
         await _storage.WriteTextAsync(path, "{ this is not json");
 
-        await Assert.ThrowsAsync<System.Text.Json.JsonException>(
+        // Its own type, not the IOException family: the file was read perfectly well, and what is
+        // wrong with it will be just as wrong on the next attempt.
+        StorageSerializationException failure = await Assert.ThrowsAsync<StorageSerializationException>(
             () => _storage.ReadJsonAsync<Sample>(path));
+
+        Assert.Equal(path, failure.FilePath);
+        Assert.Equal(typeof(Sample), failure.DataType);
+        Assert.IsAssignableFrom<System.Text.Json.JsonException>(failure.InnerException);
 
         Assert.Null(await _storage.ReadJsonAsync<Sample>(_storage.GetDataFilePath("absent.json")));
     }

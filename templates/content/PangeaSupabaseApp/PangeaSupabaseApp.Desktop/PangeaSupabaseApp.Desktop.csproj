@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>PangeaSupabaseApp.Desktop</RootNamespace>
+    </PropertyGroup>
+
+    <!--
+        Not a shipping target. This is a phone application, and the head exists so a change can be
+        seen without an emulator between the edit and the window.
+    -->
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\PangeaSupabaseApp\PangeaSupabaseApp.csproj" />
+    </ItemGroup>
+</Project>

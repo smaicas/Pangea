@@ -96,19 +96,55 @@ public class LocalizationService : ILocalizationService
         CultureInfo.CurrentUICulture = culture;
     }
 
+    /// <summary>
+    /// The culture to start in: what the device asks for, when the application offers it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Matched on the language when the exact name is not offered. A phone reports its locale in
+    /// whatever form it likes - Android commonly gives a bare "en" or "es", iOS gives "en-GB" for a
+    /// British device - and an application offering "en-US" wants all of them. Comparing the full
+    /// name only meant auto-detection silently never fired on a device, leaving every user on the
+    /// default language however their phone was set.
+    /// </para>
+    /// <para>
+    /// The region still comes from what the application offers, because that is the resource file
+    /// it actually has. A British device gets en-US strings, which is the right trade against no
+    /// English at all.
+    /// </para>
+    /// </remarks>
     private CultureInfo ResolveInitialCulture()
     {
-        if (_options.AutoDetectCulture)
-        {
-            string systemCulture = CultureInfo.CurrentUICulture.Name;
+        if (_options.AutoDetectCulture && Match(CultureInfo.CurrentUICulture) is { } detected) return detected;
 
-            if (_options.SupportedCultures.Contains(systemCulture, StringComparer.OrdinalIgnoreCase))
+        return CultureInfo.GetCultureInfo(_options.DefaultCulture);
+    }
+
+    /// <summary>The supported culture closest to <paramref name="wanted"/>, or null.</summary>
+    private CultureInfo? Match(CultureInfo wanted)
+    {
+        foreach (string supported in _options.SupportedCultures)
+        {
+            if (string.Equals(supported, wanted.Name, StringComparison.OrdinalIgnoreCase))
             {
-                return CultureInfo.GetCultureInfo(systemCulture);
+                return CultureInfo.GetCultureInfo(supported);
             }
         }
 
-        return CultureInfo.GetCultureInfo(_options.DefaultCulture);
+        string language = wanted.TwoLetterISOLanguageName;
+
+        foreach (string supported in _options.SupportedCultures)
+        {
+            if (string.Equals(
+                    CultureInfo.GetCultureInfo(supported).TwoLetterISOLanguageName,
+                    language,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return CultureInfo.GetCultureInfo(supported);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

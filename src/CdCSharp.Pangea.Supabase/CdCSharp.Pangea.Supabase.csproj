@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Supabase</PackageId>
+        <Description>Supabase feature for CdCSharp.Pangea - a shared Postgres backend for an Avalonia application: one client built from options, a session that survives a restart, anonymous sign-in, and an outbox for the writes made while offline.</Description>
+        <PackageTags>$(PackageTags);supabase;postgres;backend;auth;realtime;sync</PackageTags>
+    </PropertyGroup>
+
+    <!--
+        The Supabase client maps rows onto models with Newtonsoft.Json and reflection, and says
+        nothing about trimming either way. Declaring it unsafe is the honest answer: an application
+        that publishes trimmed is warned here rather than losing a column at runtime, where a
+        missing property looks like a backend problem.
+    -->
+    <PropertyGroup>
+        <IsTrimmable>false</IsTrimmable>
+        <IsAotCompatible>false</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="CdCSharp.Pangea.Supabase.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Supabase" Version="1.6.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CdCSharp.Pangea.Core\CdCSharp.Pangea.Core.csproj" PrivateAssets="none" />
+        <!-- Where the session and the outbox are written is the storage feature's question, already
+             answered per platform and already aware of portable mode. -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Storage\CdCSharp.Pangea.Storage.csproj" PrivateAssets="none" />
+        <ProjectReference Include="..\CdCSharp.Pangea.CodeGeneration\CdCSharp.Pangea.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+    </ItemGroup>
+</Project>

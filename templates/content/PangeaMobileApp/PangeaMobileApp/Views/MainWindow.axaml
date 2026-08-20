@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PangeaMobileApp.ViewModels"
+        xmlns:views="using:PangeaMobileApp.Views"
+        x:Class="PangeaMobileApp.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="PangeaMobileApp"
+        Width="400" Height="820"
+        Background="{DynamicResource ThemeBackgroundBrush}"
+        WindowStartupLocation="CenterScreen">
+
+    <!--
+        Phone-shaped on purpose. This head exists to see the real screens without an emulator, and a
+        window the width of a monitor would let a layout pass here that fails on the device.
+    -->
+    <views:MainView />
+</Window>

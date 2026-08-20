@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PangeaSupabaseApp.ViewModels"
+             xmlns:nav="using:CdCSharp.Pangea.Navigation"
+             x:Class="PangeaSupabaseApp.Views.MainView"
+             x:DataType="vm:MainViewModel"
+             Background="{DynamicResource ThemeBackgroundBrush}">
+
+    <!--
+        Shell is padded from the code-behind with the platform's safe area: on Android 15 the
+        application is handed the whole screen, clock and camera cut-out included, and a bar laid
+        out at y=0 ends up underneath them.
+
+        The padding is on this panel and not on the UserControl, so the background is painted edge
+        to edge and the status bar sits on the application's own colour rather than a white band.
+    -->
+    <DockPanel x:Name="Shell">
+
+        <Border DockPanel.Dock="Top"
+                Height="52"
+                Background="{DynamicResource ThemeBackgroundBrush}"
+                BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource ThemeBorderLowBrush}">
+
+            <Grid ColumnDefinitions="48,*,48">
+
+                <Button Grid.Column="0"
+                        Width="48" Height="48"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        HorizontalContentAlignment="Center"
+                        Command="{Binding GoBackCommand}"
+                        IsVisible="{Binding CanGoBack}"
+                        Content="&#x2190;" />
+
+                <TextBlock Grid.Column="1"
+                           Text="PangeaSupabaseApp"
+                           FontSize="17"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ThemeAccentBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!--
+            Neither Service nor Locator is set: both come from what the navigation feature published
+            on the application at startup.
+
+            MovesFocusOnNavigation is off because this is a phone. Focusing the first control on
+            arrival is right on a desktop and wrong here: on Android it summons the system keyboard,
+            which covers half of every screen the moment it opens.
+
+            A cross fade rather than a slide, because the host cannot know which way the navigation
+            went - a slide that goes the wrong way on Back feels worse than no slide at all.
+        -->
+        <nav:NavigationHost MovesFocusOnNavigation="False">
+            <nav:NavigationHost.PageTransition>
+                <CrossFade Duration="0:0:0.18" />
+            </nav:NavigationHost.PageTransition>
+        </nav:NavigationHost>
+
+    </DockPanel>
+</UserControl>

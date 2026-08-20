@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- The <application> node comes from [Application] on MainApplication: Avalonia builds the
+         AppBuilder there, so that class has to be the one Android instantiates. -->
+</manifest>

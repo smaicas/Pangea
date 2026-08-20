@@ -32,6 +32,12 @@ public class StorageFeature : IPangeaFeature
     {
         if (options.Value.UsePortableMode)
             return new PortablePlatformPathProvider(options);
+
+        // Before the desktop checks, deliberately: an application bundle is read-only on both, so
+        // portable mode is not a fallback they can take, and neither answers IsLinux or IsMacOS.
+        if (OperatingSystem.IsAndroid() || OperatingSystem.IsIOS())
+            return new MobilePlatformPathProvider(options);
+
         if (OperatingSystem.IsWindows())
             return new WindowsPlatformPathProvider(options);
         if (OperatingSystem.IsLinux())

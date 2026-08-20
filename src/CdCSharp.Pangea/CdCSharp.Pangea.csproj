@@ -20,6 +20,10 @@
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+
+		<!-- DPAPI, for the secret store. Windows-only at runtime and guarded by a platform check;
+		     the package itself loads everywhere, so nothing about referencing it is conditional. -->
+		<PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.11" />
 	</ItemGroup>
 
 	<ItemGroup>

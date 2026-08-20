@@ -43,11 +43,47 @@ public sealed class InMemoryStorageService : IStorageService
         return Task.CompletedTask;
     }
 
-    public async Task<T?> ReadJsonAsync<T>(string filePath) where T : class =>
-        JsonSerializer.Deserialize<T>(await ReadTextAsync(filePath));
+    /// <summary>
+    /// Reads and converts, and fails the way the real service fails.
+    /// </summary>
+    /// <remarks>
+    /// A double whose failures have different types from the thing it stands in for is worse than
+    /// no double: the code under test catches what it was written to catch, the test passes, and
+    /// production takes the other branch.
+    /// </remarks>
+    public async Task<T?> ReadJsonAsync<T>(string filePath) where T : class
+    {
+        string json = await ReadTextAsync(filePath);
 
-    public Task WriteJsonAsync<T>(string filePath, T data) where T : class =>
-        WriteTextAsync(filePath, JsonSerializer.Serialize(data));
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            throw new StorageSerializationException(
+                $"The contents of '{filePath}' are not a {typeof(T).Name}.", filePath, typeof(T), ex);
+        }
+    }
+
+    /// <inheritdoc cref="ReadJsonAsync{T}"/>
+    public Task WriteJsonAsync<T>(string filePath, T data) where T : class
+    {
+        string json;
+
+        try
+        {
+            json = JsonSerializer.Serialize(data);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            throw new StorageSerializationException(
+                $"A {typeof(T).Name} could not be turned into JSON for '{filePath}', so nothing was written.",
+                filePath, typeof(T), ex);
+        }
+
+        return WriteTextAsync(filePath, json);
+    }
 
     public bool FileExists(string filePath) => _files.ContainsKey(filePath);
 

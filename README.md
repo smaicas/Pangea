@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🔐 Secrets](#-secrets-and-connectivity) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -39,7 +39,7 @@ registering its own services.
 dotnet new install CdCSharp.Pangea.Templates
 ```
 
-Three starting points. `pangea-app` is the smallest one: the startup wiring, a window, and a sample
+Five starting points - three for a desktop application, two for a phone. `pangea-app` is the smallest one: the startup wiring, a window, and a sample
 view model and palette showing the toolkit's conventions.
 
 ```bash
@@ -85,8 +85,54 @@ cd MyApp && dotnet run
 | `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
 | `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
 
+`pangea-mobile` is the phone application: one shared library and a head per platform. The desktop
+head is always generated - it is how a change is seen without waiting for an emulator - and Android
+and iOS are chosen. It arrives with the parts of a phone application that are easy to get wrong
+already right: a single-view shell (a `Window` cannot be constructed on a phone at all), the
+platform safe area so the top bar is not under the clock, an AppCompat theme because Avalonia's
+activity refuses to start under anything else, and navigation that does not summon the system
+keyboard on arrival.
+
+```bash
+dotnet new pangea-mobile -n MyApp
+cd MyApp && dotnet run --project MyApp.Desktop
+```
+
+| Option | Default | |
+|---|---|---|
+| `--Android` | `true` | Generate the Android head |
+| `--iOS` | `true` | Generate the iOS head |
+| `--ApplicationId` | `com.example.app` | Bundle identifier for the mobile heads |
+| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+| `--AvaloniaVersion` | matches the template | Version of the Avalonia packages to reference |
+
+`pangea-mobile-supabase` is the same application with a shared backend behind it: anonymous sign-in,
+row level security, a local cache the screens draw from, and an outbox holding the writes made
+offline until they can go. The SQL to paste into a new project comes with it, including the two
+things about Postgres that will otherwise cost an afternoon - that row level security is not a
+grant, and that a policy reading another table is subject to that table's policies.
+
+```bash
+dotnet new pangea-mobile-supabase -n MyApp \
+    --SupabaseUrl https://xxx.supabase.co --SupabaseKey sb_publishable_...
+```
+
+| Option | Default | |
+|---|---|---|
+| `--SupabaseUrl` | placeholder | The project URL. The base URL, not the REST endpoint |
+| `--SupabaseKey` | placeholder | The anon or publishable key. Never the `service_role` key |
+| `--Android`, `--iOS`, `--ApplicationId` | as above | |
+| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+
+It runs before any of that is filled in: the screens draw from the cache and the writes queue, which
+is the same thing that happens on a train.
+
 Start from `pangea-shell` when you want to see how a feature is meant to be used, `pangea-data` when
-the application has a database in it, and `pangea-app` when you want an empty room.
+the application has a database in it, `pangea-mobile` when it is going on a phone,
+`pangea-mobile-supabase` when more than one person has to see the same data, and `pangea-app` when
+you want an empty room.
 
 ### Add to an existing project
 
@@ -310,8 +356,53 @@ public RelayCommand<Item> RemoveCommand => CreateCommand<Item>(Remove);         
 A **synchronous body runs on the UI thread**, marshalled if you invoke the command from elsewhere.
 Background work belongs in the `Func<Task>` overload, where leaving the UI thread is explicit.
 
-Failures always reach `ViewModelBase.OnCommandError`, which you can override. `ExecuteAsync` also
+Failures always reach `ViewModelBase.OnCommandError`, **which logs them**. Override it to add to
+that — calling the base keeps the log line — but there is nothing to write for the common case. A
+command body that throws used to leave a button that visibly did nothing, with no message and no
+log: the most expensive kind of bug to find, and one nobody chooses on purpose. `ExecuteAsync` also
 rethrows so an awaiting caller can react; `ICommand.Execute` cannot, and does not.
+
+**A command will not run twice at once.** While its body is running, `IsExecuting` is true and
+`CanExecute` is false, so the button that started the work disables itself. Nothing to write, and
+no reason for a view model to guard a Save against a second press.
+
+What a view model *does* need is a way to disable everything else, and `ViewModelBase.IsBusy` is
+it: true while any command it created is running, notified on the UI thread, and re-evaluating
+every command as it changes.
+
+```xml
+<ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+<Button Content="Delete" Command="{Binding DeleteCommand}" />   <!-- CanDelete reads IsBusy -->
+```
+
+### Subscriptions that outlive the screen
+
+A screen that subscribes to a service on the way in is kept alive by that service's event list on
+the way out. Nothing about it is visible until the application has been used for a while, and by
+then it is holding every screen the user has opened.
+
+```csharp
+public OrdersViewModel(IServiceProvider services) : base(services)
+{
+    _repository = services.GetRequiredService<IOrderRepository>();
+
+    // Released when the screen is discarded. The handler is a method, not a lambda: what is
+    // unsubscribed has to be the same delegate that was subscribed.
+    Subscribe(handler => _repository.Changed += handler,
+              handler => _repository.Changed -= handler,
+              OnOrdersChanged);
+}
+```
+
+There are overloads for `INotifyPropertyChanged` and `INotifyCollectionChanged`, and `Track` for
+anything else that has to be released. The navigation service discards a screen when it drops one —
+going back, or clearing the history — and forward navigation does not, because that screen is on
+the stack and is coming back. A view model held anywhere else is discarded by whoever holds it.
+
+`Discard()` deliberately is not `Dispose()`. Microsoft's container tracks every transient
+`IDisposable` it creates and holds it until the process ends, so a disposable view model would
+replace one leak with a larger and quieter one: every screen ever opened, kept alive by the
+container that built it.
 
 ---
 
@@ -415,6 +506,101 @@ services.Configure<StorageOptions>(options =>
 
 Writes create the folders they need. Reads do not: `ReadTextAsync` fails on a missing file the way
 `File.ReadAllTextAsync` does, while `ReadJsonAsync` returns null, for state that may not exist yet.
+
+**JSON that will not convert throws `StorageSerializationException`, not an `IOException`.** The two
+are different problems with different answers: "the disk is full, the file is open" is worth
+retrying, and "this object cannot be serialized" will fail identically on every run, on every
+machine, for every user. Catching them together is how an offline queue quietly discards everything
+it was holding.
+
+```csharp
+try
+{
+    await _storage.WriteJsonAsync(path, queue);
+}
+catch (StorageSerializationException ex)
+{
+    // A defect, not a condition. Never a silent retry.
+    _logger.LogError(ex, "The outbox cannot be written and is being dropped");
+}
+catch (IOException ex)
+{
+    _logger.LogWarning(ex, "The outbox could not be written this time; keeping it in memory");
+}
+```
+
+Serialization happens before the file is touched, so a failure leaves whatever was there intact
+rather than truncating it.
+
+---
+
+## 🔐 Secrets and connectivity
+
+Two things every application on a phone needs and no application should write itself.
+
+### Where a credential goes
+
+A refresh token is a bearer credential: whoever has it is the user until it is revoked. In
+`settings.json` it travels into backups, sync folders, support bundles and screenshots without
+anyone deciding that it should.
+
+```csharp
+public class SessionStore(ISecretStore secrets)
+{
+    public Task SaveAsync(string refreshToken) => secrets.SetAsync("refresh-token", refreshToken);
+
+    public Task<string?> LoadAsync() => secrets.GetAsync("refresh-token");
+}
+```
+
+The store registered by default protects secrets as well as anything can without the platform's own
+API, and says which through `Protection`:
+
+| `SecretProtection` | |
+|---|---|
+| `OperatingSystem` | Windows: encrypted with DPAPI under the current user, so a copied file is useless elsewhere |
+| `UserOnly` | Linux and macOS: a file the filesystem keeps other accounts out of |
+| `Device` | What a head registering the Android Keystore or the iOS Keychain reports |
+
+A mobile head registers its own through `UsePangea`, and everything that stores a secret picks it
+up unchanged:
+
+```csharp
+protected override AppBuilder CustomizeAppBuilder(AppBuilder builder) =>
+    base.CustomizeAppBuilder(builder)
+        .UsePangea(services => services.AddSingleton<ISecretStore>(_ => new KeystoreSecretStore(this)));
+```
+
+That is where platform services go, and it exists because there is nowhere else: a head cannot use
+`App.Configure`, which lives in the shared library and cannot see Android. What it registers runs
+first, and the toolkit's own services use `TryAdd`, so the platform's answer is the one resolved and
+the defaults fill in the rest. The application's `Configure` still has the final word.
+
+The Supabase feature stores its session through this, and moves one it finds in the old plain file
+into the store on the next start, so upgrading neither signs users out nor leaves the credential
+where it was.
+
+### Whether it is worth trying
+
+```csharp
+public class Outbox(IConnectivity connectivity)
+{
+    public async Task DrainAsync(CancellationToken cancellationToken)
+    {
+        await connectivity.WaitForConnectionAsync(cancellationToken);
+        // ...
+    }
+}
+```
+
+`IsConnected` answers "is it worth trying", not "will it work" — a phone behind a captive portal is
+connected by every measure the operating system has and can reach nothing, so requests still handle
+their own failures. What it replaces is inferring the network from the shape of the last
+`HttpRequestException`. `Changed` is what tells an outbox that now is a good moment.
+
+The default implementation reads the operating system's network interfaces, which works everywhere
+and is least accurate on a phone; a head with `ConnectivityManager` or `NWPathMonitor` registers its
+own through the same `UsePangea` hook.
 
 ---
 
@@ -964,6 +1150,16 @@ Going back returns the same view model instance and does **not** replay the requ
 host itself when the screen has none, so Tab always has somewhere to start. Set
 `MovesFocusOnNavigation="False"` on a host that is not the main subject of the screen, such as a
 detail pane beside a list where taking focus off the list on every selection would be maddening.
+
+**Not on a phone.** Where the platform has no windows, focusing the first control of the screen just
+arrived at opens the system keyboard over the content the user navigated to read, so a host that was
+not told either way does not move focus there. Setting the property is respected on both, and an
+application presenting a touch shell on a desktop lifetime — a kiosk, a tablet build — says so once
+for all its hosts:
+
+```csharp
+NavigationHost.SetApplicationMovesFocus(this, false);   // in App.Initialize
+```
 
 **Views are found by name**, through the same type scan the rest of the toolkit uses:
 `OrderViewModel` is displayed by `OrderView`, and `MainWindowViewModel` by `MainWindow`. Register

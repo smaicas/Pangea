@@ -87,6 +87,11 @@ public class WindowManager : IWindowManager, IDisposable
         if (_initialized) return;
         _initialized = true;
 
+        // Nothing to discover where there are no windows: constructing one on Android or iOS
+        // throws, because no windowing platform is registered to build it with. The single-view
+        // shell finds and shows the main view instead.
+        if (_serviceProvider.GetService(typeof(IApplicationLifetime)) is ISingleViewApplicationLifetime) return;
+
         if (_options.Window.AutoDiscoverMainWindow)
         {
             TryAutoInitializeMainWindow();
@@ -467,12 +472,15 @@ public class WindowManager : IWindowManager, IDisposable
                 desktop.MainWindow = mainWindow;
                 break;
 
+            // Reachable only for a window the application built and handed over itself: nothing on
+            // this platform can construct one, so nothing here does. Its content is taken rather
+            // than refused, because a shared MainWindow wrapping the real shell is a reasonable
+            // thing to have written - though naming a MainView is the way that is meant to work.
             case ISingleViewApplicationLifetime singleView:
-                if (mainWindow.Content is Control content)
-                    singleView.MainView = content;
-                else
-                    throw new InvalidOperationException(
-                        "For SingleView lifetime, MainWindow must have Content that inherits from Control");
+                singleView.MainView = mainWindow.Content as Control
+                    ?? throw new InvalidOperationException(
+                        "This platform has no windows. Give the application a control named 'MainView' - or set " +
+                        "PangeaOptions.Window.MainViewType - rather than a Window whose Content is not a Control.");
                 break;
 
             default:

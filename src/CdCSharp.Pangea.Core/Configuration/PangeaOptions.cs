@@ -90,6 +90,18 @@ public class PangeaWindowOptions
     };
 
     public Type? MainWindowType { get; set; }
+
+    /// <summary>
+    /// The control that is the whole application on a platform with no windows: Android, iOS, the
+    /// browser. Ignored on desktop, where <see cref="MainWindowType"/> is what is shown.
+    /// </summary>
+    /// <remarks>
+    /// Left unset, a control named <c>MainView</c> is found the same way <c>MainWindow</c> is.
+    /// It must not be a <c>Window</c>: those platforms register no windowing platform, so one
+    /// cannot be constructed there at all.
+    /// </remarks>
+    public Type? MainViewType { get; set; }
+
     public Type? MainViewModelType { get; set; }
     public bool AutoDiscoverMainWindow { get; set; } = true;
 }

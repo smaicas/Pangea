@@ -178,6 +178,13 @@ public partial class SignUpViewModel : ViewModelBase
 
 `CreateCommand` is on `ViewModelBase`. Two contracts matter and both are easy to get wrong.
 
+**A command will not run twice at once**: while its body runs `IsExecuting` is true and `CanExecute`
+is false. `ViewModelBase.IsBusy` is true while any of its commands run and re-asks every command as
+it changes, which is what disables the rest of the screen - do **not** write a busy flag of your
+own, a `[Binding] private bool _isBusy` is the compile error `PGB006`. Failures reach
+`OnCommandError`, which logs. A screen subscribing to something that outlives it must use
+`Subscribe(...)`. All three are in `references/view-models.md`.
+
 ### Threading
 
 A **synchronous body runs on the UI thread**, marshalled if the command is invoked from elsewhere.
@@ -281,6 +288,9 @@ public class SettingsStore
 on a missing file the way `File.ReadAllTextAsync` does; `ReadJsonAsync` returns `null`, for state
 that may legitimately not exist yet.
 
+JSON that will not convert throws `StorageSerializationException`, not an `IOException`: "the disk
+is full" is worth retrying and "this cannot be serialized" never will be. Catch them apart.
+
 Configure with `StorageOptions`: `ApplicationName`, `UsePortableMode`, `CustomDataPath`.
 
 ---
@@ -290,6 +300,29 @@ Configure with `StorageOptions`: `ApplicationName`, `UsePortableMode`, `CustomDa
 Entity Framework Core, installed separately (`CdCSharp.Pangea.Data.Sqlite`). A view model asks for
 `IPangeaDbContext<TContext>` and never for a `DbContext`; migrations run at startup, behind the
 splash window, with a backup taken first. Read `references/database.md` before writing data access.
+
+---
+
+## Mobile
+
+Android and iOS are single-view platforms: a `Window` cannot be constructed there at all. An
+application with mobile heads gives the toolkit a `MainView` control instead of a `MainWindow`, and
+the splash and every dialog are layered over it rather than opened beside it. `IDialogService`,
+navigation, theming and storage are unchanged. Arriving at a screen does not take focus there - it
+would open the system keyboard over what the user came to read. Credentials go in `ISecretStore`,
+never in the settings file, and `IConnectivity` says whether the network is worth trying; both are
+registered for you and both are replaceable by the platform head.
+
+Read [references/mobile.md](references/mobile.md) before adding a mobile head.
+
+---
+
+## Supabase
+
+A shared Postgres backend, installed separately (`CdCSharp.Pangea.Supabase`). A view model asks for
+`ISupabaseClientProvider` and never for a `Supabase.Client`; writes made offline go into `IOutbox`
+and are replayed. Read [references/supabase.md](references/supabase.md) before writing any code
+against it.
 
 ---
 
@@ -315,29 +348,17 @@ public static class LocalizationRegistration
 ```
 
 `GetString` returns the key itself when nothing resolves, so a missing translation is visible rather
-than blank. `SetCulture` applies to the whole application, including threads started afterwards, and
-raises `CultureChanged`. It throws `NotSupportedException` for a culture outside `SupportedCultures`.
-
-### Changing language while the application runs
-
-Bind labels through `LocalizedStrings` and offer the choice with `LanguageSelector`, both taken from
-the container - the feature registers them. Do **not** write your own indexer for this.
+than blank - and can ship unnoticed, which is why an analyzer checks keys against the `.resx` files
+(`PGL001`, `PGL002`). Bind labels through `LocalizedStrings` and offer the choice with
+`LanguageSelector`, both from the container; do **not** write your own indexer.
 
 ```xml
 <TextBlock Text="{Binding Strings[Home_Title]}" />
 <loc:LanguageSelector ViewModel="{Binding LanguageSelector}" />
 ```
 
-Dates, numbers and `StringFormat` do not follow: they are formatted by the binding, which nothing
-has told to run again.
-
-### Keys are checked against the .resx files
-
-An analyzer reads the project's `.resx` files and reports a key that is in none of them (`PGL001`),
-or one the neutral file has and a translation does not (`PGL002`). Both are warnings.
-
-Read `references/localization.md` before writing localized code: it covers the picker, the indexer
-XAML binds to, `[LocalizationKey]` on wrappers of your own, and changing the rules' severity.
+Read `references/localization.md` before writing localized code: the picker, the indexer, what does
+and does not re-read on a culture change, `[LocalizationKey]`, and the rules' severity.
 
 ---
 ## Navigation
@@ -412,7 +433,21 @@ Put a host where the content belongs:
   `MainWindow`. Otherwise call `IViewLocator.Register<TViewModel, TView>()`.
 - Arriving at a screen moves keyboard focus into it - the first control that can take it, or
   the host itself when the screen has none. Set `MovesFocusOnNavigation="False"` on a host
-  that is not the main subject of the screen, such as a detail pane beside a list.
+  that is not the main subject of the screen, such as a detail pane beside a list - **and on
+  every host in a phone application**, where focusing a text box summons the system keyboard
+  over half the screen on arrival.
+- The host is a `TransitioningContentControl`, so screens can animate:
+
+  ```xml
+  <nav:NavigationHost MovesFocusOnNavigation="False">
+    <nav:NavigationHost.PageTransition>
+      <CrossFade Duration="0:0:0.18" />
+    </nav:NavigationHost.PageTransition>
+  </nav:NavigationHost>
+  ```
+
+  It defaults to none. Prefer a cross fade to a slide: the host cannot know which way the
+  navigation went, and a slide that runs backwards on Back feels worse than no slide at all.
 - A request whose destination does not implement `INavigationAware<TRequest>` aborts startup. Do
   not declare a request without implementing the matching interface on the view model it names.
 
@@ -459,39 +494,8 @@ public partial class OrdersViewModel : ViewModelBase
   and use `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>`. `IDialogService` is
   deliberately only these two questions.
 
-### Windows have to fit on smaller screens
-
-A window is opened at a size that suits the developer's monitor and then used on someone else's.
-Make the part that holds content scroll, and **choose where the scroll goes** rather than wrapping
-the whole window: inside a `ScrollViewer` the available height becomes infinite, so `*` rows
-collapse and anything that stretches stops stretching.
-
-```xml
-<Grid RowDefinitions="Auto,*">
-  <Border Grid.Row="0"> <!-- header, stays put --> </Border>
-
-  <ScrollViewer Grid.Row="1">   <!-- only the content region scrolls -->
-    <StackPanel> <!-- ... --> </StackPanel>
-  </ScrollViewer>
-</Grid>
-```
-
-For a side panel next to a filling region, scroll the panel alone and leave the region to fill.
-The toolkit does not do this for you, deliberately: only the author knows which part should scroll
-and which should stretch.
-
-### Keyboard, for windows and dialogs alike
-
-- **Both get focus placed for them** when they open, on the first control that can take it - unless
-  the window focused something itself, which is always respected.
-- **Escape closes a dialog. It does not close a window**, and that is the platform convention, not
-  an oversight: Alt+F4 closes windows, and Escape destroying one holding unsaved work would be a
-  keystroke away from losing it. For a secondary window where Alt+F4 feels absurd, ask for it:
-
-```xml
-<Window xmlns:win="using:CdCSharp.Pangea.Windows"
-        win:WindowBehavior.CloseOnEscape="True">
-```
+Windows and dialogs also have rules about size, scrolling and the keyboard that are easy to get
+wrong and expensive to notice: read `references/windows.md` before writing a window.
 
 ---
 

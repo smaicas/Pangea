@@ -1,6 +1,8 @@
-﻿using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Core.Configuration;
 using CdCSharp.Pangea.Navigation.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
@@ -21,6 +23,7 @@ public class NavigationService : INavigationService
     private readonly IServiceProvider _serviceProvider;
     private readonly IUIDispatcher _dispatcher;
     private readonly Stack<object> _history = new();
+    private readonly bool _discardsViewModels;
 
     /// <summary>
     /// The typed arrival hook is found by reflection, once per view model and request type pair.
@@ -29,10 +32,18 @@ public class NavigationService : INavigationService
 
     private object? _currentViewModel;
 
-    public NavigationService(IServiceProvider serviceProvider, IUIDispatcher dispatcher)
+    /// <remarks>
+    /// The options are read for one thing: whether view models are transient. A screen this service
+    /// drops is a screen nothing else holds, so it is told to let go of what it subscribed to -
+    /// which would be wrong for a view model the container hands out again.
+    /// </remarks>
+    public NavigationService(
+        IServiceProvider serviceProvider, IUIDispatcher dispatcher, IOptions<PangeaOptions>? options = null)
     {
         _serviceProvider = serviceProvider;
         _dispatcher = dispatcher;
+        _discardsViewModels = (options?.Value.DI.ViewModelLifetime ?? ServiceLifetime.Transient) ==
+                              ServiceLifetime.Transient;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -66,6 +77,11 @@ public class NavigationService : INavigationService
     public void ClearHistory()
     {
         bool could = CanGoBack;
+
+        // Everything on the stack is now unreachable: nothing can navigate back to it, and the only
+        // thing keeping it alive would be whatever it subscribed to on the way in.
+        foreach (object forgotten in _history) Discard(forgotten);
+
         _history.Clear();
 
         if (could) OnPropertyChanged(nameof(CanGoBack));
@@ -95,14 +111,34 @@ public class NavigationService : INavigationService
         if (!await LeaveCurrentAsync()) return false;
 
         object previous = _history.Pop();
+        object? left = _currentViewModel;
 
         CurrentViewModel = previous;
         OnPropertyChanged(nameof(CanGoBack));
+
+        // Going forward puts the screen on the history stack, so it is coming back. Going back does
+        // not: this is the one place a view model is dropped for good.
+        Discard(left);
 
         // Going back is a return, not an arrival with a request: the screen is the one that was
         // already built, and re-running its request hook would reload it against stale data.
         await ArriveAsync(previous, request: null);
         return true;
+    }
+
+    /// <summary>
+    /// Tells a view model nothing will use it again to release what it subscribed to.
+    /// </summary>
+    /// <remarks>
+    /// Not disposal: the container tracks every transient <see cref="IDisposable"/> it creates and
+    /// holds it until the process ends, so a disposable view model would leak harder than the
+    /// subscription this is here to release.
+    /// </remarks>
+    private void Discard(object? viewModel)
+    {
+        if (!_discardsViewModels) return;
+
+        (viewModel as IDiscardable)?.Discard();
     }
 
     /// <summary>Asks the current view model to leave, and tells it that it did.</summary>
