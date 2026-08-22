@@ -18,9 +18,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
 
-    # Needed to create the release the agent skill is attached to
     permissions:
+      # Needed to create the release the agent skill is attached to
       contents: write
+      # Lets this job ask GitHub for the OIDC token nuget.org exchanges for a publishing key.
+      # Without it the token request fails and no API key is ever issued.
+      id-token: write
     
     steps:
       - name: Checkout
@@ -477,67 +480,54 @@ jobs:
           echo "📋 Main package dependencies:"
           unzip -p "$MAIN_PKG" CdCSharp.Pangea.nuspec | grep -A 12 "<dependencies>" || true
 
+      # 🔑 Trusted Publishing: GitHub signs a short-lived token saying which repository and
+      # workflow is running, nuget.org checks it against the policy it was given, and hands back an
+      # API key good for an hour. No long-lived secret is stored anywhere, and nothing expires
+      # quietly a year later.
+      #
+      # Requested here rather than at the top of the job on purpose: the key lasts an hour from the
+      # moment it is issued, and everything above this - restore, build, test, pack, and generating
+      # a project from the template twice - runs first.
+      - name: Get a publishing key from nuget.org
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          # The nuget.org profile name that owns the trusted publishing policy - not an email
+          # address, and not the GitHub account.
+          user: cdcsharp
+
       # 🚀 Publish to NuGet
       - name: Publish to NuGet
+        env:
+          # One name for the key, so a package added to the list below cannot be pushed with
+          # something else. This is what the nine copies of the key used to get wrong.
+          NUGET_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "🚀 Publishing packages to NuGet.org..."
-          
-          # Publicar solo el paquete principal para usuarios finales
-          echo "📤 Publishing main package..."
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-          
-          echo "📤 Publishing individual feature packages..."
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Core.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-          
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Binding.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-          
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Storage.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-          
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Theming.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-          
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Localization.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-          
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Templates.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
 
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Navigation.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
+          # The main package first: it is what an application installs, and the rest are the
+          # features it is assembled from, published so a project can take one on its own.
+          PACKAGES=(
+            CdCSharp.Pangea
+            CdCSharp.Pangea.Core
+            CdCSharp.Pangea.Binding
+            CdCSharp.Pangea.Storage
+            CdCSharp.Pangea.Theming
+            CdCSharp.Pangea.Localization
+            CdCSharp.Pangea.Navigation
+            CdCSharp.Pangea.Testing
+            CdCSharp.Pangea.Templates
+          )
 
-          dotnet nuget push "./artifacts/CdCSharp.Pangea.Testing.${{ steps.version.outputs.version }}.nupkg" \
-            -k ${{ secrets.NUGET_API_KEY }} \
-            -s https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
+          for package in "${PACKAGES[@]}"; do
+            echo "📤 $package"
+            dotnet nuget push "./artifacts/$package.$VERSION.nupkg" \
+              -k "$NUGET_KEY" \
+              -s https://api.nuget.org/v3/index.json \
+              --skip-duplicate \
+              --no-symbols
+          done
 
           echo "✅ All packages published successfully!"
 
