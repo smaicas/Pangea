@@ -1,4 +1,5 @@
 using CdCSharp.Pangea.Core.Base;
+using static CdCSharp.Pangea.Binding.CodeGeneration.Tests.ComputedPropertyNotificationTests;
 using System.Reflection;
 
 namespace CdCSharp.Pangea.Binding.CodeGeneration.Tests;
@@ -142,22 +143,21 @@ public class CanExecutePatternDependencyTests
     }
 
     /// <summary>
-    /// The analysis report is what a developer reads when a button will not enable, so the
-    /// dependency has to be visible there and not only in the emitted setter.
+    /// The notification is emitted into the setter of the property the pattern matched on, which is
+    /// where a reader looks when a button will not enable.
     /// </summary>
+    /// <remarks>
+    /// Asserted on the emitted partial rather than on the analysis report: the report is written
+    /// under <c>#if DEBUG</c> in the generator, so it does not exist at all when the generator
+    /// itself is built in Release - which is what CI does.
+    /// </remarks>
     [Fact]
-    public void TheAnalysisReport_ListsTheMatchedPropertyAsADependency()
+    public void TheGeneratedSetter_NotifiesTheCommandFromTheMatchedProperty()
     {
-        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.Run(GroupViewModel);
+        string generated = GeneratorTestHelper.GetBindingSource(GroupViewModel, "GroupSettingsViewModel");
+        string setter = ExtractPropertyBody(generated, "public Sample.GroupMember? SelectedMember");
 
-        string report = result.Sources
-            .Single(source => source.HintName.EndsWith("Analysis.Debug.g.cs", StringComparison.Ordinal))
-            .Text;
-
-        string commandSection = report[report.IndexOf("TransferOwnershipCommand:", StringComparison.Ordinal)..];
-        string dependencies = commandSection[..commandSection.IndexOf("ClearSelectionCommand", StringComparison.Ordinal)];
-
-        Assert.Contains("SelectedMember", dependencies, StringComparison.Ordinal);
+        Assert.Contains("TransferOwnershipCommand.RaiseCanExecuteChanged();", setter, StringComparison.Ordinal);
     }
 
     private static object CreateViewModel()
