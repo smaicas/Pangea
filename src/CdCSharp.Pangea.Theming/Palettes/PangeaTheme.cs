@@ -18,7 +18,13 @@ namespace CdCSharp.Pangea.Theming.Palettes;
 /// so the palette is materialised directly - which is why a theme can be a class at all.
 /// </para>
 /// </remarks>
-public class PangeaTheme(PangeaPalette light, PangeaPalette dark)
+/// <param name="light">The palette shown under the light variant.</param>
+/// <param name="dark">The palette shown under the dark variant.</param>
+/// <param name="metrics">
+/// Sizes for every control, defaulting to <see cref="ThemeMetrics.Values"/>. Pass
+/// <see cref="ThemeMetrics.Touch"/> for an application driven by a thumb.
+/// </param>
+public class PangeaTheme(PangeaPalette light, PangeaPalette dark, IReadOnlyDictionary<string, object>? metrics = null)
 {
     /// <summary>Name the toolkit's own theme is registered under.</summary>
     public const string DefaultName = "Pangea";
@@ -63,6 +69,9 @@ public class PangeaTheme(PangeaPalette light, PangeaPalette dark)
 
     public PangeaPalette Dark { get; } = dark ?? throw new ArgumentNullException(nameof(dark));
 
+    /// <summary>Sizes for every control, shared by both variants.</summary>
+    public IReadOnlyDictionary<string, object> Metrics { get; } = metrics ?? ThemeMetrics.Values;
+
     /// <summary>
     /// Builds the dictionary: one entry per variant, plus the metrics, which do not vary.
     /// </summary>
@@ -77,7 +86,7 @@ public class PangeaTheme(PangeaPalette light, PangeaPalette dark)
         theme.ThemeDictionaries[ThemeVariant.Light] = BuildVariant(Light);
         theme.ThemeDictionaries[ThemeVariant.Dark] = BuildVariant(Dark);
 
-        foreach (KeyValuePair<string, object> metric in ThemeMetrics.Values)
+        foreach (KeyValuePair<string, object> metric in Metrics)
         {
             theme[metric.Key] = metric.Value;
         }

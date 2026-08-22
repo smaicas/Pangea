@@ -27,6 +27,7 @@ key is the opposite of that and must never appear in a client.
 |---|---|
 | `PangeaSupabaseApp` | Everything the application is: views, view models, data, theme. |
 | `PangeaSupabaseApp.Desktop` | An entry point, so a change can be seen without an emulator. |
+| `PangeaSupabaseApp.Tests` | The application's tests. One per convention to copy from; no Avalonia is started. |
 <!--#if (Android) -->
 | `PangeaSupabaseApp.Android` | The Android head. |
 <!--#endif -->

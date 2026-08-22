@@ -1,6 +1,8 @@
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Dialogs;
+using CdCSharp.Pangea.Localization;
+using CdCSharp.Pangea.Localization.Abstractions;
 using CdCSharp.Pangea.Navigation.Abstractions;
 using CdCSharp.Pangea.Storage.Abstractions;
 using CdCSharp.Pangea.Testing.Dispatchers;
@@ -47,6 +49,8 @@ public sealed class PangeaTestServices : IServiceProvider
         Navigation = new RecordingNavigationService();
         Storage = new InMemoryStorageService();
         Theming = new RecordingThemeService();
+        Localization = DictionaryLocalizationService.For("en", new Dictionary<string, string>());
+        Strings = new LocalizedStrings(Localization, Dispatcher);
 
         Add<IUIDispatcher>(Dispatcher);
         Add<IRelayCommandFactory>(new RelayCommandFactory(Dispatcher));
@@ -54,6 +58,8 @@ public sealed class PangeaTestServices : IServiceProvider
         Add<INavigationService>(Navigation);
         Add<IStorageService>(Storage);
         Add<IThemeService>(Theming);
+        Add<ILocalizationService>(Localization);
+        Add(Strings);
     }
 
     public IUIDispatcher Dispatcher { get; }
@@ -69,6 +75,22 @@ public sealed class PangeaTestServices : IServiceProvider
 
     /// <summary>The theme service view models will be handed. Records what was asked for.</summary>
     public RecordingThemeService Theming { get; }
+
+    /// <summary>
+    /// Localization backed by a dictionary, empty to start with.
+    /// </summary>
+    /// <remarks>
+    /// Empty is the useful default: an unknown key answers with the key itself, so a screen that
+    /// only passes strings through is testable without a .resx being restated here. Fill it when
+    /// what a screen says is the thing being asserted.
+    /// </remarks>
+    public DictionaryLocalizationService Localization { get; }
+
+    /// <summary>
+    /// The bindable strings a screen reads. Registered because a localized screen asks for it in
+    /// its constructor, and a container without it fails before a single assertion is reached.
+    /// </summary>
+    public LocalizedStrings Strings { get; }
 
     /// <summary>
     /// Registers <paramref name="instance"/> under <typeparamref name="TService"/>, replacing

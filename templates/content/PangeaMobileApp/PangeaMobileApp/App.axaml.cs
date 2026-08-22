@@ -39,8 +39,13 @@ public partial class App : PangeaApplication
 
         // Each feature reads its own options. A feature the application never configures keeps the
         // defaults it registered for itself.
+        // ThemeMetrics.Touch sizes every control for a thumb instead of a pointer: nothing tappable
+        // below 48, and the type a step up to match. Sizes come from the theme, so a phone needs
+        // this argument rather than a style override per control - including the controls nobody
+        // remembers to style, which is where a 32-high combo box on a phone comes from.
         services.Configure<ThemingOptions>(options =>
-            options.Themes[PangeaTheme.DefaultName] = new PangeaTheme(new AppLightPalette(), new AppDarkPalette()));
+            options.Themes[PangeaTheme.DefaultName] =
+                new PangeaTheme(new AppLightPalette(), new AppDarkPalette(), ThemeMetrics.Touch));
 
         services.Configure<StorageOptions>(options => options.ApplicationName = "PangeaMobileApp");
     }

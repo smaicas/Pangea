@@ -187,7 +187,7 @@ Derived from the colours above; listed so XAML can be checked against them.
 - `WindowChromeBackgroundBrush`
 - `WindowChromeForegroundBrush`
 
-## Metrics (43)
+## Metrics (48)
 
 Identical in both variants.
 
@@ -196,9 +196,9 @@ Identical in both variants.
 | `ContentControlThemeFontFamily` | `compositefont:fonts:Inter#Inter, $Default#Inter, $Default` |
 | `ThemeBorderThickness` | `1,1,1,1` |
 | `ThemeDisabledOpacity` | `0.4` |
-| `FontSizeSmall` | `10` |
-| `FontSizeNormal` | `12` |
-| `FontSizeLarge` | `16` |
+| `FontSizeSmall` | `12` |
+| `FontSizeNormal` | `14` |
+| `FontSizeLarge` | `18` |
 | `ScrollBarThickness` | `16` |
 | `ScrollBarThumbThickness` | `10` |
 | `IconElementThemeHeight` | `20` |
@@ -214,15 +214,20 @@ Identical in both variants.
 | `ComboBoxMinHeight` | `32` |
 | `ComboBoxPadding` | `8,6,8,6` |
 | `ComboBoxCornerRadius` | `4,4,4,4` |
+| `ComboBoxItemMinHeight` | `32` |
+| `ComboBoxItemPadding` | `8,6,8,6` |
+| `ListBoxItemMinHeight` | `32` |
+| `ListBoxItemPadding` | `8,6,8,6` |
 | `SliderTrackHeight` | `4` |
 | `SliderThumbSize` | `18` |
 | `SliderTrackCornerRadius` | `2,2,2,2` |
-| `ProgressBarHeight` | `6` |
-| `ProgressBarCornerRadius` | `3,3,3,3` |
+| `ProgressBarHeight` | `8` |
+| `ProgressBarCornerRadius` | `4,4,4,4` |
 | `CheckBoxSize` | `18` |
 | `RadioButtonSize` | `18` |
 | `CheckBoxCornerRadius` | `3,3,3,3` |
-| `RadioButtonCornerRadius` | `9,9,9,9` |
+| `CheckBoxGlyphSize` | `12` |
+| `RadioButtonGlyphSize` | `10` |
 | `TabItemPadding` | `12,8,12,8` |
 | `TabItemMinHeight` | `36` |
 | `TabItemCornerRadius` | `6,6,0,0` |

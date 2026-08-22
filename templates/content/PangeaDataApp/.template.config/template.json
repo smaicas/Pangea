@@ -38,7 +38,7 @@
       ]
     }
   ],
-  "primaryOutputs": [ { "path": "PangeaDataApp.csproj" } ],
+  "primaryOutputs": [ { "path": "PangeaDataApp/PangeaDataApp.csproj" } ],
   "postActions": [
     {
       "description": "Restore NuGet packages",

@@ -8,14 +8,15 @@
     <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderMidBrush}" />
     <Setter Property="BorderThickness" Value="{DynamicResource ThemeBorderThickness}" />
     <Setter Property="Padding" Value="4,0,0,0" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CheckBoxCornerRadius}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="HorizontalContentAlignment" Value="Left" />
     <Setter Property="Template">
       <ControlTemplate>
         <Grid ColumnDefinitions="Auto,*">
           <Border Name="border"
-                  Width="18"
-                  Height="18"
+                  Width="{DynamicResource CheckBoxSize}"
+                  Height="{DynamicResource CheckBoxSize}"
                   VerticalAlignment="Center"
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
@@ -23,8 +24,8 @@
                   CornerRadius="{TemplateBinding CornerRadius}">
             <Panel>
               <Path Name="checkMark"
-                    Width="11"
-                    Height="10"
+                    Width="{DynamicResource CheckBoxGlyphSize}"
+                    Height="{DynamicResource CheckBoxGlyphSize}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Data="M 1145.607177734375,430 C1145.607177734375,430 1141.449951171875,435.0772705078125 1141.449951171875,435.0772705078125 1141.449951171875,435.0772705078125 1139.232177734375,433.0999755859375 1139.232177734375,433.0999755859375 1139.232177734375,433.0999755859375 1138,434.5538330078125 1138,434.5538330078125 1138,434.5538330078125 1141.482177734375,438 1141.482177734375,438 1141.482177734375,438 1141.96875,437.9375 1141.96875,437.9375 1141.96875,437.9375 1147,431.34619140625 1147,431.34619140625 1147,431.34619140625 1145.607177734375,430 1145.607177734375,430 z"
@@ -32,8 +33,8 @@
                     FlowDirection="LeftToRight"
                     Stretch="Uniform" />
               <Rectangle Name="indeterminateMark"
-                         Width="10"
-                         Height="10"
+                         Width="{DynamicResource CheckBoxGlyphSize}"
+                         Height="{DynamicResource CheckBoxGlyphSize}"
                          HorizontalAlignment="Center"
                          VerticalAlignment="Center"
                          Fill="{DynamicResource HighlightBrush}"

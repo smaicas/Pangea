@@ -41,12 +41,17 @@ public partial class App : PangeaApplication
         // View models deriving from ViewModelBase are registered automatically. Everything else
         // that a view model asks for is registered here.
         services.AddSingleton<NotesCache>();
-        services.AddSingleton<NotesBackend>();
+        services.AddSingleton<INotesBackend, NotesBackend>();
         services.AddSingleton<NotesRepository>();
         services.AddSingleton<IPangeaAsyncInitializer, StartupInitializer>();
 
+        // ThemeMetrics.Touch sizes every control for a thumb instead of a pointer: nothing tappable
+        // below 48, and the type a step up to match. Sizes come from the theme, so a phone needs
+        // this argument rather than a style override per control - including the controls nobody
+        // remembers to style, which is where a 32-high combo box on a phone comes from.
         services.Configure<ThemingOptions>(options =>
-            options.Themes[PangeaTheme.DefaultName] = new PangeaTheme(new AppLightPalette(), new AppDarkPalette()));
+            options.Themes[PangeaTheme.DefaultName] =
+                new PangeaTheme(new AppLightPalette(), new AppDarkPalette(), ThemeMetrics.Touch));
 
         services.Configure<StorageOptions>(options => options.ApplicationName = "PangeaSupabaseApp");
 

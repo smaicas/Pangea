@@ -129,8 +129,23 @@ public static class ListViewModelTests
 | `DictionaryLocalizationService` | Strings from a dictionary, without satellite assemblies |
 | `RecordingThemeService` | `ThemesSet` and `VariantsSet`, without an application's styles |
 
+`Localization` and `Strings` are registered too, so a screen that takes `LocalizedStrings` in its
+constructor can be built without arranging anything: the dictionary starts empty and an unknown key
+answers with the key itself. Fill `services.Localization` when what a screen says is the thing being
+asserted.
+
 Pass a dispatcher to the constructor to swap the default:
 `new PangeaTestServices(new PumpingUIDispatcher())`.
+
+## The templates ship this
+
+Every `dotnet new` template generates a `<Name>.Tests` project alongside the application, holding
+one test per convention: a `[Binding]` field notifies, a computed property is notified by what it
+reads, and a command re-evaluates when its dependency changes. Copy that file for your own screens.
+
+The command test is the one worth keeping. Most of what a generated view model does is visible the
+moment the application runs; a command that never re-evaluates its `CanExecute` looks like a button
+that is simply disabled, which is a bug that costs an afternoon to recognise.
 
 ## Testing the application itself
 

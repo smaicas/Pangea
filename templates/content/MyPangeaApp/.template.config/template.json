@@ -42,12 +42,12 @@
         },
         {
           "condition": "(!Sample)",
-          "exclude": [ "Themes/**" ]
+          "exclude": [ "MyPangeaApp/Themes/**" ]
         }
       ]
     }
   ],
-  "primaryOutputs": [ { "path": "MyPangeaApp.csproj" } ],
+  "primaryOutputs": [ { "path": "MyPangeaApp/MyPangeaApp.csproj" } ],
   "postActions": [
     {
       "description": "Restore NuGet packages",

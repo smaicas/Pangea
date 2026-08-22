@@ -15,6 +15,21 @@
         <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
     </ItemGroup>
 
+    <!--
+        The tests the templates ship, run here.
+
+        A test file in a template is a worked example, and an example that has not been run is a
+        guess. Linked rather than referenced: the template's own project references the toolkit by
+        package version, which does not exist yet for the code in this working tree, so the files
+        are compiled against the sources instead - which is also the only way they would notice a
+        toolkit change breaking them.
+    -->
+    <ItemGroup>
+        <Compile Include="..\..\templates\content\**\*.Tests\**\*.cs"
+                 Exclude="..\..\templates\content\**\bin\**;..\..\templates\content\**\obj\**"
+                 Link="Templates\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+
     <ItemGroup>
         <!-- The templates' own sources, compiled against the toolkit in this working tree. -->
         <ProjectReference Include="..\CdCSharp.Pangea.Templates.Compile\CdCSharp.Pangea.Templates.Compile.csproj" />

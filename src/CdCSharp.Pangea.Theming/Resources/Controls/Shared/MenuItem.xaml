@@ -9,7 +9,9 @@
                 TargetType="MenuItem">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="Padding" Value="6 0" />
+    <Setter Property="Padding" Value="{DynamicResource MenuItemPadding}" />
+    <Setter Property="MinHeight" Value="{DynamicResource MenuItemMinHeight}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource MenuItemCornerRadius}" />
     <Setter Property="Template">
       <ControlTemplate>
         <Border Name="root"

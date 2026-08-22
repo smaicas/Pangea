@@ -120,4 +120,20 @@ public class ThemeDictionaryStructureTests
             string.Join(Environment.NewLine, offenders));
     }
 
+    [Fact]
+    public void EveryMetric_IsConsumedByAControlTheme()
+    {
+        HashSet<string> used = [.. ThemeSources.KeyUsagesByFile().Keys];
+
+        List<string> dead = ThemeMetrics.Values.Keys
+            .Where(key => !used.Contains(key))
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToList();
+
+        // A metric nothing reads is a knob that does not turn: the control theme kept a hardcoded
+        // size instead, so changing the metric has no visible effect.
+        Assert.True(dead.Count == 0,
+            "These metrics are defined but no control theme reads them, so the sizes they claim to " +
+            "control are still hardcoded in the XAML: " + string.Join(", ", dead));
+    }
 }

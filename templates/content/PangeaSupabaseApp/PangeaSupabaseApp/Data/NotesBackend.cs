@@ -12,7 +12,7 @@ namespace PangeaSupabaseApp.Data;
 /// fail because the network is not there - which is not exceptional on a phone, and is why the
 /// repository above catches it rather than this reporting it.
 /// </remarks>
-public sealed class NotesBackend
+public sealed class NotesBackend : INotesBackend
 {
     private readonly ISupabaseClientProvider _backend;
     private readonly ISupabaseAuth _auth;

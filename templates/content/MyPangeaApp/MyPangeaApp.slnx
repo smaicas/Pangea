@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MyPangeaApp/MyPangeaApp.csproj" />
+  <Project Path="MyPangeaApp.Tests/MyPangeaApp.Tests.csproj" />
+</Solution>

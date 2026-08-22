@@ -38,25 +38,31 @@
     <PropertyGroup>
         <TemplateHeads>$(TemplateContent)**\*.Android\**;$(TemplateContent)**\*.iOS\**;$(TemplateContent)**\*.Browser\**</TemplateHeads>
         <TemplateOutput>$(TemplateContent)**\bin\**;$(TemplateContent)**\obj\**</TemplateOutput>
+        <!--
+            The templates' own test projects. They need a test framework this project does not
+            reference, and compiling them here would only prove they compile: they are linked into
+            CdCSharp.Pangea.Templates.Tests instead, which runs them.
+        -->
+        <TemplateTests>$(TemplateContent)**\*.Tests\**</TemplateTests>
     </PropertyGroup>
 
     <ItemGroup>
         <Compile Include="$(TemplateContent)**\*.cs"
-                 Exclude="$(TemplateOutput);$(TemplateHeads)"
+                 Exclude="$(TemplateOutput);$(TemplateHeads);$(TemplateTests)"
                  Link="%(RecursiveDir)%(Filename)%(Extension)" />
 
         <AvaloniaXaml Include="$(TemplateContent)**\*.axaml"
-                      Exclude="$(TemplateOutput);$(TemplateHeads)"
+                      Exclude="$(TemplateOutput);$(TemplateHeads);$(TemplateTests)"
                       Link="%(RecursiveDir)%(Filename)%(Extension)" />
 
         <!-- Linked flat under Resources\ so the neutral file and its translation land where
              PangeaShellApp.Resources.Strings expects them, satellite assembly included. -->
-        <EmbeddedResource Include="$(TemplateContent)PangeaShellApp\Resources\*.resx"
+        <EmbeddedResource Include="$(TemplateContent)PangeaShellApp\PangeaShellApp\Resources\*.resx"
                           Link="Resources\%(Filename)%(Extension)" />
 
         <!-- What the shipped .targets does for a consumer of the package. A project reference
              brings no build assets, so the resource files are named here instead. -->
-        <AdditionalFiles Include="$(TemplateContent)PangeaShellApp\Resources\*.resx" />
+        <AdditionalFiles Include="$(TemplateContent)PangeaShellApp\PangeaShellApp\Resources\*.resx" />
     </ItemGroup>
 
     <ItemGroup>

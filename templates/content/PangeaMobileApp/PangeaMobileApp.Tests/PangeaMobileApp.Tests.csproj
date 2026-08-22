@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json. -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\PangeaMobileApp\PangeaMobileApp.csproj" />
+        <!--
+            The container a view model needs, with test doubles in it. No Avalonia is started here:
+            these tests are about what a screen decides, and starting a UI to ask that turns a
+            millisecond into a second and adds a way to fail that has nothing to do with the answer.
+        -->
+        <PackageReference Include="CdCSharp.Pangea.Testing" Version="$(PangeaVersion)" />
+    </ItemGroup>
+</Project>

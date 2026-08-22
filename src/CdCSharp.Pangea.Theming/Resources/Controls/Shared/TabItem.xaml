@@ -7,7 +7,9 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeLarge}" />
     <Setter Property="Foreground" Value="{DynamicResource ThemeForegroundLowBrush}" />
     <Setter Property="HorizontalContentAlignment" Value="Left" />
-    <Setter Property="Padding" Value="8" />
+    <Setter Property="Padding" Value="{DynamicResource TabItemPadding}" />
+    <Setter Property="MinHeight" Value="{DynamicResource TabItemMinHeight}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource TabItemCornerRadius}" />
     <Setter Property="Template">
       <ControlTemplate>
         <ContentPresenter Name="PART_ContentPresenter"

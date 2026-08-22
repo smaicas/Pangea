@@ -8,6 +8,9 @@
     <Setter Property="Width" Value="350" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeLarge}" />
     <Setter Property="Foreground" Value="White" />
+    <Setter Property="Padding" Value="{DynamicResource NotificationPadding}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource NotificationCornerRadius}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource NotificationBorderThickness}" />
     <Setter Property="RenderTransformOrigin" Value="50%,75%" />
     <Setter Property="Template">
       <ControlTemplate>
@@ -15,7 +18,7 @@
                                 UseRenderTransform="True">
           <ContentPresenter Name="PART_ContentPresenter"
                             MinHeight="150"
-                            Padding="8,8,0,0"
+                            Padding="{TemplateBinding Padding}"
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"

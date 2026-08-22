@@ -1,0 +1,82 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PangeaSupabaseApp.Themes.Components">
+
+    <!--
+        The application's components: the pieces built on top of the toolkit's controls.
+
+        Kept out of App.axaml on purpose. One file holding every rule for every control is a file
+        nobody reads to the end, and the two halves answer different questions - App.axaml says what
+        text looks like, this says what a card and a primary button are.
+
+        Two rules run through it:
+
+          1. Colour is only ever a DynamicResource, so the palette - and the light/dark variant -
+             stays the single place appearance is decided.
+
+          2. Colour on a control goes on /template/ ContentPresenter. The theme paints inside its
+             own template, so a Background set on the control is ignored while a Foreground set
+             there still reaches the text by inheritance: the exact mismatch that makes a button
+             come out white on white.
+
+        Size is not on this list. Heights, padding and corner radii come from ThemeMetrics - see
+        App.axaml.cs, where the theme is built with ThemeMetrics.Touch - so a class here says what
+        makes this button different, not how big a button is.
+    -->
+
+    <Style Selector="Button.primary">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.primary /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ThemeAccentDarkBrush}" />
+        <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+    </Style>
+
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ThemeAccentDarkBrush}" />
+        <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+    </Style>
+
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ThemeControlHighBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource ThemeForegroundLowBrush}" />
+    </Style>
+
+    <!-- Everything tappable dips slightly when pressed. On a phone there is no cursor and no hover,
+         so this is the only confirmation that a tap landed before the screen changes. -->
+    <Style Selector="Button">
+        <Setter Property="RenderTransform" Value="scale(1)" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.09" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Button:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource ThemeControlLowBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderLowBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="20" />
+    </Style>
+
+</Styles>

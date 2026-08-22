@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="PangeaSupabaseApp/PangeaSupabaseApp.csproj" />
+  <Project Path="PangeaSupabaseApp.Tests/PangeaSupabaseApp.Tests.csproj" />
   <Project Path="PangeaSupabaseApp.Desktop/PangeaSupabaseApp.Desktop.csproj" />
   <!--#if (Android) -->
   <Project Path="PangeaSupabaseApp.Android/PangeaSupabaseApp.Android.csproj" />

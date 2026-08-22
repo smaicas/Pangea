@@ -1,11 +1,24 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:themes="using:PangeaMobileApp.Themes"
              x:Class="PangeaMobileApp.App">
 
     <!-- PangeaUI is added to Application.Styles by the theming feature at startup; these sit on
          top of it. Colour is only ever a DynamicResource, so the palette - and the light/dark
-         variant - stays the single place appearance is decided. -->
+         variant - stays the single place appearance is decided.
+
+         Sizes are not here either: they come from ThemeMetrics.Touch, handed to the theme in
+         App.axaml.cs. A height written into a style is a height that only reaches the controls
+         somebody remembered to style. -->
     <Application.Styles>
+
+        <!-- The components - what a card and a primary button are - in a file of their own, so
+             neither this one nor that one is the file nobody reads to the end. Added as a type:
+             see Components.axaml.cs for why that beats an avares:// URI. -->
+        <themes:Components />
+
+        <!-- The type scale. Every loose FontSize in a view is a decision nobody made on purpose,
+             and on a phone they add up to a screen with no hierarchy at all. -->
 
         <Style Selector="TextBlock.title">
             <Setter Property="FontSize" Value="24" />
@@ -17,61 +30,6 @@
             <Setter Property="FontSize" Value="15" />
             <Setter Property="Foreground" Value="{DynamicResource ThemeForegroundLowBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-
-        <!--
-            Colour goes on /template/ ContentPresenter, not on the control. The theme paints inside
-            its own template, so a Background set on the control is ignored while a Foreground set
-            there still reaches the text by inheritance - which is how a button ends up white on
-            white. Layout stays on the control, where it belongs.
-
-            52 high: a thumb pad is about 9mm across, and anything shorter is a button somebody
-            misses while walking.
-        -->
-        <Style Selector="Button.primary">
-            <Setter Property="Height" Value="52" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="RenderTransform" Value="scale(1)" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.09" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <!-- On a phone there is no cursor and no hover, so the dip is the only confirmation that a
-             tap landed before the screen changes. -->
-        <Style Selector="Button.primary:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.97)" />
-        </Style>
-
-        <Style Selector="Button.primary /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.12" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource ThemeAccentDarkBrush}" />
-            <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
-        </Style>
-
-        <Style Selector="Border.card">
-            <Setter Property="Background" Value="{DynamicResource ThemeControlLowBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderLowBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="20" />
         </Style>
 
     </Application.Styles>

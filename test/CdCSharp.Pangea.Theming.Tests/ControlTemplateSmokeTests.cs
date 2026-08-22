@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using CdCSharp.Pangea.Theming.Palettes;
 using CdCSharp.Pangea.Theming.Tests.Infrastructure;
 
 namespace CdCSharp.Pangea.Theming.Tests;
@@ -99,5 +100,36 @@ public class ControlTemplateSmokeTests
         Assert.Contains("Button", names);
         Assert.Contains("ComboBox", names);
         Assert.Contains("TreeView", names);
+    }
+
+    [AvaloniaFact]
+    public void InteractiveControls_AreLaidOutAtTheirMetricHeight()
+    {
+        ThemeHarness.ApplyVariant(ThemeVariant.Default);
+
+        ComboBox combo = new();
+        Button button = new();
+        TextBox text = new();
+        StackPanel panel = new() { Children = { combo, button, text } };
+
+        Window window = new() { Width = 400, Height = 300, Content = panel };
+        window.Show();
+        window.Measure(new Size(400, 300));
+        window.Arrange(new Rect(0, 0, 400, 300));
+
+        // The metrics are the whole point of ThemeMetrics: if a control theme goes back to a
+        // hardcoded size, the touch target shrinks and this catches it.
+        AssertAtLeast("ComboBox", "ComboBoxMinHeight", combo);
+        AssertAtLeast("Button", "ButtonMinHeight", button);
+        AssertAtLeast("TextBox", "TextBoxMinHeight", text);
+    }
+
+    private static void AssertAtLeast(string controlName, string metricKey, Control control)
+    {
+        double floor = (double)ThemeMetrics.Values[metricKey];
+
+        Assert.True(control.Bounds.Height >= floor,
+            $"{controlName} laid out at {control.Bounds.Height} but {metricKey} asks for at least {floor}, " +
+            "so the control theme is not reading the metric.");
     }
 }

@@ -15,8 +15,9 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeSmall}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
-    <Setter Property="MinWidth" Value="37" />
-    <Setter Property="MinHeight" Value="38" />
+    <Setter Property="MinWidth" Value="{DynamicResource CalendarButtonSize}" />
+    <Setter Property="MinHeight" Value="{DynamicResource CalendarButtonSize}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CalendarButtonCornerRadius}" />
     <Setter Property="Focusable" Value="False" />
     <Setter Property="Template">
       <ControlTemplate>

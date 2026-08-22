@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json. -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\PangeaDataApp\PangeaDataApp.csproj" />
+        <!--
+            The container a view model needs, with test doubles in it. The rules under Domain\ need
+            none of it - that is the point of them being there - so most of what is worth asserting
+            costs nothing to reach.
+        -->
+        <PackageReference Include="CdCSharp.Pangea.Testing" Version="PANGEA_VERSION" />
+        <!-- A real SQLite database, built from the migrations this project ships and thrown away
+             afterwards. The screen is driven against it: an in-memory stand-in would not run the
+             migration, which is the half most likely to be wrong. -->
+        <PackageReference Include="CdCSharp.Pangea.Data.Testing" Version="PANGEA_VERSION" />
+    </ItemGroup>
+</Project>

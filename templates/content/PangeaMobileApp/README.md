@@ -8,6 +8,7 @@ An Avalonia application for phones, built on [Pangea](https://github.com/smaicas
 |---|---|
 | `PangeaMobileApp` | Everything the application is: views, view models, theme. |
 | `PangeaMobileApp.Desktop` | An entry point, so a change can be seen without an emulator. |
+| `PangeaMobileApp.Tests` | The application's tests. One per convention to copy from; no Avalonia is started. |
 <!--#if (Android) -->
 | `PangeaMobileApp.Android` | The Android head. |
 <!--#endif -->
@@ -21,6 +22,7 @@ The heads hold an entry point and nothing else. Everything you write goes in the
 
 ```bash
 dotnet run --project PangeaMobileApp.Desktop
+dotnet test
 <!--#if (Android) -->
 dotnet build -t:Run PangeaMobileApp.Android
 <!--#endif -->

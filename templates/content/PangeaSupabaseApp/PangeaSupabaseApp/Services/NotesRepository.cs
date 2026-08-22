@@ -23,12 +23,12 @@ public sealed class NotesRepository
 {
     private static readonly JsonSerializerOptions Payloads = new(JsonSerializerDefaults.Web);
 
-    private readonly NotesBackend _backend;
+    private readonly INotesBackend _backend;
     private readonly NotesCache _cache;
     private readonly IOutbox _outbox;
     private readonly ILogger<NotesRepository> _logger;
 
-    public NotesRepository(NotesBackend backend, NotesCache cache, IOutbox outbox, ILogger<NotesRepository> logger)
+    public NotesRepository(INotesBackend backend, NotesCache cache, IOutbox outbox, ILogger<NotesRepository> logger)
     {
         _backend = backend;
         _cache = cache;

@@ -38,7 +38,7 @@
       ]
     }
   ],
-  "primaryOutputs": [ { "path": "PangeaShellApp.csproj" } ],
+  "primaryOutputs": [ { "path": "PangeaShellApp/PangeaShellApp.csproj" } ],
   "postActions": [
     {
       "description": "Restore NuGet packages",

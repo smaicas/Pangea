@@ -7,7 +7,9 @@
     <Setter Property="PlaceholderForeground" Value="{DynamicResource ThemeForegroundLowBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderMidBrush}" />
     <Setter Property="BorderThickness" Value="{DynamicResource ThemeBorderThickness}" />
-    <Setter Property="Padding" Value="4" />
+    <Setter Property="Padding" Value="{DynamicResource TextBoxPadding}" />
+    <Setter Property="MinHeight" Value="{DynamicResource TextBoxMinHeight}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource TextBoxCornerRadius}" />
     <Setter Property="Template">
       <ControlTemplate>
         <DataValidationErrors>

@@ -842,6 +842,46 @@ public class FunctionalAnalyzer
             case ParenthesizedExpressionSyntax parenthesized:
                 AnalyzeLambdaExpression(parenthesized.Expression, commandInfo, analysis);
                 break;
+
+            // Caso: SelectedMember is { IsOwner: false }, Selection is not null
+            case IsPatternExpressionSyntax isPattern:
+                // Only the operand is a read of this view model: the names inside the pattern belong
+                // to the type being matched, and a pattern cannot mention a property otherwise -
+                // its leaves are constants.
+                AnalyzeLambdaExpression(isPattern.Expression, commandInfo, analysis);
+                break;
+
+            // Caso: SelectedMember?.IsOwner == true
+            case ConditionalAccessExpressionSyntax conditionalAccess:
+                AnalyzeLambdaExpression(conditionalAccess.Expression, commandInfo, analysis);
+                break;
+
+            // Cualquier otra forma: reconocer lo que se pueda en lugar de no ver nada.
+            default:
+                AddPropertiesReadWithin(expression, commandInfo, analysis);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Registers every known view model property read anywhere inside <paramref name="node"/>.
+    /// </summary>
+    /// <remarks>
+    /// The fallback for an expression shape the switch above does not name, and how block-bodied
+    /// lambdas have always been read. The two failures are not symmetric: registering a property the
+    /// predicate does not really use costs one extra CanExecute evaluation, while missing one leaves
+    /// a button that never enables, so an unrecognised shape errs towards notifying.
+    /// </remarks>
+    private void AddPropertiesReadWithin(SyntaxNode node, CommandInfo commandInfo, ViewModelAnalysis analysis)
+    {
+        foreach (IdentifierNameSyntax identifier in node.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>())
+        {
+            string name = identifier.Identifier.ValueText;
+
+            if (IsKnownViewModelProperty(name, analysis) && !commandInfo.CanExecuteReferences.Contains(name))
+            {
+                commandInfo.CanExecuteReferences.Add(name);
+            }
         }
     }
 
@@ -903,19 +943,7 @@ public class FunctionalAnalyzer
         // Para lambdas con cuerpo de bloque { ... }
         foreach (StatementSyntax statement in block.Statements)
         {
-            // Analizar todas las expresiones dentro del bloque
-            foreach (SyntaxNode node in statement.DescendantNodesAndSelf())
-            {
-                if (node is IdentifierNameSyntax identifier)
-                {
-                    string identifierName = identifier.Identifier.ValueText;
-                    if (IsKnownViewModelProperty(identifierName, analysis) &&
-                        !commandInfo.CanExecuteReferences.Contains(identifierName))
-                    {
-                        commandInfo.CanExecuteReferences.Add(identifierName);
-                    }
-                }
-            }
+            AddPropertiesReadWithin(statement, commandInfo, analysis);
         }
     }
 

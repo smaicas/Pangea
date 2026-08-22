@@ -7,12 +7,12 @@
       "sha256": "b493668b8b884738398536364bac35d04e173fa6c02fd2cabfe043d4b1bc02ec"
     },
     "AutoCompleteBox.xaml": {
-      "origin": "vendored",
-      "sha256": "7d4931db90bca49de8d592c217d84163401ecd7113c273fa7578f05ef855c027"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "Button.xaml": {
-      "origin": "vendored",
-      "sha256": "d6cde2ae1d99ff8bc22cd6883288823cdbcbd417d0c637ee766ec5c04c153eef"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "ButtonSpinner.xaml": {
       "origin": "vendored",
@@ -23,12 +23,12 @@
       "sha256": "f39ad43ab3c86c99391e318556bfeb6859b465d683368e27cc04c7c5f9b7a4c5"
     },
     "CalendarButton.xaml": {
-      "origin": "vendored",
-      "sha256": "95efb436cfdb169764ff9795e92ebf04462d090aa80b6909a08f350809466c90"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "CalendarDatePicker.xaml": {
-      "origin": "vendored",
-      "sha256": "675e8bb49877ccb1b30eae68e0be535415b4f55e44b701cfd6553be4cadf1f5b"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "CalendarDayButton.xaml": {
       "origin": "vendored",
@@ -47,16 +47,16 @@
       "sha256": "b969b4b327428f9fa116c34d972cd522f53127de0d3800d12008891973cee84d"
     },
     "CheckBox.xaml": {
-      "origin": "vendored",
-      "sha256": "8b0150c11a6851b0e82e0329f491666bc314a6cb776ddada7f3fd25a6d64ab72"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "ComboBox.xaml": {
-      "origin": "vendored",
-      "sha256": "c71c8e8d396e843399410de86165122744b7db1143571eda6b9447a6bc0e4bc6"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "ComboBoxItem.xaml": {
-      "origin": "vendored",
-      "sha256": "a8473da150225e7d9fcc5f8fc691fd2024dc9bded11fe1d880ca1089d02ae319"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "CommandBar.xaml": {
       "origin": "vendored",
@@ -87,16 +87,16 @@
       "sha256": "c657f57fa9dbfd9fc5309451501c34754c90bb61c4a878ca4bf84736619f4921"
     },
     "DropDownButton.xaml": {
-      "origin": "vendored",
-      "sha256": "a20d3fc1a2e92109b2cfb23f1cdff93f1376cf97c62bf88722803b90f7adc2ad"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "EmbeddableControlRoot.xaml": {
       "origin": "vendored",
       "sha256": "395c99cc21ac1fcad9ec82f58fd3491028bbc9b91713472cc670e7091be56dd2"
     },
     "Expander.xaml": {
-      "origin": "vendored",
-      "sha256": "72d50bb52613447fab0005acede27959dedd6d9e8df72ed28254de896a97d857"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "FlyoutPresenter.xaml": {
       "origin": "vendored",
@@ -115,8 +115,8 @@
       "sha256": "7ffd32db90f9c78e10e2b3e1d1a697f0175bd980821f48051f8f0fc4ffbc2ba8"
     },
     "HyperlinkButton.xaml": {
-      "origin": "vendored",
-      "sha256": "a5b4c52f0f6981cb81a13e921d7b882039a29e460723c97013280a4ec6ac9cb4"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "ItemsControl.xaml": {
       "origin": "vendored",
@@ -131,8 +131,8 @@
       "sha256": "f06e2a3cfc71058bdadb834f87f0931e05b2821291e021316ec4f1b823a9aed5"
     },
     "ListBoxItem.xaml": {
-      "origin": "vendored",
-      "sha256": "dea72407c2483dadd635d4f22a84b56ec9701e0426745cab1717463fa493ba2e"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "ManagedFileChooser.xaml": {
       "origin": "vendored",
@@ -147,20 +147,20 @@
       "sha256": "fbb6e2fcbf593aa866e9222a00d17f27af447ed2fe10d890753c7a606de476cd"
     },
     "MenuItem.xaml": {
-      "origin": "vendored",
-      "sha256": "ed35409d008c92e0038b1dc382147f399368dfdea48b91df0a65afe9f78ddfca"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "NavigationPage.xaml": {
       "origin": "vendored",
       "sha256": "c61314b9f7e6f721c0b9e17672b3f785e71c308c3c7b7191fc7a8c16308a1c30"
     },
     "NotificationCard.xaml": {
-      "origin": "vendored",
-      "sha256": "3458c401a945fd9d6fd10fe944506ee4925cf0febbcab108dcc1db434bf0407c"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "NumericUpDown.xaml": {
-      "origin": "vendored",
-      "sha256": "669ed43402682d43c2ac83b5b831d25e166d7198e8e11af05640451347d44ffd"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "OverlayPopupHost.xaml": {
       "origin": "vendored",
@@ -179,12 +179,12 @@
       "sha256": "c0e3716d1053c68104bf8f8da94bac07b09741fbcb769d969fa15de2ab7324e2"
     },
     "ProgressBar.xaml": {
-      "origin": "vendored",
-      "sha256": "560edb633998f48009987134e7fcfe7a4051a0968f9d6332307a86fb9ddc8095"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "RadioButton.xaml": {
-      "origin": "vendored",
-      "sha256": "f8c33fcf97a215b101f5c2141712a9a90422d3285a762f42b6a6c7c4ecbb310f"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "RefreshContainer.xaml": {
       "origin": "vendored",
@@ -219,8 +219,8 @@
       "reason": "Aggregator: merges point at this assembly instead of Avalonia.Themes.Simple, and x:ClassModifier is dropped."
     },
     "Slider.xaml": {
-      "origin": "vendored",
-      "sha256": "5a4420acf64765aaacfd44fafd9ad845733a85a8954f5f149d17bc310334f680"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "SplitButton.xaml": {
       "origin": "vendored",
@@ -235,8 +235,8 @@
       "sha256": "4a598b27434ea2990854143db2858b15eface031e2a4a02acbc66272aaf9942d"
     },
     "TabItem.xaml": {
-      "origin": "vendored",
-      "sha256": "b1c53effcaa0be8b264da8ecd21ce65a5e9f92a68651d3fa70c5c8e84d04b4f3"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "TabStrip.xaml": {
       "origin": "vendored",
@@ -267,8 +267,8 @@
       "sha256": "6b19eccaefb183a117ef10f7853e62a0790894f45250be4ceb94de8806b36f26"
     },
     "TextBox.xaml": {
-      "origin": "vendored",
-      "sha256": "d28bb4672862967ed03eda8e27d06e3aa009beac3d7bb61efafb44a98a3ec97f"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "TextSelectionHandle.xaml": {
       "origin": "vendored",
@@ -283,8 +283,8 @@
       "sha256": "d7d6f15c47cde01fa142ad81f5b8555330474c8145eac60f1639f8a1bb24238b"
     },
     "ToggleButton.xaml": {
-      "origin": "vendored",
-      "sha256": "08f3d8316f42696fc7b135755f7fba2ada1d5a036c5e7fe17931f772972d27e6"
+      "origin": "customized",
+      "reason": "Sizing comes from ThemeMetrics: hardcoded padding, min-height, corner radius and glyph sizes replaced with DynamicResource tokens."
     },
     "ToggleSwitch.xaml": {
       "origin": "vendored",

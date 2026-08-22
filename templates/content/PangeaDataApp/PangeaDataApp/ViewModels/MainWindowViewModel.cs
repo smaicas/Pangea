@@ -4,6 +4,7 @@ using CdCSharp.Pangea.Data.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PangeaDataApp.Data;
+using PangeaDataApp.Domain;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 
@@ -76,16 +77,17 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (!ValidateAll()) return;
 
-        string title = NewTitle.Trim();
-        string? body = string.IsNullOrWhiteSpace(NewBody) ? null : NewBody.Trim();
+        // The tidying is a rule, not wiring, so it lives in Domain where it can be asked directly.
+        // What is left here is what needs an application around it to mean anything.
+        if (NoteDraft.From(NewTitle, NewBody) is not { } draft) return;
 
-        await RunAsync(() => $"Saved '{title}'.", async () =>
+        await RunAsync(() => $"Saved '{draft.Title}'.", async () =>
         {
             // Runs the change and saves it, one write at a time: SQLite has a single writer, and
             // the feature queues writes rather than letting the second one fail.
             await _db.WriteAsync((context, token) =>
             {
-                context.Notes.Add(new Note { Title = title, Body = body });
+                context.Notes.Add(new Note { Title = draft.Title, Body = draft.Body });
                 return Task.CompletedTask;
             });
 
@@ -142,7 +144,7 @@ public partial class MainWindowViewModel : ViewModelBase
         DatabaseInfo info = await _maintenance.GetInfoAsync();
 
         DatabaseSummary =
-            $"{info.ProviderName} · {Describe(info.SizeBytes)} · " +
+            $"{info.ProviderName} · {FileSize.Describe(info.SizeBytes)} · " +
             $"{info.AppliedMigrations.Count} migration(s) applied · " +
             $"{_maintenance.GetBackups().Count} backup(s)" +
             (info.FilePath is null ? "" : Environment.NewLine + info.FilePath);
@@ -173,6 +175,4 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static string Describe(long? bytes) =>
-        bytes is null ? "no file" : $"{bytes.Value / 1024d:0.#} KB";
 }
