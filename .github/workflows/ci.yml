@@ -107,7 +107,13 @@ jobs:
                 fi
               done
 
+              # No project named: the template writes a solution, so this builds the application
+              # and the test project the template ships with it.
               dotnet build -c ${{ env.CONFIGURATION }}
+
+              # And the tests it ships are run. A worked example that has not been run is a guess,
+              # and this is the only place they meet the packages rather than the working tree.
+              dotnet test -c ${{ env.CONFIGURATION }} --no-build
             )
           }
 
@@ -121,10 +127,14 @@ jobs:
               *)                  SAMPLE=1 ;;
             esac
 
+            # The skill sits at the solution root; everything the application is lives in the
+            # project directory beside it, and the tests in their own.
             generate_and_build pangea-app "$options" \
               "$SKILL"  .claude/skills/pangea/SKILL.md \
               "$SKILL"  .claude/skills/pangea/references/resource-keys.md \
-              "$SAMPLE" Themes/AppPalette.cs
+              "$SAMPLE" Generated/Themes/AppPalette.cs \
+              1         Generated.Tests/Generated.Tests.csproj \
+              1         Generated.slnx
           done
 
           # The shell template is the worked example for every feature, so what it promises to
@@ -137,11 +147,12 @@ jobs:
 
             generate_and_build pangea-shell "$options" \
               "$SKILL" .claude/skills/pangea/SKILL.md \
-              1        Views/HomeView.axaml \
-              1        Views/SettingsView.axaml \
-              1        Navigation/ShowOrderDetail.cs \
-              1        Services/AppStartupFeature.cs \
-              1        Resources/Strings.es.resx
+              1        Generated/Views/HomeView.axaml \
+              1        Generated/Views/SettingsView.axaml \
+              1        Generated/Navigation/ShowOrderDetail.cs \
+              1        Generated/Services/AppStartupFeature.cs \
+              1        Generated/Resources/Strings.es.resx \
+              1        Generated.Tests/HomeViewModelTests.cs
           done
 
       # Everything above proves the generated project compiles. This proves it compiles *with the
@@ -167,15 +178,17 @@ jobs:
           </configuration>
           EOF
 
-          dotnet build -c ${{ env.CONFIGURATION }} --no-incremental \
+          # The application project, not the solution: the generated files are asked for by path
+          # below, and CompilerGeneratedFilesOutputPath is relative to whichever project is built.
+          dotnet build Generated/Generated.csproj -c ${{ env.CONFIGURATION }} --no-incremental \
             -p:EmitCompilerGeneratedFiles=true -p:CompilerGeneratedFilesOutputPath=obj/generated
 
           # Without the startup catalog the application falls back to scanning assemblies, and
           # nothing anywhere says so.
           for generated in PangeaCatalog.g.cs HomeViewModel.Binding.g.cs; do
-            if ! find obj/generated -name "*$generated" | grep -q .; then
+            if ! find Generated/obj/generated -name "*$generated" | grep -q .; then
               echo "❌ CRITICAL: '$generated' was not generated in a project that only references the package"
-              find obj/generated -type f
+              find Generated/obj/generated -type f
               exit 1
             fi
           done
@@ -184,9 +197,9 @@ jobs:
           # The localization analyzer only sees .resx files through the package's buildTransitive
           # targets. Shipping them under build/ alone is silent: the analyzer loads and checks
           # nothing.
-          sed -i 's/"Settings_Saved"/"Settings_Savd"/' ViewModels/SettingsViewModel.cs
+          sed -i 's/"Settings_Saved"/"Settings_Savd"/' Generated/ViewModels/SettingsViewModel.cs
 
-          if ! dotnet build -c ${{ env.CONFIGURATION }} --no-incremental 2>&1 | grep -q "PGL001"; then
+          if ! dotnet build Generated/Generated.csproj -c ${{ env.CONFIGURATION }} --no-incremental 2>&1 | grep -q "PGL001"; then
             echo "❌ CRITICAL: the localization analyzer did not see the project's .resx files"
             exit 1
           fi
