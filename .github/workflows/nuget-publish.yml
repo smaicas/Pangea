@@ -246,6 +246,23 @@ jobs:
             --no-build \
             -v normal
 
+          # The data and Supabase features. Packed and published like the rest because the
+          # pangea-data and pangea-mobile-supabase templates install them by name: leaving them out
+          # meant those two templates generated a project that could not restore at all.
+          for feature in \
+            CdCSharp.Pangea.Data \
+            CdCSharp.Pangea.Data.Sqlite \
+            CdCSharp.Pangea.Data.Testing \
+            CdCSharp.Pangea.Supabase; do
+            dotnet pack "src/$feature/$feature.csproj" \
+              -c ${{ env.CONFIGURATION }} \
+              -o ./artifacts \
+              -p:PackageVersion=${{ steps.version.outputs.version }} \
+              -p:Version=${{ steps.version.outputs.version }} \
+              --no-build \
+              -v normal
+          done
+
       - name: Pack Template
         run: |
           dotnet pack templates/CdCSharp.Pangea.Templates.csproj             -c ${{ env.CONFIGURATION }}             -o ./artifacts             -p:PackageVersion=${{ steps.version.outputs.version }}             -p:Version=${{ steps.version.outputs.version }}             -v normal
@@ -361,6 +378,42 @@ jobs:
               assert_file 1               Generated/Services/AppStartupFeature.cs
               assert_file 1               Generated/Resources/Strings.es.resx
               assert_file 1               Generated.Tests/HomeViewModelTests.cs
+
+              dotnet build -c ${{ env.CONFIGURATION }}
+              dotnet test -c ${{ env.CONFIGURATION }} --no-build
+            )
+          done
+
+          # The remaining three templates. They install feature packages the two above do not, and
+          # nothing here used to generate them: CdCSharp.Pangea.Data.Sqlite and
+          # CdCSharp.Pangea.Supabase were packed but never published, so both produced a project
+          # that could not restore, and this job published anyway.
+          #
+          # The mobile ones are generated without their heads - the Android and iOS SDKs need
+          # workloads this image does not carry - which leaves the shared library, the desktop
+          # entry point and the tests. They are also the only templates carrying a second
+          # version-shaped symbol, so they are what proves the pack stamped Pangea's version and
+          # left Avalonia's alone: getting that wrong makes the restore below fail as a downgrade.
+          for spec in "pangea-data|" "pangea-mobile|--Android false --iOS false" "pangea-mobile-supabase|--Android false --iOS false"; do
+            template="${spec%%|*}"
+            options="${spec#*|}"
+            WORK="$(mktemp -d)"
+            echo "🧪 dotnet new $template $options"
+
+            (
+              cd "$WORK"
+              dotnet new "$template" -n Generated -o . --PangeaVersion "${{ steps.version.outputs.version }}" $options
+
+              cat > nuget.config <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$FEED" />
+              <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
 
               dotnet build -c ${{ env.CONFIGURATION }}
               dotnet test -c ${{ env.CONFIGURATION }} --no-build
@@ -517,6 +570,10 @@ jobs:
             CdCSharp.Pangea.Localization
             CdCSharp.Pangea.Navigation
             CdCSharp.Pangea.Testing
+            CdCSharp.Pangea.Data
+            CdCSharp.Pangea.Data.Sqlite
+            CdCSharp.Pangea.Data.Testing
+            CdCSharp.Pangea.Supabase
             CdCSharp.Pangea.Templates
           )
 

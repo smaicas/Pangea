@@ -57,16 +57,29 @@
     </ItemGroup>
 
     <!--
-        Point the generated projects at the version being published. Matched by shape rather than by
-        the literal current value, so re-packing at a different version stamps again: PangeaVersion
-        is the only symbol whose default looks like a version number.
+        Point the generated projects at the version being published.
+
+        Anchored on the symbol's own "replaces" token, not on the shape of the value. Matching any
+        default that looks like a version number was wrong the moment a second such symbol existed:
+        the mobile templates carry an AvaloniaVersion, and it was being stamped with Pangea's
+        version too - so a generated project asked for Avalonia 1.0.52, which resolves to nothing,
+        and the restore failed with a downgrade error on a package nobody had named.
+
+        The same mistake in reverse, in the restore target below, is what wrote 1.0.0 over the
+        Avalonia default in this repository.
     -->
+    <PropertyGroup>
+        <!-- Group 1 keeps whatever whitespace separates the two lines, so the file is rewritten
+             exactly as it was apart from the number. -->
+        <PangeaVersionDefaultPattern>&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;,(\s*)&quot;replaces&quot;: &quot;PANGEA_VERSION&quot;</PangeaVersionDefaultPattern>
+    </PropertyGroup>
+
     <Target Name="StampPangeaVersion" BeforeTargets="GenerateNuspec;Pack"
             Condition="'$(Version)' != ''"
             Outputs="%(PangeaTemplateConfig.Identity)">
         <PropertyGroup>
             <TemplateConfig>%(PangeaTemplateConfig.FullPath)</TemplateConfig>
-            <StampedConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), '&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;', '&quot;defaultValue&quot;: &quot;$(Version)&quot;'))</StampedConfig>
+            <StampedConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), $(PangeaVersionDefaultPattern), '&quot;defaultValue&quot;: &quot;$(Version)&quot;,$1&quot;replaces&quot;: &quot;PANGEA_VERSION&quot;'))</StampedConfig>
         </PropertyGroup>
 
         <WriteLinesToFile File="$(TemplateConfig)" Lines="$(StampedConfig)" Overwrite="true" WriteOnlyWhenDifferent="true" />
@@ -78,7 +91,7 @@
             Outputs="%(PangeaTemplateConfig.Identity)">
         <PropertyGroup>
             <TemplateConfig>%(PangeaTemplateConfig.FullPath)</TemplateConfig>
-            <RestoredConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), '&quot;defaultValue&quot;: &quot;\d+\.\d+\.\d+&quot;', '&quot;defaultValue&quot;: &quot;1.0.0&quot;'))</RestoredConfig>
+            <RestoredConfig>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText($(TemplateConfig))), $(PangeaVersionDefaultPattern), '&quot;defaultValue&quot;: &quot;1.0.0&quot;,$1&quot;replaces&quot;: &quot;PANGEA_VERSION&quot;'))</RestoredConfig>
         </PropertyGroup>
 
         <WriteLinesToFile File="$(TemplateConfig)" Lines="$(RestoredConfig)" Overwrite="true" WriteOnlyWhenDifferent="true" />

@@ -155,6 +155,29 @@ jobs:
               1        Generated.Tests/HomeViewModelTests.cs
           done
 
+          # The other three templates install feature packages the two above do not, and they are
+          # the ones nothing here used to generate: CdCSharp.Pangea.Data.Sqlite and
+          # CdCSharp.Pangea.Supabase were packed but never published, so both of these produced a
+          # project that could not restore, and no job noticed for as long as they existed.
+          generate_and_build pangea-data "" \
+            1 Generated/Data/AppDbContext.cs \
+            1 Generated/Domain/NoteDraft.cs \
+            1 Generated.Tests/DomainTests.cs
+
+          # Without the heads: they are written against the Android and iOS SDKs, whose workloads
+          # this image does not carry. What is left is the shared library every head starts, the
+          # desktop entry point and the tests, which is where the code worth checking lives.
+          #
+          # These two are also the only templates with a second version-shaped symbol in their
+          # configuration, so they are what proves the pack stamps Pangea's version and leaves
+          # Avalonia's alone.
+          for template in pangea-mobile pangea-mobile-supabase; do
+            generate_and_build "$template" "--Android false --iOS false" \
+              1 Generated/Themes/Components.axaml \
+              1 Generated.Tests/Generated.Tests.csproj \
+              0 Generated.Android/MainActivity.cs
+          done
+
       # Everything above proves the generated project compiles. This proves it compiles *with the
       # toolkit's generators and analyzers*, which reach it only as package assets: one that
       # silently stops running leaves a project that still builds, just without any of the checking

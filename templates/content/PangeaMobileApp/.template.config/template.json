@@ -24,7 +24,7 @@
     "AvaloniaVersion": {
       "type": "parameter",
       "datatype": "string",
-      "defaultValue": "1.0.0",
+      "defaultValue": "12.1.1",
       "replaces": "AVALONIA_VERSION",
       "description": "Version of the Avalonia packages to reference."
     },
