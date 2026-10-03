@@ -1,6 +1,7 @@
-# View models: busy state, failures and subscriptions
+# View models: busy state, failures, subscriptions, and models
 
-Three things every screen needs and none of them worth writing by hand.
+Three things every screen needs and none of them worth writing by hand - and, at the end, the
+models a screen edits, which are not view models but still have to notify.
 
 ---
 
@@ -145,3 +146,65 @@ container that built it.
 
 Overriding `OnDiscarded` is where anything else the screen holds goes - a timer, a cancellation
 source.
+
+---
+
+## Models the UI edits in place
+
+A settings object, a step in a document, a row being edited: types that are serialized, cloned and
+compared, and are not screens. A view is bound to them and edits them live, so they still have to
+notify. Derive them from `ObservableModel` and `[Binding]` works exactly as in a view model -
+generated properties, computed properties notified from what they read, change hooks:
+
+```csharp
+using CdCSharp.Pangea.Binding.Attributes;
+using CdCSharp.Pangea.Core.Base;
+using System.Collections.ObjectModel;
+
+namespace MyApp.Models;
+
+public partial class MacroStep : ObservableModel
+{
+    [Binding] private string _key = "A";
+    [Binding] private int _repeat = 1;
+
+    // Notified when Key or Repeat changes. Nothing to list by hand.
+    public string Summary => $"{Key} x{Repeat}";
+    public bool IsRepeated => Repeat > 1;
+}
+
+public partial class Macro : ObservableModel
+{
+    [Binding] private string _name = "";
+    [Binding] private ObservableCollection<MacroStep> _steps = [];
+}
+```
+
+- **Do not write a notifying base of your own** with a list of which properties are computed. One
+  name missing from it is a label that only refreshes when something else redraws it, which the
+  user reads as "it did not save" - the wrong diagnosis, and a slow one to correct.
+- No constructor arguments. A model is built with `new`, by the JSON serializer, or by a clone.
+- `ObservableModel` is notification and nothing else. Commands, validation, `IsBusy`, `Logger`
+  and the navigation lifecycle belong to `ViewModelBase`, which derives from it. Validation
+  attributes on a model's `[Binding]` field are an error (`PGB007`): there is no `ValidateProperty`
+  to run them. Validate in the view model that edits the model, or make the type a view model.
+- Commands that act on a model live in the view model that shows it, not in the model.
+
+### Storing a model
+
+`IStorageService` writes the model's state, not what is computed from it. A property is left out of
+the JSON when it has a getter, no setter, no constructor parameter and no `[JsonInclude]` - so
+`Summary` and `IsRepeated` above never reach the file, and no `[JsonIgnore]` is needed on them.
+
+| Property | Written |
+|---|---|
+| `[Binding]` field, or `{ get; set; }` / `{ get; init; }` | Yes |
+| Getter-only, set through the constructor | Yes - immutable types round-trip |
+| Getter-only computed (`=> ...`) | No |
+| Getter-only computed with `[JsonInclude]` | Yes |
+| Getter-only collection with `[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]` | Yes |
+| Getter-only collection without it | No - it would never be read back anyway |
+
+`StorageService.CreateSerializerOptions()` returns the same settings for code that serializes
+outside the service, and `InMemoryStorageService` in the testing package uses them, so a test sees
+the same JSON the disk would hold.

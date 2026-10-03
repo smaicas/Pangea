@@ -1,4 +1,5 @@
 using CdCSharp.Pangea.Storage.Abstractions;
+using CdCSharp.Pangea.Storage.Services;
 using System.Text.Json;
 
 namespace CdCSharp.Pangea.Testing.Fakes;
@@ -15,6 +16,9 @@ namespace CdCSharp.Pangea.Testing.Fakes;
 public sealed class InMemoryStorageService : IStorageService
 {
     private const string Root = "/pangea-test";
+
+    // The real service's settings, so what a test finds in Files is what the disk would hold.
+    private static readonly JsonSerializerOptions JsonOptions = StorageService.CreateSerializerOptions();
 
     private readonly Dictionary<string, string> _files = new(StringComparer.Ordinal);
     private readonly HashSet<string> _directories = new(StringComparer.Ordinal) { Root };
@@ -53,11 +57,14 @@ public sealed class InMemoryStorageService : IStorageService
     /// </remarks>
     public async Task<T?> ReadJsonAsync<T>(string filePath) where T : class
     {
+        // Null for a file never written, as the real service does: settings on a first run.
+        if (!_files.ContainsKey(filePath)) return null;
+
         string json = await ReadTextAsync(filePath);
 
         try
         {
-            return JsonSerializer.Deserialize<T>(json);
+            return JsonSerializer.Deserialize<T>(json, JsonOptions);
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
@@ -73,7 +80,7 @@ public sealed class InMemoryStorageService : IStorageService
 
         try
         {
-            json = JsonSerializer.Serialize(data);
+            json = JsonSerializer.Serialize(data, JsonOptions);
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {

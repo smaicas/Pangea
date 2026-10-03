@@ -88,6 +88,30 @@ public class FakeBehaviourTests
         Assert.Single(storage.Files);
     }
 
+    /// <summary>
+    /// The real service answers a missing JSON file with null, for settings on a first run. The
+    /// double threw, so a test of that first run exercised a branch production never takes.
+    /// </summary>
+    [Fact]
+    public async Task TheStorageService_ReturnsNullForJsonNeverWritten()
+    {
+        InMemoryStorageService storage = new();
+
+        Assert.Null(await storage.ReadJsonAsync<Settings>(storage.GetDataFilePath("settings.json")));
+        await Assert.ThrowsAsync<FileNotFoundException>(() => storage.ReadTextAsync(storage.GetDataFilePath("notes.txt")));
+    }
+
+    [Fact]
+    public async Task TheStorageService_WritesTheSameJsonAsTheRealOne()
+    {
+        InMemoryStorageService storage = new();
+        string path = storage.GetDataFilePath("settings.json");
+
+        await storage.WriteJsonAsync(path, new Settings { Culture = "es-ES" });
+
+        Assert.Contains("\"culture\"", storage.Files[path], StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheLocalizationService_ReturnsTheKeyWhenNothingResolves()
     {

@@ -125,7 +125,7 @@ public static class ListViewModelTests
 | `PumpingUIDispatcher` | Owned by the calling thread, runs queued work on `Drain()` — for when the question is whether a call waited |
 | `RecordingDialogService` | `Answering(...)` scripts the user's answers; `Confirmations` and `Alerts` record what was asked |
 | `RecordingNavigationService` | `Navigations`, `LastDestination`, `LastRequest<T>()`; `Refuse` makes every navigation report that it was cancelled |
-| `InMemoryStorageService` | The same paths and the same JSON round trip, with nothing on disk |
+| `InMemoryStorageService` | The same paths, the same JSON settings and the same null for a file never written, with nothing on disk |
 | `DictionaryLocalizationService` | Strings from a dictionary, without satellite assemblies |
 | `RecordingThemeService` | `ThemesSet` and `VariantsSet`, without an application's styles |
 

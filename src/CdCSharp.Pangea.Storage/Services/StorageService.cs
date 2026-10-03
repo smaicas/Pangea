@@ -1,5 +1,7 @@
 using CdCSharp.Pangea.Storage.Abstractions;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace CdCSharp.Pangea.Storage.Services;
 
@@ -19,11 +21,59 @@ public class StorageService : IStorageService
     public StorageService(IPlatformPathProvider pathProvider)
     {
         _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptions = CreateSerializerOptions();
+    }
+
+    /// <summary>
+    /// The JSON settings the service reads and writes with: camel case, indented, computed
+    /// properties left out.
+    /// </summary>
+    /// <remarks>
+    /// Public so a double standing in for the service - the in-memory one in the testing package
+    /// among them - produces the same files. A new instance each call, because options are frozen
+    /// on first use and a shared one would be a trap for whoever tries to change it.
+    /// </remarks>
+    public static JsonSerializerOptions CreateSerializerOptions() => new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { IgnoreComputedProperties } }
+    };
+
+    /// <summary>
+    /// Leaves out properties that are computed from others: a getter with no setter, no
+    /// constructor parameter and no <see cref="JsonIncludeAttribute"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A model the UI edits - <c>Total => Quantity * Price</c>, <c>Summary</c>, <c>IsValid</c> -
+    /// would otherwise write every one of them to the file. They are never read back, so the file
+    /// fills with values that look like state and are not, and go stale the moment the code that
+    /// computes them changes.
+    /// </para>
+    /// <para>
+    /// Narrower than <see cref="JsonSerializerOptions.IgnoreReadOnlyProperties"/>, which would also
+    /// drop a getter-only property set through the constructor and break the round trip of an
+    /// immutable type. A getter-only collection the type asks to have populated stays too.
+    /// </para>
+    /// </remarks>
+    private static void IgnoreComputedProperties(JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+
+        for (int i = typeInfo.Properties.Count - 1; i >= 0; i--)
         {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
+            JsonPropertyInfo property = typeInfo.Properties[i];
+
+            bool computed = property.Get is not null
+                && property.Set is null
+                && property.AssociatedParameter is null
+                && (property.ObjectCreationHandling ?? typeInfo.PreferredPropertyObjectCreationHandling)
+                    != JsonObjectCreationHandling.Populate
+                && property.AttributeProvider?.IsDefined(typeof(JsonIncludeAttribute), inherit: true) != true;
+
+            if (computed) typeInfo.Properties.RemoveAt(i);
+        }
     }
 
     public string GetApplicationDataPath() => _pathProvider.GetApplicationDataPath();

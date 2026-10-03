@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 
 namespace CdCSharp.Pangea.Core.Base;
 
-public abstract class ViewModelBase : INotifyPropertyChanged, INotifyDataErrorInfo, INavigationAware, IDiscardable
+public abstract class ViewModelBase : ObservableModel, INotifyDataErrorInfo, INavigationAware, IDiscardable
 {
     protected readonly IRelayCommandFactory CommandFactory;
 
@@ -146,21 +146,6 @@ public abstract class ViewModelBase : INotifyPropertyChanged, INotifyDataErrorIn
 
         ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
         OnPropertyChanged(nameof(HasErrors));
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value))
-            return false;
-
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
     }
 
     protected RelayCommand CreateCommand(

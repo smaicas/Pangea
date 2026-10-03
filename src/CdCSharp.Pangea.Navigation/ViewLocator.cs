@@ -23,6 +23,7 @@ public class ViewLocator : IViewLocator
     private readonly TypeRegistry _typeRegistry;
     private readonly PangeaCatalogIndex _catalog;
     private readonly ConcurrentDictionary<Type, Type> _registrations = new();
+    private readonly ConcurrentDictionary<Type, Resolution> _conventions = new();
     private readonly ConcurrentDictionary<Type, Func<object>> _factories = new();
 
     public ViewLocator(IServiceProvider serviceProvider, TypeRegistry typeRegistry, PangeaCatalogIndex? catalog = null)
@@ -37,12 +38,19 @@ public class ViewLocator : IViewLocator
         where TView : Control =>
         _registrations[typeof(TViewModel)] = typeof(TView);
 
+    public bool CanLocate(Type viewModelType)
+    {
+        ArgumentNullException.ThrowIfNull(viewModelType);
+        return Find(viewModelType).View is not null;
+    }
+
     public Control Locate(object viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 
         Type viewModelType = viewModel.GetType();
-        Type viewType = _registrations.GetOrAdd(viewModelType, ResolveByConvention);
+        Resolution resolution = Find(viewModelType);
+        Type viewType = resolution.View ?? throw new InvalidOperationException(resolution.Failure);
 
         // From the container when it knows how to build it, so a view can take dependencies;
         // otherwise the parameterless constructor every XAML view has - written out by the
@@ -65,13 +73,28 @@ public class ViewLocator : IViewLocator
             ? create()
             : Activator.CreateInstance(viewType);
 
-    private Type ResolveByConvention(Type viewModelType)
+    /// <summary>
+    /// The registration when there is one, the convention otherwise - including its failure, which
+    /// is remembered too.
+    /// </summary>
+    /// <remarks>
+    /// Remembered because <see cref="CanLocate"/> is asked by the application-wide data template
+    /// for every piece of content without a template of its own, every string on every button
+    /// among them. Answering that from a dictionary is the difference between a lookup and a type
+    /// scan per control.
+    /// </remarks>
+    private Resolution Find(Type viewModelType) =>
+        _registrations.TryGetValue(viewModelType, out Type? registered)
+            ? new Resolution(registered, null)
+            : _conventions.GetOrAdd(viewModelType, ResolveByConvention);
+
+    private Resolution ResolveByConvention(Type viewModelType)
     {
         string[] candidates = CandidateViewNames(viewModelType).ToArray();
 
         if (candidates.Length == 0)
         {
-            throw new InvalidOperationException(
+            return Resolution.Failed(
                 $"'{viewModelType.Name}' does not end in '{ViewModelSuffix}', so no view name can be derived from it. " +
                 "Register its view explicitly with IViewLocator.Register.");
         }
@@ -83,12 +106,12 @@ public class ViewLocator : IViewLocator
 
             if (!typeof(Control).IsAssignableFrom(entry.ViewType))
             {
-                throw new InvalidOperationException(
+                return Resolution.Failed(
                     $"'{entry.ViewType.FullName}' was found for '{viewModelType.Name}' but is not a Control.");
             }
 
             _factories[entry.ViewType] = entry.Create;
-            return entry.ViewType;
+            return new Resolution(entry.ViewType, null);
         }
 
         foreach (string candidate in candidates)
@@ -97,14 +120,14 @@ public class ViewLocator : IViewLocator
 
             if (!typeof(Control).IsAssignableFrom(found))
             {
-                throw new InvalidOperationException(
+                return Resolution.Failed(
                     $"'{found.FullName}' was found for '{viewModelType.Name}' but is not a Control.");
             }
 
-            return found;
+            return new Resolution(found, null);
         }
 
-        throw new InvalidOperationException(
+        return Resolution.Failed(
             $"No view was found for '{viewModelType.Name}'. Name it {string.Join(" or ", candidates.Select(name => $"'{name}'"))}, " +
             "or register it explicitly with IViewLocator.Register.");
     }
@@ -122,5 +145,10 @@ public class ViewLocator : IViewLocator
 
         yield return name[..^ModelSuffix.Length];   // OrderViewModel -> OrderView
         yield return name[..^ViewModelSuffix.Length];  // MainWindowViewModel -> MainWindow
+    }
+
+    private sealed record Resolution(Type? View, string? Failure)
+    {
+        public static Resolution Failed(string failure) => new(null, failure);
     }
 }

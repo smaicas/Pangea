@@ -26,8 +26,8 @@ internal static class BindingDiagnostics
 
     internal static readonly DiagnosticDescriptor ClassMustDeriveFromViewModelBase = new(
         id: "PGB002",
-        title: "A view model with [Binding] fields needs a base that raises change notifications",
-        messageFormat: "'{0}' has [Binding] fields but inherits no SetProperty and OnPropertyChanged for the generated properties to call; derive from ViewModelBase, or from a base that provides them",
+        title: "A class with [Binding] fields needs a base that raises change notifications",
+        messageFormat: "'{0}' has [Binding] fields but inherits no SetProperty and OnPropertyChanged for the generated properties to call; derive from ViewModelBase for a view model, ObservableModel for a model, or from a base that provides them",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -54,6 +54,14 @@ internal static class BindingDiagnostics
         messageFormat: "'{0}' generates property '{1}', which hides the '{1}' declared by '{2}'; rename the field, or the base member becomes unreachable through this class",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    internal static readonly DiagnosticDescriptor ValidationNeedsValidateProperty = new(
+        id: "PGB007",
+        title: "Validation attributes on a [Binding] field need a base that validates",
+        messageFormat: "'{0}' carries validation attributes, but '{1}' inherits no ValidateProperty to run them; derive from ViewModelBase, or remove the attributes and validate where the model is used",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     internal static readonly DiagnosticDescriptor StaticFieldNotSupported = new(

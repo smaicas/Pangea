@@ -1367,6 +1367,18 @@ public class FunctionalAnalyzer
                 primary.Declaration.Identifier.GetLocation(), className));
         }
 
+        // A model deriving from ObservableModel has change notification and no validation; the
+        // generated setter would call a ValidateProperty that is not there.
+        if (classSymbol != null && !InheritsMethod(classSymbol, "ValidateProperty"))
+        {
+            foreach (BindingFieldInfo field in analysis.BindingFields.Where(f => f.ValidationAttributes.Count > 0))
+            {
+                analysis.Diagnostics.Add(Diagnostic.Create(
+                    BindingDiagnostics.ValidationNeedsValidateProperty,
+                    FindFieldLocation(parts, field.FieldName), field.FieldName, className));
+            }
+        }
+
         foreach (ViewModelPart part in parts)
         {
             ValidateStaticFields(part.Declaration, part.SemanticModel, analysis);
@@ -1483,6 +1495,16 @@ public class FunctionalAnalyzer
             onPropertyChanged |= current.GetMembers("OnPropertyChanged").OfType<IMethodSymbol>().Any();
 
             if (setProperty && onPropertyChanged) return true;
+        }
+
+        return false;
+    }
+
+    private static bool InheritsMethod(INamedTypeSymbol classSymbol, string name)
+    {
+        for (INamedTypeSymbol? current = classSymbol.BaseType; current != null; current = current.BaseType)
+        {
+            if (current.GetMembers(name).OfType<IMethodSymbol>().Any()) return true;
         }
 
         return false;

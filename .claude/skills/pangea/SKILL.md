@@ -120,13 +120,18 @@ public partial class OrderViewModel : ViewModelBase
 
 ### Rules that matter
 
-- The class must be `partial` and derive from `ViewModelBase`; the generated setter calls
-  `SetProperty`, which lives there.
+- The class must be `partial` and derive from `ViewModelBase` - or `ObservableModel` for a model,
+  below; the generated setter calls `SetProperty`, which lives there.
 - The field name determines the property: `_customer` becomes `Customer`. Use
   `[Binding(PropertyName = "...")]` to choose another.
 - `[Binding(ReadOnly = true)]` generates a getter only: no setter, no change hook, no notifications.
 - Write computed properties in terms of the **generated properties**, not the backing fields.
   `Quantity * UnitPrice` is tracked; `_quantity * _unitPrice` is not.
+
+### Models the UI edits in place
+
+Settings or a row edited live, not a screen: derive from `ObservableModel` and use `[Binding]` -
+**never a hand-written notifying base**. Read `references/view-models.md` before writing one.
 
 ---
 
@@ -291,6 +296,8 @@ that may legitimately not exist yet.
 JSON that will not convert throws `StorageSerializationException`, not an `IOException`: "the disk
 is full" is worth retrying and "this cannot be serialized" never will be. Catch them apart.
 
+**Computed properties are not written**, so no `[JsonIgnore]`: see `references/view-models.md`.
+
 Configure with `StorageOptions`: `ApplicationName`, `UsePortableMode`, `CustomDataPath`.
 
 ---
@@ -431,23 +438,14 @@ Put a host where the content belongs:
 - `GoBackAsync()` returns the same view model instance and does **not** replay the request.
 - Views are found by name: `OrderViewModel` is displayed by `OrderView`, `MainWindowViewModel` by
   `MainWindow`. Otherwise call `IViewLocator.Register<TViewModel, TView>()`.
+- **The rule applies to any content**, not only the host: `<ContentControl Content="{Binding
+  Details}" />` shows `DetailsView`. Do not name the view in XAML or template it.
 - Arriving at a screen moves keyboard focus into it - the first control that can take it, or
   the host itself when the screen has none. Set `MovesFocusOnNavigation="False"` on a host
   that is not the main subject of the screen, such as a detail pane beside a list - **and on
   every host in a phone application**, where focusing a text box summons the system keyboard
   over half the screen on arrival.
-- The host is a `TransitioningContentControl`, so screens can animate:
-
-  ```xml
-  <nav:NavigationHost MovesFocusOnNavigation="False">
-    <nav:NavigationHost.PageTransition>
-      <CrossFade Duration="0:0:0.18" />
-    </nav:NavigationHost.PageTransition>
-  </nav:NavigationHost>
-  ```
-
-  It defaults to none. Prefer a cross fade to a slide: the host cannot know which way the
-  navigation went, and a slide that runs backwards on Back feels worse than no slide at all.
+- Screen transitions, and composing a screen out of panels: read `references/navigation.md`.
 - A request whose destination does not implement `INavigationAware<TRequest>` aborts startup. Do
   not declare a request without implementing the matching interface on the view model it names.
 
@@ -555,6 +553,7 @@ code, these are the mistakes it catches:
 | `PGB004` | The generated property name is already declared in the class |
 | `PGB005` | `[Binding]` on a `static` field, which is ignored (warning) |
 | `PGB006` | The generated property hides a member of a base class (warning) |
+| `PGB007` | A `[Binding]` field has validation attributes and the class inherits no `ValidateProperty` - an `ObservableModel` |
 
 A class that trips an error generates nothing, so a missing property is the symptom to look for.
 
@@ -592,6 +591,7 @@ The rest is in `references/extending-pangea.md`.
 
 1. Every view model is `partial`, derives from `ViewModelBase`, and takes `IServiceProvider`.
 2. Bound state uses `[Binding]` fields, and computed properties read the generated properties.
+   Models the UI edits derive from `ObservableModel` - no hand-written `INotifyPropertyChanged`.
 3. Long-running command bodies use the async overload.
 4. Appearance comes from palette classes, not edited XAML.
 5. Resource keys used in XAML exist — every palette colour, its `...Brush`, and the metrics.

@@ -147,7 +147,7 @@ Installing it also puts the whole build-time toolchain into the project, with no
 
 | | |
 |---|---|
-| `[Binding]` source generator | Fields become observable properties, with `PGB001`–`PGB006` when they cannot |
+| `[Binding]` source generator | Fields become observable properties, with `PGB001`–`PGB007` when they cannot |
 | Startup catalog generator | Replaces the assembly scan at startup — see [What startup does instead of scanning](#what-startup-does-instead-of-scanning) |
 | Localization analyzer | `PGL001`/`PGL002` on resource keys — see [Keys checked at compile time](#keys-checked-at-compile-time) |
 
@@ -310,9 +310,36 @@ partial class ProductViewModel
 **When it cannot generate**, it says so instead of letting the compiler complain about a file you
 did not write: a class that is not `partial` (`PGB001`), one whose base supplies no change
 notification (`PGB002`), two fields that would produce the same property (`PGB003`), a name the
-class already declares (`PGB004`), `[Binding]` on a `static` field (`PGB005`), or a generated
-property that hides a base member (`PGB006`). The last two are warnings. A class
+class already declares (`PGB004`), `[Binding]` on a `static` field (`PGB005`), a generated
+property that hides a base member (`PGB006`), or validation attributes on a class that has nothing
+to run them (`PGB007`). `PGB005` and `PGB006` are warnings. A class
 with an error generates nothing, so the symptom is a property that is not there.
+
+### Models the UI edits in place
+
+`[Binding]` is not only for screens. A model that is serialized, cloned and compared — settings,
+a step in a document, a row being edited — still has to notify when a view is bound to it.
+Derive it from `ObservableModel` and it gets the same generated properties and the same
+computed-property tracking, with no constructor arguments:
+
+```csharp
+public partial class MacroStep : ObservableModel
+{
+    [Binding] private string _key = "A";
+    [Binding] private int _repeat = 1;
+
+    public string Summary => $"{Key} x{Repeat}";   // notified when Key or Repeat changes
+}
+```
+
+The alternative — a notifying base of your own with a hand-kept list of which properties are
+computed — fails quietly: one name missing from the list is a label that only refreshes when
+something else redraws it, which the user reads as "it did not save".
+
+`ObservableModel` is change notification and nothing else. `ViewModelBase` derives from it and adds
+commands, validation, `IsBusy`, logging and the navigation lifecycle; a model that needs any of
+those is a view model. Validation attributes on a model's field are reported as `PGB007` rather
+than left to fail inside the generated file.
 
 ### Validation
 
@@ -531,6 +558,15 @@ catch (IOException ex)
 
 Serialization happens before the file is touched, so a failure leaves whatever was there intact
 rather than truncating it.
+
+**Computed properties stay out of the file.** A getter with no setter, no constructor parameter and
+no `[JsonInclude]` — `Total => Quantity * Price`, `Summary`, `IsValid` — is never read back, so it
+is not written either: no `[JsonIgnore]` needed on every one of them. Getter-only properties set
+through the constructor are kept, so immutable types still round-trip, which is why this is not
+`IgnoreReadOnlyProperties`. A getter-only collection is kept when it is marked
+`[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]`.
+`StorageService.CreateSerializerOptions()` returns these settings for anything else that has to
+produce the same files.
 
 ---
 
@@ -1164,6 +1200,19 @@ NavigationHost.SetApplicationMovesFocus(this, false);   // in App.Initialize
 **Views are found by name**, through the same type scan the rest of the toolkit uses:
 `OrderViewModel` is displayed by `OrderView`, and `MainWindowViewModel` by `MainWindow`. Register
 explicitly with `IViewLocator.Register<TViewModel, TView>()` when a view does not follow either.
+
+**The rule applies to any content, not only the host.** The feature installs an application-wide
+data template backed by the same locator, so a screen made of panels is composed by binding their
+view models:
+
+```xml
+<!-- Shows DetailsView, bound to the DetailsViewModel in the property -->
+<ContentControl Content="{Binding Details}" />
+```
+
+A `DataTemplate` the application declares for the type still wins, as does any template closer to
+the control. A view model with no view falls through to Avalonia's default and shows its type
+name — the sign that the view is misnamed.
 
 > A request whose destination does not implement `INavigationAware<TRequest>` would navigate and
 > silently drop its data. Startup checks every request and aborts naming both sides.

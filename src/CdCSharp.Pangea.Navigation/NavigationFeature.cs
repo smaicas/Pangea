@@ -35,7 +35,9 @@ public class NavigationFeature : IPangeaFeature
         if (Application.Current is { } application)
         {
             NavigationHost.SetApplicationService(application, serviceProvider.GetRequiredService<INavigationService>());
-            NavigationHost.SetApplicationLocator(application, serviceProvider.GetRequiredService<IViewLocator>());
+            IViewLocator locator = serviceProvider.GetRequiredService<IViewLocator>();
+            NavigationHost.SetApplicationLocator(application, locator);
+            ViewLocatorDataTemplate.Install(application, locator);
         }
     }
 
