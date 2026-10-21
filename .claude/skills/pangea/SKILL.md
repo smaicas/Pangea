@@ -499,9 +499,9 @@ wrong and expensive to notice: read `references/windows.md` before writing a win
 
 ## Adding a feature
 
-Extending the toolkit itself - writing an `IPangeaFeature` that registers its own services and
-configures the running application - is described in
-[references/extending-pangea.md](references/extending-pangea.md).
+Extending the toolkit itself - an `IPangeaFeature` - is in [references/extending-pangea.md](references/extending-pangea.md).
+An application inside a host such as Omni (manifest, messages to other applications, one copy, the
+host's theme) uses `CdCSharp.Pangea.Apps`: read [references/apps.md](references/apps.md) first.
 
 ---
 

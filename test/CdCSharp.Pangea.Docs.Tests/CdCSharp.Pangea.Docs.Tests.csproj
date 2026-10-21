@@ -29,6 +29,9 @@
         <!-- The database reference's samples are compiled against the engine they use -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Sqlite\CdCSharp.Pangea.Data.Sqlite.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Testing\CdCSharp.Pangea.Data.Testing.csproj" />
+        <!-- The apps reference's samples are compiled against the packages they describe -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps\CdCSharp.Pangea.Apps.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps.Hosting\CdCSharp.Pangea.Apps.Hosting.csproj" />
         <!-- Referenced as an assembly so the samples can be compiled through the generator -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj" />
     </ItemGroup>
