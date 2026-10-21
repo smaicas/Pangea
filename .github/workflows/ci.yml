@@ -164,6 +164,22 @@ jobs:
             1 Generated/Domain/NoteDraft.cs \
             1 Generated.Tests/DomainTests.cs
 
+          # An application for a host such as Omni. Without the workspace feed, which only exists
+          # inside an Omni workspace: a local source that is not there fails the restore.
+          for options in "--WorkspaceFeed false" "--WorkspaceFeed false --IncludeSkill false"; do
+            case "$options" in
+              *"--IncludeSkill false"*) SKILL=0 ;;
+              *)                        SKILL=1 ;;
+            esac
+
+            generate_and_build pangea-omni "$options" \
+              "$SKILL" .claude/skills/pangea/references/apps.md \
+              1        Generated/Handlers/MakeGreetingHandler.cs \
+              1        Generated/Assets/icon.png \
+              1        Generated.Protocol/Generated.Protocol.csproj \
+              1        Generated.Tests/MakeGreetingHandlerTests.cs
+          done
+
           # Without the heads: they are written against the Android and iOS SDKs, whose workloads
           # this image does not carry. What is left is the shared library every head starts, the
           # desktop entry point and the tests, which is where the code worth checking lives.

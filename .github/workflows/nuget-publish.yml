@@ -101,6 +101,14 @@ jobs:
             -p:FileVersion=${{ steps.version.outputs.version }} \
             -v normal
 
+          # The request handler generator, which CdCSharp.Pangea.Apps packs from its Release output.
+          dotnet build src/CdCSharp.Pangea.Apps.CodeGeneration/CdCSharp.Pangea.Apps.CodeGeneration.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
           echo "✅ Analyzers built successfully. Verifying..."
           ls -la src/CdCSharp.Pangea.Binding.CodeGeneration/bin/${{ env.CONFIGURATION }}/netstandard2.0/
           ls -la src/CdCSharp.Pangea.Localization.CodeAnalysis/bin/${{ env.CONFIGURATION }}/netstandard2.0/
@@ -165,6 +173,19 @@ jobs:
             -p:AssemblyVersion=${{ steps.version.outputs.version }} \
             -p:FileVersion=${{ steps.version.outputs.version }} \
             -v normal
+
+          echo "🔧 Step 6: Building the apps packages: the contract, the application side and the host side..."
+          for apps in \
+            CdCSharp.Pangea.Apps.Abstractions \
+            CdCSharp.Pangea.Apps \
+            CdCSharp.Pangea.Apps.Hosting; do
+            dotnet build "src/$apps/$apps.csproj" \
+              -c ${{ env.CONFIGURATION }} \
+              -p:Version=${{ steps.version.outputs.version }} \
+              -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+              -p:FileVersion=${{ steps.version.outputs.version }} \
+              -v normal
+          done
 
       - name: Pack Main Project (with embedded analyzers)
         run: |
@@ -249,11 +270,17 @@ jobs:
           # The data and Supabase features. Packed and published like the rest because the
           # pangea-data and pangea-mobile-supabase templates install them by name: leaving them out
           # meant those two templates generated a project that could not restore at all.
+          #
+          # The apps packages too: the pangea-omni template installs CdCSharp.Pangea.Apps and
+          # CdCSharp.Pangea.Apps.Abstractions, and a host such as Omni installs the Hosting one.
           for feature in \
             CdCSharp.Pangea.Data \
             CdCSharp.Pangea.Data.Sqlite \
             CdCSharp.Pangea.Data.Testing \
-            CdCSharp.Pangea.Supabase; do
+            CdCSharp.Pangea.Supabase \
+            CdCSharp.Pangea.Apps.Abstractions \
+            CdCSharp.Pangea.Apps \
+            CdCSharp.Pangea.Apps.Hosting; do
             dotnet pack "src/$feature/$feature.csproj" \
               -c ${{ env.CONFIGURATION }} \
               -o ./artifacts \
@@ -384,7 +411,7 @@ jobs:
             )
           done
 
-          # The remaining three templates. They install feature packages the two above do not, and
+          # The remaining templates. They install feature packages the two above do not, and
           # nothing here used to generate them: CdCSharp.Pangea.Data.Sqlite and
           # CdCSharp.Pangea.Supabase were packed but never published, so both produced a project
           # that could not restore, and this job published anyway.
@@ -394,7 +421,10 @@ jobs:
           # entry point and the tests. They are also the only templates carrying a second
           # version-shaped symbol, so they are what proves the pack stamped Pangea's version and
           # left Avalonia's alone: getting that wrong makes the restore below fail as a downgrade.
-          for spec in "pangea-data|" "pangea-mobile|--Android false --iOS false" "pangea-mobile-supabase|--Android false --iOS false"; do
+          #
+          # pangea-omni is generated without the workspace feed: there is no Omni workspace here, and a
+          # local source that does not exist fails the restore.
+          for spec in "pangea-data|" "pangea-mobile|--Android false --iOS false" "pangea-mobile-supabase|--Android false --iOS false" "pangea-omni|--WorkspaceFeed false"; do
             template="${spec%%|*}"
             options="${spec#*|}"
             WORK="$(mktemp -d)"
@@ -521,6 +551,24 @@ jobs:
           fi
           echo "✅ Core package carries the startup catalog generator"
 
+          # The handler generator and the manifest targets ship in CdCSharp.Pangea.Apps. Without the
+          # generator a handler is never registered; without the targets the application has no
+          # manifest, and a host cannot find it at all. Both fail silently.
+          APPS_PKG="./artifacts/CdCSharp.Pangea.Apps.$VERSION.nupkg"
+
+          for entry in \
+            "analyzers/dotnet/cs/CdCSharp.Pangea.Apps.CodeGeneration.dll" \
+            "build/CdCSharp.Pangea.Apps.targets" \
+            "buildTransitive/CdCSharp.Pangea.Apps.targets"
+          do
+            if ! unzip -l "$APPS_PKG" | grep -q "$entry"; then
+              echo "❌ CRITICAL: $entry missing from CdCSharp.Pangea.Apps"
+              unzip -l "$APPS_PKG"
+              exit 1
+            fi
+          done
+          echo "✅ Apps package carries the handler generator and the manifest targets"
+
           # The skill is deliberately absent from the packages: inside the global packages folder
           # no agent would ever find it. It ships through the template and the release archive.
           MAIN_PKG="./artifacts/CdCSharp.Pangea.$VERSION.nupkg"
@@ -574,6 +622,9 @@ jobs:
             CdCSharp.Pangea.Data.Sqlite
             CdCSharp.Pangea.Data.Testing
             CdCSharp.Pangea.Supabase
+            CdCSharp.Pangea.Apps.Abstractions
+            CdCSharp.Pangea.Apps
+            CdCSharp.Pangea.Apps.Hosting
             CdCSharp.Pangea.Templates
           )
 
