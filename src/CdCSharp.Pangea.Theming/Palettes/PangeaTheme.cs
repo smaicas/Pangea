@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
-using System.Reflection;
 
 namespace CdCSharp.Pangea.Theming.Palettes;
 
@@ -62,9 +61,6 @@ public class PangeaTheme(PangeaPalette light, PangeaPalette dark, IReadOnlyDicti
         ("TimePickerSpacerFill", "ThemeBorderMidBrush")
     ];
 
-    /// <summary>Colour properties of a palette, cached per type.</summary>
-    private static readonly Dictionary<Type, PropertyInfo[]> ColourProperties = [];
-
     public PangeaPalette Light { get; } = light ?? throw new ArgumentNullException(nameof(light));
 
     public PangeaPalette Dark { get; } = dark ?? throw new ArgumentNullException(nameof(dark));
@@ -101,15 +97,12 @@ public class PangeaTheme(PangeaPalette light, PangeaPalette dark, IReadOnlyDicti
     public static ResourceDictionary BuildVariant(PangeaPalette palette)
     {
         ResourceDictionary resources = new();
-        Dictionary<string, Color> colours = [];
+        IReadOnlyDictionary<string, Color> colours = palette.ToColours();
 
-        foreach (PropertyInfo property in GetColourProperties(palette.GetType()))
+        foreach ((string key, Color colour) in colours)
         {
-            Color colour = (Color)property.GetValue(palette)!;
-            colours[property.Name] = colour;
-
-            resources[property.Name] = colour;
-            resources[property.Name.Replace("Color", "Brush")] = new SolidColorBrush(colour);
+            resources[key] = colour;
+            resources[key.Replace("Color", "Brush")] = new SolidColorBrush(colour);
         }
 
         foreach (BrushOverride entry in Overrides)
@@ -125,22 +118,6 @@ public class PangeaTheme(PangeaPalette light, PangeaPalette dark, IReadOnlyDicti
         }
 
         return resources;
-    }
-
-    private static PropertyInfo[] GetColourProperties(Type paletteType)
-    {
-        lock (ColourProperties)
-        {
-            if (ColourProperties.TryGetValue(paletteType, out PropertyInfo[]? cached)) return cached;
-
-            PropertyInfo[] properties = paletteType
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(property => property.PropertyType == typeof(Color) && property.CanRead)
-                .ToArray();
-
-            ColourProperties[paletteType] = properties;
-            return properties;
-        }
     }
 
     private sealed record BrushOverride(

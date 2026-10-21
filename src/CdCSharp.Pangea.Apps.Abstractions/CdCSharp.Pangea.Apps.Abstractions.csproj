@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Apps.Abstractions</PackageId>
+        <Description>The contract between Pangea applications: message attributes, requests and events, the bus they travel on, and the wire format a host speaks. Free of Avalonia, so a protocol library that only declares messages references nothing else.</Description>
+        <PackageTags>$(PackageTags);apps;messaging;ipc;protocol</PackageTags>
+    </PropertyGroup>
+
+    <!--
+        Deliberately no reference to Avalonia or to the rest of the toolkit. A protocol library -
+        the records one application publishes for others to send it - is referenced by every
+        application that talks to it, and should cost them nothing but the records.
+    -->
+</Project>

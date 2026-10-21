@@ -1,4 +1,5 @@
 ﻿using Avalonia.Media;
+using System.Reflection;
 
 namespace CdCSharp.Pangea.Theming.Palettes;
 
@@ -18,8 +19,48 @@ namespace CdCSharp.Pangea.Theming.Palettes;
 /// </remarks>
 public abstract class PangeaPalette
 {
+    /// <summary>Colour properties of a palette, cached per type.</summary>
+    private static readonly Dictionary<Type, PropertyInfo[]> ColourProperties = [];
+
     /// <summary>Opacity of the date and time picker highlight fill.</summary>
     public virtual double PickerHighlightOpacity => 0.2d;
+
+    /// <summary>
+    /// Every colour of the palette by its resource key: what a theme is built from.
+    /// </summary>
+    /// <remarks>
+    /// The palette as data rather than as a class, which is what lets it leave the process - a
+    /// shell that imposes its look on applications running beside it sends this, and the other
+    /// side rebuilds it as a <see cref="DictionaryPalette"/>. A colour a palette adds of its own
+    /// is included, under its own name.
+    /// </remarks>
+    public virtual IReadOnlyDictionary<string, Color> ToColours()
+    {
+        Dictionary<string, Color> colours = new(StringComparer.Ordinal);
+
+        foreach (PropertyInfo property in GetColourProperties(GetType()))
+        {
+            colours[property.Name] = (Color)property.GetValue(this)!;
+        }
+
+        return colours;
+    }
+
+    private static PropertyInfo[] GetColourProperties(Type paletteType)
+    {
+        lock (ColourProperties)
+        {
+            if (ColourProperties.TryGetValue(paletteType, out PropertyInfo[]? cached)) return cached;
+
+            PropertyInfo[] properties = paletteType
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(property => property.PropertyType == typeof(Color) && property.CanRead)
+                .ToArray();
+
+            ColourProperties[paletteType] = properties;
+            return properties;
+        }
+    }
 
 
     // BASE COLORS - LIGHT WARM MINIMAL

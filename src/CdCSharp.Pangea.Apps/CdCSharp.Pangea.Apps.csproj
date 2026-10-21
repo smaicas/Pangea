@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Apps</PackageId>
+        <Description>Makes a Pangea application a citizen of a host such as Omni: a manifest the host reads without running it, a bus to send requests and events to other applications, one instance per application, and the host's theme and culture applied while it is connected. Every part degrades to a standalone application when no host is running.</Description>
+        <PackageTags>$(PackageTags);apps;messaging;ipc;host;shell</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="CdCSharp.Pangea.Apps.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CdCSharp.Pangea.Apps.Abstractions\CdCSharp.Pangea.Apps.Abstractions.csproj" PrivateAssets="none" />
+        <ProjectReference Include="..\CdCSharp.Pangea\CdCSharp.Pangea.csproj" PrivateAssets="none" />
+        <ProjectReference Include="..\CdCSharp.Pangea.CodeGeneration\CdCSharp.Pangea.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <!-- Built first so it can be packed; not applied here, since this assembly declares no handlers. -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Apps.CodeGeneration\CdCSharp.Pangea.Apps.CodeGeneration.csproj"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+    </ItemGroup>
+
+    <!--
+        The handler generator ships with the runtime it registers into: an application that installs
+        this package and declares an IAppRequestHandler gets it registered and listed in its manifest
+        with nothing else to do.
+    -->
+    <ItemGroup>
+        <None Include="..\CdCSharp.Pangea.Apps.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Apps.CodeGeneration.dll"
+              Pack="true"
+              PackagePath="analyzers\dotnet\cs\CdCSharp.Pangea.Apps.CodeGeneration.dll"
+              Visible="false" />
+    </ItemGroup>
+
+    <!--
+        The manifest comes from MSBuild properties, so it is written by a .targets file that runs in
+        the application's build. buildTransitive as well as build: an application that gets this
+        package through another one still has to describe itself.
+    -->
+    <ItemGroup>
+        <None Include="build\CdCSharp.Pangea.Apps.targets" Pack="true" PackagePath="build\CdCSharp.Pangea.Apps.targets" />
+        <None Include="build\CdCSharp.Pangea.Apps.targets" Pack="true" PackagePath="buildTransitive\CdCSharp.Pangea.Apps.targets" />
+    </ItemGroup>
+
+    <Target Name="EnsureAppsGeneratorExistsBeforePack" BeforeTargets="GenerateNuspec;Pack">
+        <Error Condition="!Exists('..\CdCSharp.Pangea.Apps.CodeGeneration\bin\$(Configuration)\netstandard2.0\CdCSharp.Pangea.Apps.CodeGeneration.dll')"
+               Text="Apps generator not found. Build CdCSharp.Pangea.Apps.CodeGeneration first." />
+    </Target>
+</Project>

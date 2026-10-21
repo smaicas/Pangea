@@ -1,0 +1,44 @@
+<Project>
+    <!--
+        The application's manifest, from four properties:
+
+            <PangeaAppId>yutuf</PangeaAppId>                 stable, lower case
+            <PangeaAppName>Yutuf</PangeaAppName>             what a person sees
+            <PangeaAppDescription>…</PangeaAppDescription>   optional
+            <PangeaAppIcon>Assets\icon.png</PangeaAppIcon>   optional, relative to the project
+
+        It becomes [assembly: PangeaApp(...)], which a host reads from the assembly's metadata without
+        running it. The icon is copied next to the executable under a fixed name, so the host finds
+        it in any build of any application the same way.
+    -->
+    <PropertyGroup Condition="'$(PangeaAppId)' != ''">
+        <PangeaAppName Condition="'$(PangeaAppName)' == ''">$(PangeaAppId)</PangeaAppName>
+        <_PangeaAppIconFile Condition="'$(PangeaAppIcon)' != ''">pangea-app-icon$([System.IO.Path]::GetExtension('$(PangeaAppIcon)'))</_PangeaAppIconFile>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(PangeaAppId)' != ''">
+        <AssemblyAttribute Include="CdCSharp.Pangea.Apps.PangeaAppAttribute">
+            <_Parameter1>$(PangeaAppId)</_Parameter1>
+            <_Parameter2>$(PangeaAppName)</_Parameter2>
+            <Description Condition="'$(PangeaAppDescription)' != ''">$(PangeaAppDescription)</Description>
+            <Icon Condition="'$(_PangeaAppIconFile)' != ''">$(_PangeaAppIconFile)</Icon>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+    <!--
+        Copied by targets rather than declared as an item: the icon is usually already an item of its
+        own (an AvaloniaResource, or a None from the default globs), and a second item for the same
+        file is what the SDK reports as a duplicate.
+    -->
+    <Target Name="_PangeaCopyAppIcon" AfterTargets="Build" Condition="'$(_PangeaAppIconFile)' != ''">
+        <Copy SourceFiles="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(PangeaAppIcon)'))"
+              DestinationFiles="$(OutDir)$(_PangeaAppIconFile)"
+              SkipUnchangedFiles="true" />
+    </Target>
+
+    <Target Name="_PangeaPublishAppIcon" AfterTargets="Publish" Condition="'$(_PangeaAppIconFile)' != ''">
+        <Copy SourceFiles="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(PangeaAppIcon)'))"
+              DestinationFiles="$(PublishDir)$(_PangeaAppIconFile)"
+              SkipUnchangedFiles="true" />
+    </Target>
+</Project>
