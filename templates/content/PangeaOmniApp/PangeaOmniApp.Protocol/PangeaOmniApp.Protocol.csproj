@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!--
+        What other applications can ask this one. Published as a package - to the workspace feed with
+        `dotnet pack -o ../../feed` - so an application that wants to talk to this one references the
+        records and nothing else: no Avalonia, no application code.
+
+        The records are the contract. Add optional members freely; renaming a member, or the id in an
+        [AppMessage], breaks every application built against the old one.
+    -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <PackageId>PangeaOmniApp.Protocol</PackageId>
+        <Version>1.0.0</Version>
+        <IsPackable>true</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="CdCSharp.Pangea.Apps.Abstractions" Version="PANGEA_VERSION" />
+    </ItemGroup>
+</Project>

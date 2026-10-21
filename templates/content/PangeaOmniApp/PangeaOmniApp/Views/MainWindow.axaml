@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PangeaOmniApp.ViewModels"
+        x:Class="PangeaOmniApp.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
+        Width="640" Height="420"
+        MinWidth="420" MinHeight="300">
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="14" MaxWidth="560" HorizontalAlignment="Left">
+            <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" />
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}" IsVisible="{Binding IsHosted}" />
+                <TextBlock Text="{Binding HostText}" />
+            </StackPanel>
+
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource ThemeForegroundLowBrush}"
+                       Text="Ask this application for a greeting over the bus. Without a host there is nobody to route it, and it says so." />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Text="{Binding Name}" PlaceholderText="Who to greet" />
+                <Button Grid.Column="1" Content="Greet over the bus" Command="{Binding GreetCommand}" />
+            </Grid>
+
+            <TextBlock Text="{Binding Answer}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding LastRequest}" TextWrapping="Wrap" Foreground="{DynamicResource ThemeForegroundLowBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</Window>

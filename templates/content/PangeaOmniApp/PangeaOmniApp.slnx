@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="PangeaOmniApp/PangeaOmniApp.csproj" />
+  <Project Path="PangeaOmniApp.Protocol/PangeaOmniApp.Protocol.csproj" />
+  <Project Path="PangeaOmniApp.Tests/PangeaOmniApp.Tests.csproj" />
+</Solution>

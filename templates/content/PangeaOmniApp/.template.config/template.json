@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "CdCSharp",
+  "classifications": [ "Avalonia", "Desktop", "MVVM", "Pangea", "Omni" ],
+  "identity": "CdCSharp.Pangea.OmniApp",
+  "name": "Pangea Omni App",
+  "shortName": "pangea-omni",
+  "sourceName": "PangeaOmniApp",
+  "defaultName": "PangeaOmniApp",
+  "preferNameDirectory": true,
+  "description": "An Avalonia application for a host such as Omni: a manifest the host reads, a protocol library other applications reference, a request handler, the host's theme while connected, and tests. Runs on its own just the same.",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "symbols": {
+    "PangeaVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "1.0.0",
+      "replaces": "PANGEA_VERSION",
+      "description": "Version of the Pangea packages to reference."
+    },
+    "AppId": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "name",
+        "toLower": true
+      },
+      "replaces": "pangeaomniapp",
+      "description": "The application's PangeaAppId and the prefix of its message ids: the name, lower case."
+    },
+    "WorkspaceFeed": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Add the Omni workspace feed (../../feed) to nuget.config, for the protocol packages of the other applications. Turn it off outside a workspace: a local source that does not exist fails the restore."
+    },
+    "IncludeSkill": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Copy the Pangea agent skill into the project so AI coding agents can read it."
+    }
+  },
+  "sources": [
+    {
+      "copyOnly": [ "**/*.png" ],
+      "modifiers": [
+        {
+          "condition": "(!IncludeSkill)",
+          "exclude": [ ".claude/**" ]
+        },
+        {
+          "condition": "(!WorkspaceFeed)",
+          "exclude": [ "nuget.config" ]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [ { "path": "PangeaOmniApp/PangeaOmniApp.csproj" } ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

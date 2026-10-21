@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json. -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\PangeaOmniApp\PangeaOmniApp.csproj" />
+        <!-- The container a view model needs, with test doubles in it. No Avalonia is started. -->
+        <PackageReference Include="CdCSharp.Pangea.Testing" Version="PANGEA_VERSION" />
+    </ItemGroup>
+</Project>

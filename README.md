@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🔐 Secrets](#-secrets-and-connectivity) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🔐 Secrets](#-secrets-and-connectivity) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [🔌 Apps](#-applications-in-a-host) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -39,7 +39,7 @@ registering its own services.
 dotnet new install CdCSharp.Pangea.Templates
 ```
 
-Five starting points - three for a desktop application, two for a phone. `pangea-app` is the smallest one: the startup wiring, a window, and a sample
+Six starting points - four for a desktop application, two for a phone. `pangea-app` is the smallest one: the startup wiring, a window, and a sample
 view model and palette showing the toolkit's conventions.
 
 ```bash
@@ -129,10 +129,29 @@ dotnet new pangea-mobile-supabase -n MyApp \
 It runs before any of that is filled in: the screens draw from the cache and the writes queue, which
 is the same thing that happens on a train.
 
+`pangea-omni` is a desktop application meant to live beside others in a host such as Omni - see
+[Applications in a host](#-applications-in-a-host). It comes with the manifest the host reads, a
+protocol library holding the one request other applications can send it, the handler that answers
+it, a window that asks it over the bus, and the tests for both. Without a host it runs on its own.
+
+```bash
+dotnet new pangea-omni -n Notes
+cd Notes && dotnet run --project Notes
+```
+
+| Option | Default | |
+|---|---|---|
+| `--WorkspaceFeed` | `true` | Add the workspace feed (`../../feed`) for the other applications' protocol packages. Turn it off outside a workspace |
+| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
+
+The application's id - the name, lower case - is also the prefix of its message ids. Choose the name
+with that in mind: a host finds an application by its id, and changing it later breaks every caller.
+
 Start from `pangea-shell` when you want to see how a feature is meant to be used, `pangea-data` when
 the application has a database in it, `pangea-mobile` when it is going on a phone,
-`pangea-mobile-supabase` when more than one person has to see the same data, and `pangea-app` when
-you want an empty room.
+`pangea-mobile-supabase` when more than one person has to see the same data, `pangea-omni` when the
+application is one of several in a host, and `pangea-app` when you want an empty room.
 
 ### Add to an existing project
 
@@ -173,6 +192,15 @@ native SQLite driver are megabytes an application that never queries anything sh
 
 ```bash
 dotnet add package CdCSharp.Pangea.Data.Sqlite   # EF Core on SQLite, and CdCSharp.Pangea.Data with it
+```
+
+An application that lives in a host beside others, and the host itself, are three more - see
+[Applications in a host](#-applications-in-a-host):
+
+```bash
+dotnet add package CdCSharp.Pangea.Apps              # the application: manifest, bus, one instance
+dotnet add package CdCSharp.Pangea.Apps.Abstractions # a protocol library: the messages only
+dotnet add package CdCSharp.Pangea.Apps.Hosting      # the host: broker and manifest reader
 ```
 
 And, for the test project rather than the application:
@@ -1096,6 +1124,63 @@ This is also what makes trimming and ahead-of-time compilation reachable: a cons
 generated code is a constructor the trimmer can see. Reflection has not left the toolkit entirely —
 validation attributes, the typed navigation arrival hook and resource discovery still use it — so
 treat this as the first step rather than the finished job.
+
+---
+
+## 🔌 Applications in a host
+
+Several applications, each its own process and repository, started, updated and connected by a host
+such as Omni - and each still a perfectly ordinary application when the host is not there. The
+host owns a bus over a named pipe; the applications talk through it and take the host's theme.
+
+The manifest is four MSBuild properties, turned into assembly attributes the host reads without
+running the application:
+
+```xml
+<PropertyGroup>
+  <PangeaAppId>yutuf</PangeaAppId>                         <!-- stable, lower case -->
+  <PangeaAppName>Yutuf</PangeaAppName>
+  <PangeaAppDescription>Downloads music.</PangeaAppDescription>
+  <PangeaAppIcon>Assets\icon.png</PangeaAppIcon>
+</PropertyGroup>
+```
+
+What others can ask goes in a protocol library that references only
+`CdCSharp.Pangea.Apps.Abstractions`. The id travels, not the type:
+
+```csharp
+[AppMessage("yutuf.song.download")]
+public sealed record DownloadSong(string Query) : IAppRequest<DownloadSongResult>;
+
+public sealed record DownloadSongResult(string FilePath, string Title);
+```
+
+Answering is declaring a handler; a generator registers it and lists its id in the manifest, which
+is how the host knows to start this application when someone asks:
+
+```csharp
+internal sealed class DownloadSongHandler(ISongStore songs) : IAppRequestHandler<DownloadSong, DownloadSongResult>
+{
+    public async Task<DownloadSongResult> HandleAsync(DownloadSong request, AppRequestContext context, CancellationToken cancellationToken)
+    {
+        string path = await songs.DownloadAsync(request.Query, cancellationToken);
+        return new DownloadSongResult(path, Path.GetFileNameWithoutExtension(path));
+    }
+}
+```
+
+Asking is `IAppBus.SendAsync`. Nobody has to be running: the host starts the installed application
+that declares the request and waits for it. Without a host the call throws
+`AppBusUnavailableException`, and `CanSendAsync<TRequest>()` says beforehand whether anyone could
+answer - which is what decides whether to show the button at all.
+
+```csharp
+DownloadSongResult song = await bus.SendAsync(new DownloadSong(query));
+```
+
+The rest - closing when the host asks, one copy at a time, events, and the host's own side - is in
+the agent skill's [`references/apps.md`](.claude/skills/pangea/references/apps.md), and
+`dotnet new pangea-omni` is all of it working.
 
 ---
 
