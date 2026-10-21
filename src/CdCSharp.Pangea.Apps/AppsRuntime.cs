@@ -34,7 +34,8 @@ internal sealed class AppsRuntime(
         if (settings.SingleInstance && !TakeSingleInstance(settings, desktop)) return;
 
         client.ActivateRequested += (_, _) => BringToFront();
-        client.CloseHandler = CloseAsync;
+        client.CloseHandler = DecideCloseAsync;
+        client.CloseAgreed = _ => Shutdown();
 
         ActivatorUtilities.CreateInstance<HostEnvironmentApplier>(services).Attach();
 
@@ -74,12 +75,17 @@ internal sealed class AppsRuntime(
             }
         }
 
-        _guard.Listen(async command => command switch
-        {
-            SingleInstanceGuard.ActivateCommand => Activate(),
-            SingleInstanceGuard.ReplaceCommand => await CloseAsync(CloseReasons.Replace, CancellationToken.None).ConfigureAwait(false) ? "ok" : "refused",
-            _ => "unknown"
-        });
+        _guard.Listen(
+            async command => command switch
+            {
+                SingleInstanceGuard.ActivateCommand => Activate(),
+                SingleInstanceGuard.ReplaceCommand => await DecideCloseAsync(CloseReasons.Replace, CancellationToken.None).ConfigureAwait(false) ? "ok" : "refused",
+                _ => "unknown"
+            },
+            (command, answer) =>
+            {
+                if (command == SingleInstanceGuard.ReplaceCommand && answer == "ok") Shutdown();
+            });
 
         desktop.Exit += (_, _) => _guard.Dispose();
         return true;
@@ -106,8 +112,8 @@ internal sealed class AppsRuntime(
         window.Topmost = false;
     });
 
-    /// <summary>Asks the application's close handlers, then the windows, whether it may close.</summary>
-    private async Task<bool> CloseAsync(string reason, CancellationToken cancellationToken)
+    /// <summary>Asks the application's close handlers whether it may close. Decides only; <see cref="Shutdown"/> closes.</summary>
+    private async Task<bool> DecideCloseAsync(string reason, CancellationToken cancellationToken)
     {
         foreach (IAppCloseHandler handler in services.GetServices<IAppCloseHandler>())
         {
@@ -118,8 +124,19 @@ internal sealed class AppsRuntime(
             }
         }
 
-        return await services.GetRequiredService<IUIDispatcher>().InvokeAsync(() =>
-            Task.FromResult(Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.TryShutdown()))
-            .ConfigureAwait(false);
+        return true;
     }
+
+    /// <summary>
+    /// Closes, after the answer has gone out. The windows still have their say through
+    /// <c>Closing</c>; one that cancels leaves the application open, and the host, which waits for
+    /// the process to end, notices.
+    /// </summary>
+    private void Shutdown() => services.GetRequiredService<IUIDispatcher>().Post(() =>
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && !desktop.TryShutdown())
+        {
+            logger.LogInformation("Agreed to close, but a window kept the application open");
+        }
+    });
 }

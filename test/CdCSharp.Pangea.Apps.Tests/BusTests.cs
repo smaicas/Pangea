@@ -227,6 +227,42 @@ public class BusTests
     }
 
     [Fact]
+    public async Task An_application_that_closes_the_moment_it_agrees_is_still_heard_agreeing()
+    {
+        await using BusHarness bus = new();
+        AppBusClient quick = await bus.ConnectAsync("quick");
+
+        string? closedFor = null;
+        quick.CloseHandler = (_, _) => Task.FromResult(true);
+
+        // What a desktop application does: shut down, taking the connection with it, right away.
+        quick.CloseAgreed = reason =>
+        {
+            closedFor = reason;
+            _ = quick.DisposeAsync();
+        };
+
+        Assert.True(await bus.Broker.RequestCloseAsync("quick", CloseReasons.Update, TimeSpan.FromSeconds(10)));
+
+        await BusHarness.Until(() => !bus.Broker.IsConnected("quick"));
+        Assert.Equal(CloseReasons.Update, closedFor);
+    }
+
+    [Fact]
+    public async Task An_application_that_refuses_to_close_is_not_closed()
+    {
+        await using BusHarness bus = new();
+        AppBusClient busy = await bus.ConnectAsync("busy");
+
+        bool closed = false;
+        busy.CloseHandler = (_, _) => Task.FromResult(false);
+        busy.CloseAgreed = _ => closed = true;
+
+        Assert.False(await bus.Broker.RequestCloseAsync("busy", CloseReasons.User, TimeSpan.FromSeconds(10)));
+        Assert.False(closed);
+    }
+
+    [Fact]
     public async Task The_host_can_bring_an_application_to_the_front()
     {
         await using BusHarness bus = new();

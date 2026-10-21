@@ -88,15 +88,16 @@ internal sealed class SingleInstanceGuard : IDisposable
 
     /// <summary>
     /// Listens for other copies. <paramref name="onCommand"/> answers each command; its result is
-    /// sent back as the answer.
+    /// sent back as the answer, and only then is <paramref name="answered"/> told - so a copy that
+    /// agrees to hand over closes after saying so, not while saying so.
     /// </summary>
-    public void Listen(Func<string, Task<string>> onCommand)
+    public void Listen(Func<string, Task<string>> onCommand, Action<string, string>? answered = null)
     {
         ArgumentNullException.ThrowIfNull(onCommand);
 
         if (!_owned) throw new InvalidOperationException("Only the copy that holds the lock listens.");
 
-        _ = Task.Run(() => ListenAsync(onCommand, _stopping.Token));
+        _ = Task.Run(() => ListenAsync(onCommand, answered, _stopping.Token));
     }
 
     public void Dispose()
@@ -119,7 +120,7 @@ internal sealed class SingleInstanceGuard : IDisposable
         _stopping.Dispose();
     }
 
-    private async Task ListenAsync(Func<string, Task<string>> onCommand, CancellationToken stopping)
+    private async Task ListenAsync(Func<string, Task<string>> onCommand, Action<string, string>? answered, CancellationToken stopping)
     {
         while (!stopping.IsCancellationRequested)
         {
@@ -140,6 +141,8 @@ internal sealed class SingleInstanceGuard : IDisposable
 
                 string answer = await onCommand(command).ConfigureAwait(false);
                 await writer.WriteLineAsync(answer.AsMemory(), stopping).ConfigureAwait(false);
+
+                answered?.Invoke(command, answer);
             }
             catch (OperationCanceledException) when (stopping.IsCancellationRequested)
             {

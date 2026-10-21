@@ -110,10 +110,20 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
     public event EventHandler? ActivateRequested;
 
     /// <summary>
-    /// Answers the host's request to close. Without one the application agrees and does nothing,
+    /// Decides whether to agree to the host's request to close. Only decides: the closing itself
+    /// belongs in <see cref="CloseAgreed"/>. Without one the application agrees and does nothing,
     /// which is only right for a test.
     /// </summary>
     public Func<string, CancellationToken, Task<bool>>? CloseHandler { get; set; }
+
+    /// <summary>
+    /// Runs once the host has been told the application agreed to close: where it actually closes.
+    /// </summary>
+    /// <remarks>
+    /// After the answer and not before it, because an application that shuts down while deciding
+    /// takes its answer with it, and the host reads the silence as a refusal.
+    /// </remarks>
+    public Action<string>? CloseAgreed { get; set; }
 
     /// <summary>Starts connecting. Safe to call more than once.</summary>
     public void Start()
@@ -473,6 +483,17 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
         }
 
         await TrySendAsync(frames, Frame.Of(FrameKind.Response, agreed, request.Id), CancellationToken.None).ConfigureAwait(false);
+
+        if (!agreed) return;
+
+        try
+        {
+            CloseAgreed?.Invoke(reason);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Closing after agreeing to the host's request failed");
+        }
     }
 
     private void Deliver(Frame frame)
