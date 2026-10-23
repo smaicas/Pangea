@@ -142,7 +142,7 @@ cd Notes && dotnet run --project Notes
 | Option | Default | |
 |---|---|---|
 | `--WorkspaceFeed` | `true` | Add the workspace feed (`../../feed`) for the other applications' protocol packages. Turn it off outside a workspace |
-| `--IncludeSkill` | `true` | Copy the [agent skill](#-ai-coding-agents) into the project |
+| `--IncludeSkill` | `false` | Copy the [agent skill](#-ai-coding-agents) into the project. Off because a workspace keeps one copy at its root, for every application |
 | `--PangeaVersion` | matches the template | Version of the Pangea packages to reference |
 
 The application's id - the name, lower case - is also the prefix of its message ids. Choose the name

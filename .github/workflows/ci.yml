@@ -165,11 +165,12 @@ jobs:
             1 Generated.Tests/DomainTests.cs
 
           # An application for a host such as Omni. Without the workspace feed, which only exists
-          # inside an Omni workspace: a local source that is not there fails the restore.
-          for options in "--WorkspaceFeed false" "--WorkspaceFeed false --IncludeSkill false"; do
+          # inside an Omni workspace: a local source that is not there fails the restore. Without the
+          # skill unless asked for: a workspace keeps one copy at its root, for every application.
+          for options in "--WorkspaceFeed false" "--WorkspaceFeed false --IncludeSkill true"; do
             case "$options" in
-              *"--IncludeSkill false"*) SKILL=0 ;;
-              *)                        SKILL=1 ;;
+              *"--IncludeSkill true"*) SKILL=1 ;;
+              *)                       SKILL=0 ;;
             esac
 
             generate_and_build pangea-omni "$options" \

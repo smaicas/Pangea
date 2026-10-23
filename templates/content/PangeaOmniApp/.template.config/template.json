@@ -40,8 +40,8 @@
     "IncludeSkill": {
       "type": "parameter",
       "datatype": "bool",
-      "defaultValue": "true",
-      "description": "Copy the Pangea agent skill into the project so AI coding agents can read it."
+      "defaultValue": "false",
+      "description": "Copy the Pangea agent skill into the project so AI coding agents can read it. Off by default: in an Omni workspace the skill lives once, at the workspace root, for every application. Turn it on for an application worked on outside a workspace."
     }
   },
   "sources": [

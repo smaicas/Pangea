@@ -28,7 +28,9 @@ Greeting greeting = await bus.SendAsync(new MakeGreeting("Ada"));
 `IAppBus` comes from the container. Without a host it throws `AppBusUnavailableException`; with one,
 the host routes the request to whichever application declares a handler for its id - starting it if it
 has to. Answering is a class implementing `IAppRequestHandler<TRequest, TResponse>`, found by the
-generator. The Pangea skill (`.claude/skills/pangea/references/apps.md`) has the rest.
+generator. The Pangea skill has the rest, in `references/apps.md`: in a workspace it lives once, at the
+workspace root (`.claude/skills/pangea`), so the project carries no copy; generate with
+`--IncludeSkill true` for an application worked on outside a workspace.
 
 ```bash
 dotnet build
