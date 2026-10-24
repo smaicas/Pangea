@@ -46,7 +46,7 @@
   },
   "sources": [
     {
-      "copyOnly": [ "**/*.png" ],
+      "copyOnly": [ "**/*.png", "**/*.ico" ],
       "modifiers": [
         {
           "condition": "(!IncludeSkill)",
@@ -59,7 +59,7 @@
       ]
     }
   ],
-  "primaryOutputs": [ { "path": "PangeaOmniApp/PangeaOmniApp.csproj" } ],
+  "primaryOutputs": [ { "path": "src/PangeaOmniApp/PangeaOmniApp.csproj" } ],
   "postActions": [
     {
       "description": "Restore NuGet packages",

@@ -8,15 +8,17 @@
         [AppMessage], breaks every application built against the old one.
     -->
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
         <PackageId>PangeaOmniApp.Protocol</PackageId>
+        <!-- Change it when the records change: NuGet caches a version forever, so repacking one is invisible. -->
         <Version>1.0.0</Version>
+        <Description>Requests PangeaOmniApp answers on the Omni bus.</Description>
         <IsPackable>true</IsPackable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- Only the members that need saying are documented; the rest are what their names say. -->
+        <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="CdCSharp.Pangea.Apps.Abstractions" Version="PANGEA_VERSION" />
+        <PackageReference Include="CdCSharp.Pangea.Apps.Abstractions" />
     </ItemGroup>
 </Project>

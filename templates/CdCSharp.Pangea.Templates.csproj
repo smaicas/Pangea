@@ -13,6 +13,12 @@
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
         <!-- A template package ships no assemblies -->
         <NoWarn>$(NoWarn);NU5128</NoWarn>
+        <!--
+            Pack leaves out anything whose name starts with a dot, and a template that generates a
+            repository ships .editorconfig, .gitattributes and .gitignore. What goes in is decided by
+            the Content items below, which leave out build output and IDE folders themselves.
+        -->
+        <NoDefaultExcludes>true</NoDefaultExcludes>
     </PropertyGroup>
 
     <!--
@@ -22,7 +28,7 @@
     -->
     <ItemGroup>
         <Content Include="content\**\*"
-                 Exclude="content\**\bin\**;content\**\obj\**"
+                 Exclude="content\**\bin\**;content\**\obj\**;content\**\.vs\**;content\**\.idea\**;content\**\*.user"
                  PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)"
                  Pack="true" />
 

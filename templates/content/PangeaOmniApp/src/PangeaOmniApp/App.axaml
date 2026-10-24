@@ -1,0 +1,15 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theming="using:CdCSharp.Pangea.Theming"
+             x:Class="PangeaOmniApp.App">
+    <!-- PangeaUI is added to Application.Styles by the theming feature at startup. -->
+
+    <Application.Styles>
+        <!--
+            The classes and icons the applications of a host share - title, hint, card, accent, nav,
+            Icon.* - so they look like one family. First, so the application's own styles below win
+            where they overlap.
+        -->
+        <theming:PangeaStyles />
+    </Application.Styles>
+</Application>

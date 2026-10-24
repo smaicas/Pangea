@@ -1,5 +1,16 @@
 <Solution>
-  <Project Path="PangeaOmniApp/PangeaOmniApp.csproj" />
-  <Project Path="PangeaOmniApp.Protocol/PangeaOmniApp.Protocol.csproj" />
-  <Project Path="PangeaOmniApp.Tests/PangeaOmniApp.Tests.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/PangeaOmniApp/PangeaOmniApp.csproj" />
+    <Project Path="src/PangeaOmniApp.Protocol/PangeaOmniApp.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/PangeaOmniApp.Tests/PangeaOmniApp.Tests.csproj" />
+  </Folder>
 </Solution>

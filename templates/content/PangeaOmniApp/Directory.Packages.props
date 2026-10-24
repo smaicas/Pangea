@@ -1,0 +1,25 @@
+<Project>
+    <!-- Central package management: every version lives here, project files only name packages. -->
+    <ItemGroup Label="Desktop">
+        <PackageVersion Include="Avalonia" Version="12.1.1" />
+        <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
+        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+        <PackageVersion Include="CdCSharp.Pangea" Version="PANGEA_VERSION" />
+        <PackageVersion Include="CdCSharp.Pangea.Apps" Version="PANGEA_VERSION" />
+        <PackageVersion Include="CdCSharp.Pangea.Apps.Abstractions" Version="PANGEA_VERSION" />
+        <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.13" />
+    </ItemGroup>
+
+    <!--
+        What this application asks the others of the workspace for: their *.Protocol packages, from the
+        workspace feed. None yet.
+    -->
+    <ItemGroup Label="Workspace">
+    </ItemGroup>
+
+    <ItemGroup Label="Tests">
+        <PackageVersion Include="CdCSharp.Pangea.Testing" Version="PANGEA_VERSION" />
+        <PackageVersion Include="CdCSharp.Pangea.Apps.Testing" Version="PANGEA_VERSION" />
+        <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+</Project>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json. -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" />
+        <!-- The container a view model needs, with test doubles in it. No Avalonia is started. -->
+        <PackageReference Include="CdCSharp.Pangea.Testing" />
+        <!-- And what an application in a host adds to it: a scripted bus and a host that connects on cue. -->
+        <PackageReference Include="CdCSharp.Pangea.Apps.Testing" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\PangeaOmniApp\PangeaOmniApp.csproj" />
+    </ItemGroup>
+</Project>

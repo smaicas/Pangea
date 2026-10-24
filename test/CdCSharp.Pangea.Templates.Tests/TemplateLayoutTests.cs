@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace CdCSharp.Pangea.Templates.Tests;
 
@@ -39,15 +40,41 @@ public class TemplateLayoutTests
     /// <summary>
     /// Every template ships tests. A generated project with no test project is one where writing
     /// the first test means deciding on a layout, a runner and a set of doubles first, which is how
-    /// a project ends up with none.
+    /// a project ends up with none. Beside the application, or under <c>test/</c> for a template laid
+    /// out as a repository of its own, with the projects under <c>src/</c>.
     /// </summary>
     [Theory]
     [MemberData(nameof(Templates))]
     public void EveryTemplate_ShipsATestProject(string template)
     {
-        string tests = Path.Combine(ContentRoot, template, $"{template}.Tests", $"{template}.Tests.csproj");
+        string project = Path.Combine($"{template}.Tests", $"{template}.Tests.csproj");
+        string[] candidates = [Path.Combine(ContentRoot, template, project), Path.Combine(ContentRoot, template, "test", project)];
 
-        Assert.True(File.Exists(tests), $"{template} has no test project at {template}.Tests.");
+        Assert.True(candidates.Any(File.Exists), $"{template} has no test project at {template}.Tests or test/{template}.Tests.");
+    }
+
+    /// <summary>
+    /// A template laid out as a repository keeps every version in one place. A project that names a
+    /// version of its own beside a Directory.Packages.props fails the restore with NU1008, on the
+    /// machine of whoever generated it.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Templates))]
+    public void UnderCentralPackageManagement_NoProjectNamesAVersion(string template)
+    {
+        string root = Path.Combine(ContentRoot, template);
+        if (!File.Exists(Path.Combine(root, "Directory.Packages.props"))) return;
+
+        foreach (string project in Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories))
+        {
+            if (project.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") ||
+                project.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+
+            string text = File.ReadAllText(project);
+
+            Assert.False(Regex.IsMatch(text, @"<PackageReference\s[^>]*\bVersion="),
+                $"{Path.GetRelativePath(root, project)} names a package version; it belongs in Directory.Packages.props.");
+        }
     }
 
     [Theory]

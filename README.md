@@ -133,10 +133,13 @@ is the same thing that happens on a train.
 [Applications in a host](#-applications-in-a-host). It comes with the manifest the host reads, a
 protocol library holding the one request other applications can send it, the handler that answers
 it, a window that asks it over the bus, and the tests for both. Without a host it runs on its own.
+It is laid out as a repository of its own, the way an Omni workspace keeps its applications:
+projects under `src/` and `test/`, shared properties in `Directory.Build.props`, every version in
+`Directory.Packages.props`, warnings as errors, its own palette and `PangeaStyles`.
 
 ```bash
 dotnet new pangea-omni -n Notes
-cd Notes && dotnet run --project Notes
+cd Notes && dotnet run --project src/Notes
 ```
 
 | Option | Default | |
