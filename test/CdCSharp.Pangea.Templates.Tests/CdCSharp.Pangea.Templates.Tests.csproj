@@ -37,5 +37,7 @@
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
         <!-- The data template's screen is driven against a real database, as its own tests would. -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Data.Testing\CdCSharp.Pangea.Data.Testing.csproj" />
+        <!-- The Omni template's screen is driven with the bus and host doubles its own tests use. -->
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps.Testing\CdCSharp.Pangea.Apps.Testing.csproj" />
     </ItemGroup>
 </Project>

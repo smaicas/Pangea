@@ -174,11 +174,12 @@ jobs:
             -p:FileVersion=${{ steps.version.outputs.version }} \
             -v normal
 
-          echo "🔧 Step 6: Building the apps packages: the contract, the application side and the host side..."
+          echo "🔧 Step 6: Building the apps packages: the contract, the application side, the host side and the test doubles..."
           for apps in \
             CdCSharp.Pangea.Apps.Abstractions \
             CdCSharp.Pangea.Apps \
-            CdCSharp.Pangea.Apps.Hosting; do
+            CdCSharp.Pangea.Apps.Hosting \
+            CdCSharp.Pangea.Apps.Testing; do
             dotnet build "src/$apps/$apps.csproj" \
               -c ${{ env.CONFIGURATION }} \
               -p:Version=${{ steps.version.outputs.version }} \
@@ -272,7 +273,8 @@ jobs:
           # meant those two templates generated a project that could not restore at all.
           #
           # The apps packages too: the pangea-omni template installs CdCSharp.Pangea.Apps and
-          # CdCSharp.Pangea.Apps.Abstractions, and a host such as Omni installs the Hosting one.
+          # CdCSharp.Pangea.Apps.Abstractions, and CdCSharp.Pangea.Apps.Testing in its test project;
+          # a host such as Omni installs the Hosting one.
           for feature in \
             CdCSharp.Pangea.Data \
             CdCSharp.Pangea.Data.Sqlite \
@@ -280,7 +282,8 @@ jobs:
             CdCSharp.Pangea.Supabase \
             CdCSharp.Pangea.Apps.Abstractions \
             CdCSharp.Pangea.Apps \
-            CdCSharp.Pangea.Apps.Hosting; do
+            CdCSharp.Pangea.Apps.Hosting \
+            CdCSharp.Pangea.Apps.Testing; do
             dotnet pack "src/$feature/$feature.csproj" \
               -c ${{ env.CONFIGURATION }} \
               -o ./artifacts \
@@ -625,6 +628,7 @@ jobs:
             CdCSharp.Pangea.Apps.Abstractions
             CdCSharp.Pangea.Apps
             CdCSharp.Pangea.Apps.Hosting
+            CdCSharp.Pangea.Apps.Testing
             CdCSharp.Pangea.Templates
           )
 
@@ -681,7 +685,7 @@ jobs:
           echo "  🔧 Configuration: ${{ env.CONFIGURATION }}"
           echo "  ✅ Main package: CdCSharp.Pangea (with embedded analyzers)"
           echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization, Navigation"
-          echo "  ✅ Test doubles: CdCSharp.Pangea.Testing"
+          echo "  ✅ Test doubles: CdCSharp.Pangea.Testing, CdCSharp.Pangea.Data.Testing, CdCSharp.Pangea.Apps.Testing"
           echo "  🤖 Agent skill: attached to release v${{ steps.version.outputs.version }}"
           echo "  📐 Template: dotnet new install CdCSharp.Pangea.Templates"
           echo "  🎯 Install command: dotnet add package CdCSharp.Pangea"

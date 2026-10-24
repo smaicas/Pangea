@@ -124,6 +124,8 @@ public static class ListViewModelTests
 | `InlineUIDispatcher` | Runs everything where it was called. The default |
 | `PumpingUIDispatcher` | Owned by the calling thread, runs queued work on `Drain()` — for when the question is whether a call waited |
 | `RecordingDialogService` | `Answering(...)` scripts the user's answers; `Confirmations` and `Alerts` record what was asked |
+| `RecordingFilePickerService` | `Choosing(paths)` and `Cancelling()` script the pickers, cancelled once the script runs out; `Requests` records what was asked |
+| `RecordingSystemLauncher` | `Opened`, `ShownInFolder` and `OpenedUris`, with nothing opened; `Succeeds` sets the answer |
 | `RecordingNavigationService` | `Navigations`, `LastDestination`, `LastRequest<T>()`; `Refuse` makes every navigation report that it was cancelled |
 | `InMemoryStorageService` | The same paths, the same JSON settings and the same null for a file never written, with nothing on disk |
 | `DictionaryLocalizationService` | Strings from a dictionary, without satellite assemblies |
@@ -136,6 +138,9 @@ asserted.
 
 Pass a dispatcher to the constructor to swap the default:
 `new PangeaTestServices(new PumpingUIDispatcher())`.
+
+An application in a host such as Omni adds `CdCSharp.Pangea.Apps.Testing` and calls `AddApps()`: a
+bus that answers from a script and a host that connects on cue. It is in `references/apps.md`.
 
 ## The templates ship this
 

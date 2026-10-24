@@ -6,7 +6,7 @@ An Avalonia + Pangea application made to live in a host such as Omni, and to run
 |---|---|
 | `PangeaOmniApp` | The application: its manifest (`PangeaAppId` and friends in the `.csproj`), a window, and a request handler |
 | `PangeaOmniApp.Protocol` | What other applications can ask it. Only `CdCSharp.Pangea.Apps.Abstractions`: pack it for the others to reference |
-| `PangeaOmniApp.Tests` | The handler, called directly, and the screen with the bus and the host replaced by doubles |
+| `PangeaOmniApp.Tests` | The handler, called directly, and the screen with the bus and the host replaced by the doubles of `CdCSharp.Pangea.Apps.Testing` |
 
 ## In an Omni workspace
 

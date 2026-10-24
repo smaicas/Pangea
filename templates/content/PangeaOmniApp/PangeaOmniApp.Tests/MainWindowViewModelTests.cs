@@ -1,4 +1,4 @@
-using CdCSharp.Pangea.Apps;
+using CdCSharp.Pangea.Apps.Testing;
 using CdCSharp.Pangea.Testing;
 using PangeaOmniApp.Protocol;
 using PangeaOmniApp.Services;
@@ -15,7 +15,7 @@ public class MainWindowViewModelTests
     [Fact]
     public void OnItsOwnTheScreenSaysSo()
     {
-        MainWindowViewModel screen = new(Services(new FakeHost(), new FakeBus()));
+        MainWindowViewModel screen = new(Services());
 
         Assert.False(screen.IsHosted);
         Assert.Equal("Running on its own", screen.HostText);
@@ -24,10 +24,10 @@ public class MainWindowViewModelTests
     [Fact]
     public void ConnectingToAHostIsShownAsItHappens()
     {
-        FakeHost host = new();
-        MainWindowViewModel screen = new(Services(host, new FakeBus()));
+        PangeaTestServices services = Services();
+        MainWindowViewModel screen = new(services);
 
-        host.Connect("Omni");
+        services.AppHost().Connect("Omni");
 
         Assert.True(screen.IsHosted);
         Assert.Equal("Connected to Omni", screen.HostText);
@@ -36,85 +36,43 @@ public class MainWindowViewModelTests
     [Fact]
     public async Task TheAnswerOfTheBusIsShown()
     {
-        FakeBus bus = new() { Answer = new Greeting("Hello, Ada!") };
-        MainWindowViewModel screen = new(Services(new FakeHost(), bus));
+        PangeaTestServices services = Services();
+        services.AppBus().Answer((MakeGreeting request) => new Greeting($"Hello, {request.Name}!"));
+        MainWindowViewModel screen = new(services);
 
         await screen.GreetCommand.ExecuteAsync(null);
 
         Assert.Equal("Hello, Ada!", screen.Answer);
-        Assert.Equal("Ada", Assert.IsType<MakeGreeting>(Assert.Single(bus.Sent)).Name);
+        Assert.Equal("Ada", services.AppBus().LastSent<MakeGreeting>()?.Name);
     }
 
     [Fact]
     public async Task WithoutAHostTheScreenSaysWhatToDo()
     {
-        MainWindowViewModel screen = new(Services(new FakeHost(), new FakeBus { Unavailable = true }));
+        PangeaTestServices services = Services();
+        services.AppBus().IsConnected = false;
+        MainWindowViewModel screen = new(services);
 
         await screen.GreetCommand.ExecuteAsync(null);
 
         Assert.Equal("No host is running: open Omni and try again.", screen.Answer);
     }
 
-    private static PangeaTestServices Services(FakeHost host, FakeBus bus) => new PangeaTestServices()
-        .Add<IAppHostContext>(host)
-        .Add<IAppBus>(bus)
+    [Fact]
+    public async Task AFailingAnswerIsShownAsTheOtherApplicationWroteIt()
+    {
+        PangeaTestServices services = Services();
+        services.AppBus().Fail<MakeGreeting>("Say who to greet.");
+        MainWindowViewModel screen = new(services);
+
+        await screen.GreetCommand.ExecuteAsync(null);
+
+        Assert.Equal("Say who to greet.", screen.Answer);
+    }
+
+    // AddApps registers a bus that answers from a script and a host that connects on cue, with
+    // AppBus() and AppHost() to reach them.
+    private static PangeaTestServices Services() => new PangeaTestServices()
+        .AddApps()
         .Add(new GreetingLog());
-
-    private sealed class FakeHost : IAppHostContext
-    {
-        public AppIdentity Identity { get; } = new("pangeaomniapp", "PangeaOmniApp");
-
-        public bool LaunchedByHost => false;
-
-        public bool IsHosted { get; private set; }
-
-        public string? HostName { get; private set; }
-
-        public AppEnvironment? Environment => null;
-
-        public event EventHandler? Changed;
-
-        public void Connect(string host)
-        {
-            IsHosted = true;
-            HostName = host;
-            Changed?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    private sealed class FakeBus : IAppBus
-    {
-        public object? Answer { get; init; }
-
-        public bool Unavailable { get; init; }
-
-        public List<object> Sent { get; } = [];
-
-        public bool IsConnected => !Unavailable;
-
-        public event EventHandler? ConnectionChanged { add { } remove { } }
-
-        public Task<TResponse> SendAsync<TResponse>(IAppRequest<TResponse> request, CancellationToken cancellationToken = default)
-        {
-            if (Unavailable) throw new AppBusUnavailableException("No host.");
-
-            Sent.Add(request);
-            return Task.FromResult((TResponse)Answer!);
-        }
-
-        public Task<bool> CanSendAsync<TRequest>(CancellationToken cancellationToken = default) where TRequest : IAppMessage =>
-            Task.FromResult(!Unavailable);
-
-        public Task PublishAsync<TEvent>(TEvent appEvent, CancellationToken cancellationToken = default) where TEvent : IAppEvent =>
-            Task.CompletedTask;
-
-        public IDisposable Subscribe<TEvent>(Action<TEvent> handler) where TEvent : IAppEvent => new Nothing();
-
-        private sealed class Nothing : IDisposable
-        {
-            public void Dispose()
-            {
-            }
-        }
-    }
 }

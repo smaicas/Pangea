@@ -208,6 +208,7 @@ And, for the test project rather than the application:
 ```bash
 dotnet add package CdCSharp.Pangea.Testing       # test doubles: see Testing your own application
 dotnet add package CdCSharp.Pangea.Data.Testing  # a real SQLite database, deleted with the test
+dotnet add package CdCSharp.Pangea.Apps.Testing  # a scripted bus and a host on cue, for an application in a host
 ```
 
 Targets **.NET 10** and **Avalonia 12.1**.
@@ -1178,9 +1179,22 @@ answer - which is what decides whether to show the button at all.
 DownloadSongResult song = await bus.SendAsync(new DownloadSong(query));
 ```
 
-The rest - closing when the host asks, one copy at a time, events, and the host's own side - is in
-the agent skill's [`references/apps.md`](.claude/skills/pangea/references/apps.md), and
-`dotnet new pangea-omni` is all of it working.
+Answering often takes more than a method, and the package has the pieces for it:
+
+- **Files written for the caller.** `AppRequestFolders` gives each request a new folder among the
+  temporary files, so a request leaves no trace in the application or the person's folders; the
+  result implements `IAppFilesResult`, and the caller deletes the folder with `DeleteFolder()`
+  once it has what it wanted. The ones callers forget are deleted after a day.
+- **What the person answers on screen.** An `AppInteraction<TResult>` - edit this image, choose a
+  song - runs through `AppInteractions`: requests take turns, the main window comes to the front,
+  and the caller cancelling ends it with the answer the protocol gives for giving up.
+- **Work that keeps the application open.** `using (activity.Begin("Exporting"))` on `AppActivity`,
+  and the host's request to close is refused until it ends.
+
+The rest - closing when the host asks, one copy at a time, events, testing with
+`CdCSharp.Pangea.Apps.Testing`, and the host's own side - is in the agent skill's
+[`references/apps.md`](.claude/skills/pangea/references/apps.md), and `dotnet new pangea-omni` is
+all of it working.
 
 ---
 
@@ -1202,6 +1216,22 @@ to own it.
 For a dialog with its own fields, or a result that is not a bool, write a view model and a window
 and show it with `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>` — `IDialogService`
 is deliberately only these two questions.
+
+**Files and the system.** A view model chooses files through `IFilePickerService` and hands a file,
+a folder or a link to the system through `ISystemLauncher`, both registered for you - never through
+a window's `StorageProvider` or `Process.Start`, which it has no business reaching and a test cannot
+stand in for:
+
+```csharp
+if (await _pickers.SaveFileAsync("Export", "picture.png", [new FileType("PNG", ["png"])]) is { } path)
+{
+    await File.WriteAllBytesAsync(path, image);
+    await _launcher.ShowInFolderAsync(path);
+}
+```
+
+A picker answers `null` - or an empty list - when the person cancels and when there is no window to
+own it yet; the launcher answers whether the system took it, and never throws.
 
 **Keyboard.** Windows and dialogs both get focus placed on their first control when they open,
 unless they focused something themselves. Escape closes a dialog; it does not close a window, which
@@ -1367,10 +1397,26 @@ own services with `services.Add<IOrders>(new FakeOrders())`.
 | `InlineUIDispatcher` | Runs everything where it was called. The default |
 | `PumpingUIDispatcher` | Owned by the calling thread, runs queued work on `Drain()` — for when the question is whether a call waited |
 | `RecordingDialogService` | Answers from a script and remembers how the question was worded |
+| `RecordingFilePickerService` | Answers pickers from a script - a cancel once it runs out - and records what was asked |
+| `RecordingSystemLauncher` | Records what would have been opened or shown in its folder, and opens nothing |
 | `RecordingNavigationService` | Records where a navigation was headed and what it carried |
 | `InMemoryStorageService` | The same paths and the same JSON round trip, with nothing on disk |
 | `DictionaryLocalizationService` | Strings from a dictionary, without satellite assemblies |
 | `RecordingThemeService` | Tracks theme and variant without an application's styles |
+
+An application in a host adds `CdCSharp.Pangea.Apps.Testing`:
+
+```csharp
+PangeaTestServices services = new PangeaTestServices().AddApps();
+services.AppBus().Answer((DownloadSong request) => new DownloadSongResult($"{request.Query}.mp3", request.Query));
+
+await screen.AddCommand.ExecuteAsync(null);
+
+Assert.Equal("Blue", services.AppBus().LastSent<DownloadSong>()?.Query);
+```
+
+The bus fails the way the real one does - disconnected, unanswered, or with the other application's
+message - and the host connects and disconnects on cue, so every branch a screen takes is testable.
 
 ---
 

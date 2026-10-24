@@ -159,7 +159,9 @@ public class AgentGuideCompilesTests
                      typeof(Microsoft.EntityFrameworkCore.DbContext),
                      typeof(Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<>),
                      typeof(CdCSharp.Pangea.Supabase.SupabaseFeature),
-                     typeof(CdCSharp.Pangea.Supabase.Abstractions.IOutbox)
+                     typeof(CdCSharp.Pangea.Supabase.Abstractions.IOutbox),
+                     typeof(CdCSharp.Pangea.Apps.AppInteractions),
+                     typeof(CdCSharp.Pangea.Apps.Testing.FakeAppBus)
                  })
         {
             string location = anchor.Assembly.Location;

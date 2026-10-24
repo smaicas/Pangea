@@ -17,5 +17,7 @@
         <ProjectReference Include="..\PangeaOmniApp\PangeaOmniApp.csproj" />
         <!-- The container a view model needs, with test doubles in it. No Avalonia is started. -->
         <PackageReference Include="CdCSharp.Pangea.Testing" Version="PANGEA_VERSION" />
+        <!-- And what an application in a host adds to it: a scripted bus and a host that connects on cue. -->
+        <PackageReference Include="CdCSharp.Pangea.Apps.Testing" Version="PANGEA_VERSION" />
     </ItemGroup>
 </Project>

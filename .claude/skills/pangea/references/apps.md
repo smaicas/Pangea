@@ -8,6 +8,7 @@ and still runs perfectly well on its own.
 | `CdCSharp.Pangea.Apps` | The application: manifest, bus client, one instance, the host's theme |
 | `CdCSharp.Pangea.Apps.Abstractions` | A protocol library: the messages, and nothing else - no Avalonia |
 | `CdCSharp.Pangea.Apps.Hosting` | The host: `AppBroker` and `AppManifestReader` |
+| `CdCSharp.Pangea.Apps.Testing` | The test project: a bus that answers from a script, a host on cue |
 
 Installing `CdCSharp.Pangea.Apps` is the whole setup. `AppsFeature` registers itself like every
 feature; without a host running, nothing changes for the application.
@@ -55,7 +56,8 @@ public sealed record SongProgress(string Title, double Fraction) : IAppEvent;
 - Records with `init` members: the wire is JSON, read by name, so an added optional member is
   invisible to an older reader and a removed one is just missing.
 - Enums travel as their names. Renaming a member or an `[AppMessage]` id is a breaking change.
-- Files stay on disk; send their paths. A frame is limited to 16 MB.
+- Files stay on disk; send their paths. A frame is limited to 16 MB. A result carrying files
+  written for the caller implements `IAppFilesResult`: below.
 
 ## Answering: a handler
 
@@ -88,6 +90,123 @@ internal sealed class DownloadSongHandler(ISongStore songs) : IAppRequestHandler
 An exception thrown here reaches the caller as `AppRequestFailedException` with its message: write
 the message for the person who will read it there. The generator refuses a handler whose request
 has no `[AppMessage]` (`PGA001`), two handlers for one id (`PGA002`), and a private handler (`PGA003`).
+
+## Files written for the caller
+
+A request that produces files - a download, a conversion - writes them where it leaves no trace:
+not in the person's folders, but in a new folder of the request's own among the temporary files,
+which becomes the caller's. The result says where with `IAppFilesResult.Folder`.
+
+```csharp
+using CdCSharp.Pangea.Apps;
+using System.IO;
+using System.Threading;
+
+namespace AppsSamples.Files;
+
+[AppMessage("sample.image.shrink")]
+public sealed record ShrinkImage(string FilePath) : IAppRequest<ShrinkImageResult>;
+
+public sealed record ShrinkImageResult(string FilePath) : IAppFilesResult
+{
+    public string? Folder { get; init; }
+}
+
+// AppRequestFolders comes from the container: <temp>/<app id>/requests, one folder per request,
+// the ones callers forgot deleted after a day.
+internal sealed class ShrinkImageHandler(AppRequestFolders folders) : IAppRequestHandler<ShrinkImage, ShrinkImageResult>
+{
+    public async Task<ShrinkImageResult> HandleAsync(ShrinkImage request, AppRequestContext context, CancellationToken cancellationToken)
+    {
+        string folder = folders.NewFolder();
+
+        try
+        {
+            string output = Path.Combine(folder, Path.GetFileName(request.FilePath));
+            await File.WriteAllBytesAsync(output, [], cancellationToken);
+            return new ShrinkImageResult(output) { Folder = folder };
+        }
+        catch
+        {
+            // Failed or cancelled: nothing in it is anyone's.
+            folders.Delete(folder);
+            throw;
+        }
+    }
+}
+
+public static class Caller
+{
+    // The caller takes what it wants, then deletes the folder with everything left in it.
+    public static async Task<string> ShrinkIntoAsync(IAppBus bus, string image, string destination)
+    {
+        ShrinkImageResult shrunk = await bus.SendAsync(new ShrinkImage(image));
+
+        try
+        {
+            string kept = Path.Combine(destination, Path.GetFileName(shrunk.FilePath));
+            File.Move(shrunk.FilePath, kept, overwrite: true);
+            return kept;
+        }
+        finally
+        {
+            shrunk.DeleteFolder();
+        }
+    }
+}
+```
+
+## What the person answers on screen
+
+Some requests are answered by the person, not by code: edit this image, choose a song. Derive an
+`AppInteraction<TResult>` carrying what the screen needs, and run it through `AppInteractions`, from
+the container. Requests take turns - a second waits rather than replacing the one on screen - the
+main window comes to the front when the screen opens, and the application refuses to close while one
+is open.
+
+```csharp
+using CdCSharp.Pangea.Apps;
+using CdCSharp.Pangea.Core.Abstractions;
+using System.Threading;
+
+namespace AppsSamples.Interactions;
+
+[AppMessage("sample.image.edit")]
+public sealed record EditImage(string FilePath) : IAppRequest<EditImageResult>
+{
+    public string? RequestedBy { get; init; }
+}
+
+public sealed record EditImageResult(string? FilePath, bool Cancelled);
+
+// What the screen shows. The second argument is what the caller gets when the person gives up.
+public sealed class EditSession(string filePath, string requester)
+    : AppInteraction<EditImageResult>(requester, new EditImageResult(null, Cancelled: true))
+{
+    public string FilePath { get; } = filePath;
+}
+
+public interface IEditor
+{
+    void Open(string filePath);
+}
+
+internal sealed class EditImageHandler(AppInteractions interactions, IEditor editor, IUIDispatcher ui)
+    : IAppRequestHandler<EditImage, EditImageResult>
+{
+    public Task<EditImageResult> HandleAsync(EditImage request, AppRequestContext context, CancellationToken cancellationToken)
+    {
+        EditSession session = new(request.FilePath, request.RequestedBy ?? context.CallerId);
+
+        // Waits for its turn, opens the screen, and returns when the person finishes or gives up.
+        // The caller cancelling ends it with the cancelled answer.
+        return interactions.RunAsync(session, () => ui.InvokeAsync(() => editor.Open(session.FilePath)), cancellationToken);
+    }
+}
+```
+
+The screen watches `AppInteractions.Current` - and `Changed`, raised on any thread - to show who is
+waiting (`Requester`), and ends it with `session.Complete(result)` or `Cancel()`.
 
 ## Asking: the bus
 
@@ -148,8 +267,30 @@ public partial class LibraryViewModel : ViewModelBase
 
 ## Closing when the host asks
 
-The host asks before an update and when the person stops the application from it. Say no while
-something must not be interrupted; tidy up when saying yes.
+The host asks before an update and when the person stops the application from it. For work that must
+not be cut short - an export, a recording, a batch - mark it with `AppActivity`, from the container:
+the application refuses while any is going on, and an open interaction counts as such.
+
+```csharp
+using CdCSharp.Pangea.Apps;
+using System.Threading;
+
+namespace AppsSamples.Activity;
+
+public sealed class Exporter(AppActivity activity)
+{
+    public async Task ExportAsync(CancellationToken cancellationToken)
+    {
+        using (activity.Begin("Exporting the video"))
+        {
+            await Task.Delay(10, cancellationToken);
+        }
+    }
+}
+```
+
+When there is more to decide - unsaved work, a server to ask - or something to tidy up when saying
+yes, write a close handler:
 
 ```csharp
 using CdCSharp.Pangea.Apps;
@@ -188,6 +329,56 @@ then, or it undoes the host's.
 
 A second start brings the running copy to the front and exits. Started **under a debugger**, it asks
 the running copy to close and takes over - so F5 replaces the installed copy while working on it.
+
+## Testing
+
+`CdCSharp.Pangea.Apps.Testing` adds to `PangeaTestServices` what an application in a host asks its
+container for. The bus answers from a script and fails the way the real one does, so every branch a
+screen takes is testable:
+
+```csharp
+using AppsSamples.Protocol;
+using AppsSamples.ViewModels;
+using CdCSharp.Pangea.Apps.Testing;
+using CdCSharp.Pangea.Testing;
+
+namespace AppsSamples.Tests;
+
+public static class LibraryViewModelTests
+{
+    public static async Task<bool> AnAddedSongIsAnnounced()
+    {
+        PangeaTestServices services = new PangeaTestServices().AddApps();
+        services.AppBus().Answer((DownloadSong request) => new DownloadSongResult($"{request.Query}.mp3", request.Query));
+
+        LibraryViewModel screen = new(services) { Query = "Blue" };
+        await screen.AddCommand.ExecuteAsync(null);
+
+        return screen.Status == "Blue added." && services.AppBus().LastSent<DownloadSong>()?.RequestedBy == "Library";
+    }
+
+    public static async Task<bool> WithoutAHostTheScreenSaysWhatToDo()
+    {
+        PangeaTestServices services = new PangeaTestServices().AddApps();
+        services.AppBus().IsConnected = false;
+
+        LibraryViewModel screen = new(services);
+        await screen.AddCommand.ExecuteAsync(null);
+
+        return screen.Status == "Open the host to do this.";
+    }
+}
+```
+
+- `FakeAppBus`: `Answer(...)` per request type, synchronous or with the request's cancellation;
+  `Fail<TRequest>(message)` arrives as `AppRequestFailedException`; an unanswered request is
+  `AppHandlerNotFoundException`; `IsConnected = false` is `AppBusUnavailableException`. `Sent`,
+  `SentOf<T>()`, `LastSent<T>()` and `Published` record; `Raise(event)` delivers to subscribers.
+- `FakeAppHost`: not hosted until `Connect("Omni", environment)`; `Disconnect()`. Both raise `Changed`.
+- `AddApps(bus, host)` also registers the real `AppActivity`, `AppInteractions`, `AppIdentity` and
+  `AppRequestFolders`, the last under a new folder among the temporary files. `AppBus()` and
+  `AppHost()` reach the doubles.
+- A handler is a plain class: test it by calling `HandleAsync` with `new AppRequestContext("caller")`.
 
 ## The host's side
 

@@ -227,25 +227,8 @@ public partial class ReportViewModel : ViewModelBase
 Failures always reach `ViewModelBase.OnCommandError`, which you override to handle them.
 `ExecuteAsync` also rethrows so an awaiting caller can react; `ICommand.Execute` cannot and does not.
 A `CanExecute` that throws is reported and treated as `false`, so a broken predicate does not take
-down the binding evaluating it.
-
-```csharp
-using CdCSharp.Pangea.Core.Base;
-using Microsoft.Extensions.Logging;
-
-namespace MyApp.ViewModels;
-
-public partial class SafeViewModel : ViewModelBase
-{
-    private readonly ILogger<SafeViewModel> _logger;
-
-    public SafeViewModel(IServiceProvider services, ILogger<SafeViewModel> logger) : base(services) =>
-        _logger = logger;
-
-    protected override void OnCommandError(Exception exception) =>
-        _logger.LogError(exception, "Command failed");
-}
-```
+down the binding evaluating it. The override that also shows the failure is in
+`references/view-models.md`.
 
 ---
 
@@ -492,16 +475,19 @@ public partial class OrdersViewModel : ViewModelBase
   and use `IWindowManager.ShowDialogAsync<TWindow, TViewModel, TResult>`. `IDialogService` is
   deliberately only these two questions.
 
-Windows and dialogs also have rules about size, scrolling and the keyboard that are easy to get
-wrong and expensive to notice: read `references/windows.md` before writing a window.
+Files and folders are chosen through `IFilePickerService`, and a file opened, shown in its folder
+or a link followed through `ISystemLauncher` - never a window's `StorageProvider` or
+`Process.Start`. Both are in `references/windows.md`, with the rules about size, scrolling and the
+keyboard that are easy to get wrong and expensive to notice: read it before writing a window.
 
 ---
 
 ## Adding a feature
 
 Extending the toolkit itself - an `IPangeaFeature` - is in [references/extending-pangea.md](references/extending-pangea.md).
-An application inside a host such as Omni (manifest, messages to other applications, one copy, the
-host's theme) uses `CdCSharp.Pangea.Apps`: read [references/apps.md](references/apps.md) first.
+An application inside a host such as Omni (manifest, messages to other applications, files and
+answers for them, one copy, the host's theme) uses `CdCSharp.Pangea.Apps`: read
+[references/apps.md](references/apps.md) first.
 
 ---
 
@@ -539,11 +525,14 @@ public partial class LoggingApp : PangeaApplication
 - **`GetDataFilePath` only names files inside the data folder.** A relative name, subfolders
   included, is fine; an absolute path or one climbing out with `..` is rejected. Pass a
   path from outside straight to the read and write methods instead.
+- **A change hook belongs to the class that declares the field.** `partial void OnXChanged()` in a
+  subclass of the view model that declares `_x` is `CS0759`. A computed property or a command guard
+  there that reads `X` is notified anyway; for anything else, handle `PropertyChanged`.
 
 ### What the generator reports
 
-The generator refuses to emit for a class it cannot generate correctly, and says why. Reading the
-code, these are the mistakes it catches:
+The generator does not emit what it cannot generate correctly, and says why, against the line to
+fix. Reading the code, these are the mistakes it catches:
 
 | | |
 |---|---|
@@ -555,7 +544,9 @@ code, these are the mistakes it catches:
 | `PGB006` | The generated property hides a member of a base class (warning) |
 | `PGB007` | A `[Binding]` field has validation attributes and the class inherits no `ValidateProperty` - an `ObservableModel` |
 
-A class that trips an error generates nothing, so a missing property is the symptom to look for.
+`PGB001` and `PGB002` leave the class with nothing generated. The others cost only their field,
+whose change hook is still declared: fix the `PGB` error first, and the compiler errors beside it,
+which are about the same field, go with it.
 
 ### What the localization analyzer reports
 
@@ -573,7 +564,8 @@ in a `.globalconfig` where translation lags the code on purpose.
 
 `CdCSharp.Pangea.Testing` is the package for the test project: `PangeaTestServices` is the container
 a view model needs, with test doubles in it. Commands run inline, dialogs answer from a script,
-navigations are recorded rather than performed, and storage stays in memory.
+navigations are recorded rather than performed, and storage stays in memory. An application in a
+host adds `CdCSharp.Pangea.Apps.Testing`: a bus that answers from a script, and a host on cue.
 
 Read `references/testing.md` before writing tests for a Pangea application.
 

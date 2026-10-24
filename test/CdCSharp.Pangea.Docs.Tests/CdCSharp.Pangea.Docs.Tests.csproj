@@ -32,6 +32,7 @@
         <!-- The apps reference's samples are compiled against the packages they describe -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps\CdCSharp.Pangea.Apps.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps.Hosting\CdCSharp.Pangea.Apps.Hosting.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps.Testing\CdCSharp.Pangea.Apps.Testing.csproj" />
         <!-- Referenced as an assembly so the samples can be compiled through the generator -->
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj" />
     </ItemGroup>
