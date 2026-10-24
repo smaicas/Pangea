@@ -10,7 +10,7 @@ public sealed class OutputNameTests : IDisposable
     [Fact]
     public void A_template_fills_in_the_original_the_position_the_size_and_the_format()
     {
-        Assert.Equal("holiday-007-640x480.webp", OutputNames.Apply("{name}-{nnn}-{w}x{h}.{format}", @"C:\photos\holiday.jpg", 7, 640, 480, "webp"));
+        Assert.Equal("holiday-007-640x480.webp", OutputNames.Apply("{name}-{nnn}-{w}x{h}.{format}", Path.Combine("photos", "holiday.jpg"), 7, 640, 480, "webp"));
         Assert.Equal("holiday", OutputNames.Apply("", "holiday.jpg", 1));
         Assert.Equal(DateTime.Now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), OutputNames.Apply("{date}", "a.jpg", 1));
     }
