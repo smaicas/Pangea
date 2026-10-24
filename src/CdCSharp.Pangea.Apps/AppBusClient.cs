@@ -450,6 +450,12 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
 
             reply = new Frame { Kind = FrameKind.Response, Id = id, Message = message, Payload = result };
         }
+        catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
+        {
+            // This application is closing; the caller did not give up. Said as the broker says it when
+            // the connection goes first, so the caller hears the same whichever arrives first.
+            reply = Fault(id, message, FaultCodes.Disconnected, $"{Identity.Name} closed before answering.");
+        }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             reply = Fault(id, message, FaultCodes.Cancelled, "The request was cancelled.");
