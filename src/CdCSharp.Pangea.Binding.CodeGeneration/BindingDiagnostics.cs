@@ -9,8 +9,9 @@ namespace CdCSharp.Pangea.Binding.CodeGeneration;
 /// Without these the compiler speaks instead, and it talks about the generated file: a view model
 /// that forgets to derive from <c>ViewModelBase</c> is reported as "the name 'SetProperty' does not
 /// exist", in code the author never wrote and cannot edit. Each descriptor here names the field and
-/// the fix, and the generator stops emitting for that class so one clear error replaces a cascade
-/// of obscure ones.
+/// the fix, so one clear error replaces a cascade of obscure ones: a class that is wrong itself gets
+/// nothing generated, and a field that cannot be generated is left out alone, its change hook still
+/// declared, so the rest of the class compiles around the error.
 /// </remarks>
 internal static class BindingDiagnostics
 {

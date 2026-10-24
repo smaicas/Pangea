@@ -102,25 +102,24 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
     {
         if (analysis == null) return;
 
-        // A class can have nothing of its own to generate and still need the forwarding override:
-        // a screen deriving from a shared view model, computing from what the base declares.
-        bool hasSomethingToEmit = analysis.BindingFields.Count > 0 ||
-                                  analysis.InheritedDependencyNotifications.Count > 0 ||
-                                  analysis.InheritedCommandNotifications.Count > 0;
-
-        if (!hasSomethingToEmit) return;
-
         foreach (Diagnostic diagnostic in analysis.Diagnostics)
         {
             context.ReportDiagnostic(diagnostic);
         }
 
-        // Generating on top of an error buries it: the author would get one message they can act on
-        // and several more about a file they did not write.
-        if (analysis.Diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
-        {
-            return;
-        }
+        // A class can have nothing of its own to generate and still need the forwarding override:
+        // a screen deriving from a shared view model, computing from what the base declares.
+        bool hasSomethingToEmit = analysis.BindingFields.Count > 0 ||
+                                  analysis.HooksWithoutProperty.Count > 0 ||
+                                  analysis.InheritedDependencyNotifications.Count > 0 ||
+                                  analysis.InheritedCommandNotifications.Count > 0;
+
+        if (!hasSomethingToEmit) return;
+
+        // Generating into a class that cannot take it buries the error: the author would get one
+        // message they can act on and several more about a file they did not write. A field that
+        // cannot be generated was already left out by the analysis, and costs only itself.
+        if (!analysis.CanGenerate) return;
 
         string source = GenerateClassSource(analysis);
         // Qualified, not just the class name: two view models called DetailViewModel in different
@@ -177,9 +176,10 @@ public class ViewModelSourceGenerator : IIncrementalGenerator
         }
 
         // Generar declaraciones de métodos parciales
-        foreach (BindingFieldInfo field in analysis.BindingFields.Where(f => !f.ReadOnly))
+        foreach (string property in analysis.BindingFields.Where(f => !f.ReadOnly).Select(f => f.PropertyName)
+                     .Concat(analysis.HooksWithoutProperty))
         {
-            sb.AppendLine($"    partial void On{field.PropertyName}Changed();");
+            sb.AppendLine($"    partial void On{property}Changed();");
         }
 
         GenerateInheritedDependencyForwarding(sb, analysis);

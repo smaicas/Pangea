@@ -195,7 +195,7 @@ public class DiagnosticTests
     /// One message the author can act on, instead of it plus a pile about a file they cannot edit.
     /// </summary>
     [Fact]
-    public void WhenSomethingIsWrong_NoCodeIsGeneratedOnTopOfIt()
+    public void WhenTheClassIsWrong_NoCodeIsGeneratedOnTopOfIt()
     {
         GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.Run("""
             using CdCSharp.Pangea.Binding.Attributes;
@@ -210,6 +210,104 @@ public class DiagnosticTests
             """);
 
         Assert.Empty(result.Sources);
+    }
+
+    /// <summary>The errors left once the generator has run, apart from the ones it reported itself.</summary>
+    private static List<string> CompilerErrors(string body)
+    {
+        string source = $$"""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace App;
+
+            {{body}}
+            """;
+
+        return GeneratorTestHelper.GetErrors(GeneratorTestHelper.Run(source).OutputCompilation)
+            .Select(diagnostic => diagnostic.Id)
+            .ToList();
+    }
+
+    /// <summary>
+    /// A block of fields pasted twice used to stop the whole class: one PGB003 per field, and a CS0759
+    /// for every change hook the class implements, hiding the line that was actually wrong.
+    /// </summary>
+    [Fact]
+    public void AFieldDeclaredTwice_LeavesTheRestOfTheClassAndItsHooksCompiling()
+    {
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.Run("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+
+            namespace App;
+
+            public partial class PastedTwiceViewModel : ViewModelBase
+            {
+                public PastedTwiceViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private int _count;
+                [Binding] private bool _isPlaying;
+                [Binding] private bool _isPlaying;
+
+                public string Label => $"{Count} {IsPlaying}";
+
+                partial void OnCountChanged() { }
+                partial void OnIsPlayingChanged() { }
+            }
+            """);
+
+        Assert.Equal("PGB003", Assert.Single(result.Diagnostics).Id);
+
+        // Every error left is about the field written twice - its declaration, and reading it - and
+        // none about the hooks or the other fields.
+        IReadOnlyList<Diagnostic> errors = GeneratorTestHelper.GetErrors(result.OutputCompilation);
+
+        Assert.Contains(errors, error => error.Id == "CS0102");
+        Assert.DoesNotContain(errors, error => error.Id == "CS0759");
+        Assert.All(errors, error => Assert.Contains("_isPlaying", error.GetMessage(), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AFieldWhosePropertyIsTaken_KeepsItsHookDeclared()
+    {
+        List<string> errors = CompilerErrors("""
+            public partial class TakenHookViewModel : ViewModelBase
+            {
+                public TakenHookViewModel(IServiceProvider sp) : base(sp) { }
+                [Binding] private int _count;
+                [Binding(PropertyName = "Total")] private int _sum;
+                public int Total => 1;
+
+                partial void OnCountChanged() { }
+                partial void OnTotalChanged() { }
+            }
+            """);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void ValidationWithoutABaseThatValidates_StillGeneratesTheProperty()
+    {
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.Run("""
+            using CdCSharp.Pangea.Binding.Attributes;
+            using CdCSharp.Pangea.Core.Base;
+            using System.ComponentModel.DataAnnotations;
+
+            namespace App;
+
+            public partial class RowModel : ObservableModel
+            {
+                [Binding][Required] private string _name = "";
+
+                public string Title => Name.ToUpperInvariant();
+
+                partial void OnNameChanged() { }
+            }
+            """);
+
+        Assert.Equal("PGB007", Assert.Single(result.Diagnostics).Id);
+        Assert.Empty(GeneratorTestHelper.GetErrors(result.OutputCompilation));
     }
 
     [Fact]

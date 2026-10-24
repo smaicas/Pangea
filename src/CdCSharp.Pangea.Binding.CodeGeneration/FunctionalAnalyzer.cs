@@ -1356,6 +1356,7 @@ public class FunctionalAnalyzer
         {
             analysis.Diagnostics.Add(Diagnostic.Create(
                 BindingDiagnostics.ClassMustBePartial, part.Declaration.Identifier.GetLocation(), className));
+            analysis.CanGenerate = false;
         }
 
         INamedTypeSymbol? classSymbol = primary.SemanticModel.GetDeclaredSymbol(primary.Declaration);
@@ -1365,10 +1366,13 @@ public class FunctionalAnalyzer
             analysis.Diagnostics.Add(Diagnostic.Create(
                 BindingDiagnostics.ClassMustDeriveFromViewModelBase,
                 primary.Declaration.Identifier.GetLocation(), className));
+            analysis.CanGenerate = false;
         }
 
         // A model deriving from ObservableModel has change notification and no validation; the
-        // generated setter would call a ValidateProperty that is not there.
+        // generated setter would call a ValidateProperty that is not there. The property is still
+        // generated, without the rules: the error says what is wrong, and the class keeps compiling
+        // around it.
         if (classSymbol != null && !InheritsMethod(classSymbol, "ValidateProperty"))
         {
             foreach (BindingFieldInfo field in analysis.BindingFields.Where(f => f.ValidationAttributes.Count > 0))
@@ -1376,6 +1380,7 @@ public class FunctionalAnalyzer
                 analysis.Diagnostics.Add(Diagnostic.Create(
                     BindingDiagnostics.ValidationNeedsValidateProperty,
                     FindFieldLocation(parts, field.FieldName), field.FieldName, className));
+                field.ValidationAttributes.Clear();
             }
         }
 
@@ -1385,6 +1390,31 @@ public class FunctionalAnalyzer
         }
 
         ValidateGeneratedNames(parts, classSymbol, analysis);
+        LeaveOutUngeneratableFields(analysis);
+    }
+
+    /// <summary>
+    /// Takes the fields that cannot be generated out of the analysis, keeping their change hooks.
+    /// </summary>
+    /// <remarks>
+    /// Leaving the whole class out for one bad field used to bury the error: every change hook the
+    /// class implements lost its declaration, and a field pasted twice came back as one PGB003 and a
+    /// CS0759 per hook. Without the field, the rest of the class is generated as usual; its hook is
+    /// still declared, unless a field that is generated declares the same one.
+    /// </remarks>
+    private static void LeaveOutUngeneratableFields(ViewModelAnalysis analysis)
+    {
+        if (analysis.UngeneratableFields.Count == 0) return;
+
+        analysis.BindingFields.RemoveAll(field => analysis.UngeneratableFields.Contains(field));
+
+        HashSet<string> declared = new HashSet<string>(
+            analysis.BindingFields.Where(field => !field.ReadOnly).Select(field => field.PropertyName));
+
+        foreach (BindingFieldInfo field in analysis.UngeneratableFields.Where(field => !field.ReadOnly))
+        {
+            if (declared.Add(field.PropertyName)) analysis.HooksWithoutProperty.Add(field.PropertyName);
+        }
     }
 
     /// <summary>
@@ -1543,6 +1573,7 @@ public class FunctionalAnalyzer
             {
                 analysis.Diagnostics.Add(Diagnostic.Create(
                     BindingDiagnostics.DuplicatePropertyName, location, field.FieldName, field.PropertyName));
+                analysis.UngeneratableFields.Add(field);
                 continue;
             }
 
@@ -1553,6 +1584,7 @@ public class FunctionalAnalyzer
             {
                 analysis.Diagnostics.Add(Diagnostic.Create(
                     BindingDiagnostics.PropertyNameAlreadyTaken, location, field.FieldName, field.PropertyName));
+                analysis.UngeneratableFields.Add(field);
                 continue;
             }
 
@@ -1766,6 +1798,21 @@ public class ViewModelAnalysis
 
     /// <summary>What the generator has to say about this class before generating anything.</summary>
     public List<Diagnostic> Diagnostics { get; } = new List<Diagnostic>();
+
+    /// <summary>
+    /// False when the class itself is wrong - not partial, or with no base to notify through - so
+    /// nothing generated could join it.
+    /// </summary>
+    public bool CanGenerate { get; set; } = true;
+
+    /// <summary>Fields reported as impossible to generate: their property would clash with another member.</summary>
+    public List<BindingFieldInfo> UngeneratableFields { get; } = new List<BindingFieldInfo>();
+
+    /// <summary>
+    /// Change hooks declared for fields left out, so the class's own implementations of them still
+    /// compile and the only error is the one that says what is wrong.
+    /// </summary>
+    public List<string> HooksWithoutProperty { get; } = new List<string>();
 
     /// <summary>
     /// Inherited property name to the members of this class that depend on it.
