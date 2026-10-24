@@ -188,6 +188,14 @@ jobs:
               -v normal
           done
 
+          echo "🔧 Step 7: Building the files package: the list, its panel, output names and the batch..."
+          dotnet build src/CdCSharp.Pangea.Files/CdCSharp.Pangea.Files.csproj \
+            -c ${{ env.CONFIGURATION }} \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.version }} \
+            -p:FileVersion=${{ steps.version.outputs.version }} \
+            -v normal
+
       - name: Pack Main Project (with embedded analyzers)
         run: |
           echo "📦 Packing ONLY main project with embedded analyzers..."
@@ -283,7 +291,8 @@ jobs:
             CdCSharp.Pangea.Apps.Abstractions \
             CdCSharp.Pangea.Apps \
             CdCSharp.Pangea.Apps.Hosting \
-            CdCSharp.Pangea.Apps.Testing; do
+            CdCSharp.Pangea.Apps.Testing \
+            CdCSharp.Pangea.Files; do
             dotnet pack "src/$feature/$feature.csproj" \
               -c ${{ env.CONFIGURATION }} \
               -o ./artifacts \
@@ -629,6 +638,7 @@ jobs:
             CdCSharp.Pangea.Apps
             CdCSharp.Pangea.Apps.Hosting
             CdCSharp.Pangea.Apps.Testing
+            CdCSharp.Pangea.Files
             CdCSharp.Pangea.Templates
           )
 
@@ -684,7 +694,7 @@ jobs:
           echo "  📦 Version: ${{ steps.version.outputs.version }}"
           echo "  🔧 Configuration: ${{ env.CONFIGURATION }}"
           echo "  ✅ Main package: CdCSharp.Pangea (with embedded analyzers)"
-          echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization, Navigation"
+          echo "  ✅ Feature packages: Core, Binding, Storage, Theming, Localization, Navigation, Files"
           echo "  ✅ Test doubles: CdCSharp.Pangea.Testing, CdCSharp.Pangea.Data.Testing, CdCSharp.Pangea.Apps.Testing"
           echo "  🤖 Agent skill: attached to release v${{ steps.version.outputs.version }}"
           echo "  📐 Template: dotnet new install CdCSharp.Pangea.Templates"

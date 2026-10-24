@@ -145,3 +145,45 @@ application's value wins:
 Every control that reads the metric follows, so a touch-friendly build is a handful of keys rather
 than a restyle. Override the metric, not the control: a `Style` that sets `MinHeight` on one control
 type solves the same problem for that type alone, and the next control still comes out cramped.
+
+## Shared classes and icons
+
+`PangeaStyles` is a vocabulary of classes over the palette, so applications that live side by side -
+in Omni, say - look like one family. It is **opt-in**: put it first in `Application.Styles`, and the
+application's own styles, declared after it, win where they overlap.
+
+```xml
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theming="using:CdCSharp.Pangea.Theming">
+  <Application.Styles>
+    <theming:PangeaStyles />
+    <!-- the application's own styles -->
+  </Application.Styles>
+</Application>
+```
+
+| Class | On | What it is |
+|---|---|---|
+| `title`, `subtitle`, `section` | `TextBlock` | A screen's heading, a panel's heading, the small caps above a group |
+| `hint` | `TextBlock` | Secondary text, low contrast, wrapped |
+| `error`, `warning`, `success` | `TextBlock` | Status text in the palette's colour, wrapped |
+| `mono` | `TextBlock`, `SelectableTextBlock` | A monospaced face, for paths and logs |
+| `card` | `Border`, `Button` | A raised surface; as a button, a tile that fills its cell |
+| `toolbar`, `separator`, `banner` | `Border` | A strip with a bottom edge, a vertical rule, an accent band |
+| `accent` | `Button` | The one action that matters on the screen |
+| `subtle`, `tool` | `Button`, `ToggleButton` | Flat buttons; a checked `tool` is shown selected |
+| `nav`, `nav current` | `Button` | A row of a navigation rail, and the one that is open |
+| `big` | `PathIcon` | A 28-pixel icon in the accent colour |
+
+It also brings `Icon.*` geometries - actions (`Icon.Plus`, `Icon.Delete`, `Icon.ContentSave`,
+`Icon.Undo`...), navigation (`Icon.ArrowUp`, `Icon.ChevronDown`, `Icon.Magnify`...), files
+(`Icon.Folder`, `Icon.FolderOpen`), media (`Icon.Play`, `Icon.Pause`, `Icon.Record`...) and states
+(`Icon.Information`, `Icon.Alert`) - from Material Design Icons, Apache 2.0:
+
+```xml
+<PathIcon Data="{StaticResource Icon.FolderOpen}" Width="14" Height="14" />
+```
+
+An application that defines an `Icon.*` key in its own resources gets its own, and adds the icons
+the set does not have the same way.

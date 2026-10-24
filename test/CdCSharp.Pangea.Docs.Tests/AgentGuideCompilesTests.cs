@@ -161,7 +161,8 @@ public class AgentGuideCompilesTests
                      typeof(CdCSharp.Pangea.Supabase.SupabaseFeature),
                      typeof(CdCSharp.Pangea.Supabase.Abstractions.IOutbox),
                      typeof(CdCSharp.Pangea.Apps.AppInteractions),
-                     typeof(CdCSharp.Pangea.Apps.Testing.FakeAppBus)
+                     typeof(CdCSharp.Pangea.Apps.Testing.FakeAppBus),
+                     typeof(CdCSharp.Pangea.Files.FileBatch)
                  })
         {
             string location = anchor.Assembly.Location;

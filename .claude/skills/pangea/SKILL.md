@@ -241,7 +241,9 @@ follows. Register it through `ThemingOptions.Themes`, and override the entry nam
 
 The palette classes, the naming rule between colours and brushes, the irregular keys and the full
 worked example are in [references/theming.md](references/theming.md); every resource key is in
-[references/resource-keys.md](references/resource-keys.md).
+[references/resource-keys.md](references/resource-keys.md). So are the shared classes - `card`,
+`hint`, `accent`, `subtle`, `nav`... - and `Icon.*` geometries of `<theming:PangeaStyles />`: use
+those rather than writing them again.
 
 ---
 
@@ -478,7 +480,9 @@ public partial class OrdersViewModel : ViewModelBase
 Files and folders are chosen through `IFilePickerService`, and a file opened, shown in its folder
 or a link followed through `ISystemLauncher` - never a window's `StorageProvider` or
 `Process.Start`. Both are in `references/windows.md`, with the rules about size, scrolling and the
-keyboard that are easy to get wrong and expensive to notice: read it before writing a window.
+keyboard that are easy to get wrong and expensive to notice: read it before writing a window. A
+screen that works through a list of files - picked, dropped, run in parallel - uses
+`CdCSharp.Pangea.Files`: read `references/files.md`.
 
 ---
 

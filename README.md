@@ -11,7 +11,7 @@
 
 **An Avalonia toolkit: MVVM with generated bindings, themes as C# classes, storage and localization**
 
-[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🔐 Secrets](#-secrets-and-connectivity) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [🔌 Apps](#-applications-in-a-host) • [💬 Dialogs](#-dialogs) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
+[📦 Installation](#-installation) • [🚀 Quick start](#-quick-start) • [🧠 Binding](#-binding) • [🎨 Theming](#-theming) • [💾 Storage](#-storage) • [🔐 Secrets](#-secrets-and-connectivity) • [🗄️ Database](#-database) • [🌐 Localization](#-localization) • [🧭 Navigation](#-navigation) • [🔌 Apps](#-applications-in-a-host) • [💬 Dialogs](#-dialogs) • [📂 Files](#-working-through-files) • [🧪 Testing](#-testing-your-own-application) • [🤖 AI agents](#-ai-coding-agents)
 
 </div>
 
@@ -201,6 +201,12 @@ An application that lives in a host beside others, and the host itself, are thre
 dotnet add package CdCSharp.Pangea.Apps              # the application: manifest, bus, one instance
 dotnet add package CdCSharp.Pangea.Apps.Abstractions # a protocol library: the messages only
 dotnet add package CdCSharp.Pangea.Apps.Hosting      # the host: broker and manifest reader
+```
+
+A screen that works through a list of files is one more - see [Working through files](#-working-through-files):
+
+```bash
+dotnet add package CdCSharp.Pangea.Files   # file list, panel, path box, output names, parallel batch
 ```
 
 And, for the test project rather than the application:
@@ -533,6 +539,26 @@ The control dictionaries under `Resources/Controls/Shared` are Avalonia's Simple
 a starting point. A manifest records which files are still untouched copies and which this repo has
 taken ownership of, and a test fails when the two drift apart or when the Avalonia version moves
 without the theme being re-vendored.
+
+### Shared classes and icons
+
+`PangeaStyles` is opt-in: a vocabulary of classes over the palette - `card`, `hint`, `section`,
+`title`, `accent`, `subtle`, `tool`, `nav`, `banner`, `toolbar`, `error`, `mono` and a few more -
+and `Icon.*` geometries from Material Design Icons (Apache 2.0, see `THIRD-PARTY-NOTICES.md`), so
+applications that live side by side look like one family. Put it first in `Application.Styles`;
+the application's own styles, declared after it, win where they overlap.
+
+```xml
+<Application.Styles>
+    <theming:PangeaStyles />
+</Application.Styles>
+
+<Border Classes="card">
+    <Button Classes="accent">
+        <PathIcon Data="{StaticResource Icon.Plus}" />
+    </Button>
+</Border>
+```
 
 ---
 
@@ -1241,6 +1267,35 @@ one holding unsaved work is a keystroke away from losing it. A secondary window 
 ```xml
 <Window xmlns:win="using:CdCSharp.Pangea.Windows"
         win:WindowBehavior.CloseOnEscape="True">
+```
+
+---
+
+## 📂 Working through files
+
+`CdCSharp.Pangea.Files` is the screen that takes files - picked, or dropped with their folders - and
+does something to each. `FileList` keeps them without repeats and describes each as it arrives;
+`FileListPanel` shows it, with add, drop, sort, reorder and remove; `FileBatch` runs the list
+through one piece of work a few at a time, with progress, counts and cancel:
+
+```csharp
+await batch.RunAsync(files.Items, async work =>
+{
+    string? output = work.Resolve("{name}-small", folder, ".png", ConflictPolicy.Rename);
+    if (output is null) return FileOutcome.Skipped();
+
+    await shrinker.ShrinkAsync(work.Item.Path, output, work.Progress, work.CancellationToken);
+    return FileOutcome.Written(output);
+}, parallelism: 2);
+```
+
+A failure is its file's; the rest carry on. A name is claimed on disk, so two parallel workers never
+take the same one, and whatever a file claimed and did not come to is deleted - a failed or
+cancelled run leaves no empty files behind. The texts are English until the list is given its own.
+
+```xml
+<files:FileListPanel Files="{Binding Files}" EmptyText="Drop images here" />
+<files:FilePickerBox Path="{Binding OutputFolder}" PickFolder="True" />
 ```
 
 ---
