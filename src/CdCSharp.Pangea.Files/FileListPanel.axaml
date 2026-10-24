@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:f="using:CdCSharp.Pangea.Files"
+             x:Class="CdCSharp.Pangea.Files.FileListPanel"
+             x:DataType="f:FileListPanel"
+             x:Name="Root">
+    <!--
+        Wears PangeaStyles' classes and icons: card, accent, subtle, hint, error, Icon.*. The icons are
+        DynamicResource, so without them the buttons show their text and nothing breaks.
+    -->
+    <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+            <WrapPanel ItemSpacing="4" LineSpacing="4">
+                <Button x:Name="AddFiles" Classes="accent">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{DynamicResource Icon.Plus}" Width="12" Height="12" />
+                        <TextBlock Text="{Binding #Root.Files.Texts.AddFiles, FallbackValue=''}" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="AddFolder">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{DynamicResource Icon.FolderOpen}" Width="12" Height="12" />
+                        <TextBlock Text="{Binding #Root.Files.Texts.AddFolder, FallbackValue=''}" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="SortButton" Classes="subtle"
+                        Content="{Binding #Root.Files.Texts.Sort, FallbackValue=''}"
+                        ToolTip.Tip="{Binding #Root.Files.Texts.SortTip, FallbackValue=''}" />
+                <Button x:Name="ClearButton" Classes="subtle" Content="{Binding #Root.Files.Texts.Clear, FallbackValue=''}" />
+            </WrapPanel>
+            <TextBlock Grid.Column="1" x:Name="Count" Classes="hint" VerticalAlignment="Center" />
+        </Grid>
+
+        <Border Grid.Row="1" x:Name="DropArea" Classes="card" Padding="4" DragDrop.AllowDrop="True">
+            <Panel>
+                <StackPanel x:Name="Empty" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                    <PathIcon Data="{DynamicResource Icon.TrayArrowDown}" Width="36" Height="36" Opacity="0.4" />
+                    <TextBlock x:Name="EmptyLabel" Classes="hint" TextAlignment="Center" />
+                </StackPanel>
+
+                <ListBox x:Name="List" Background="Transparent" SelectionMode="Multiple"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="f:FileItem">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                <StackPanel Spacing="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
+                                    <TextBlock Text="{Binding Detail}" Classes="hint" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Error}" Classes="error" IsVisible="{Binding HasFailed}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <ProgressBar IsIndeterminate="True" Width="60" IsVisible="{Binding IsWorking}" />
+                                    <TextBlock Text="{Binding StatusText}" Classes="hint" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Classes="subtle" IsVisible="{Binding IsDone}" Click="OnShowResult"
+                                            ToolTip.Tip="{Binding #Root.Files.Texts.ShowResult, FallbackValue=''}">
+                                        <PathIcon Data="{DynamicResource Icon.Eye}" Width="12" Height="12" />
+                                    </Button>
+                                    <Button Classes="subtle" IsVisible="{Binding #Root.Reorderable}" Click="OnUp"
+                                            ToolTip.Tip="{Binding #Root.Files.Texts.MoveUp, FallbackValue=''}">
+                                        <PathIcon Data="{DynamicResource Icon.ArrowUp}" Width="12" Height="12" />
+                                    </Button>
+                                    <Button Classes="subtle" IsVisible="{Binding #Root.Reorderable}" Click="OnDown"
+                                            ToolTip.Tip="{Binding #Root.Files.Texts.MoveDown, FallbackValue=''}">
+                                        <PathIcon Data="{DynamicResource Icon.ArrowDown}" Width="12" Height="12" />
+                                    </Button>
+                                    <Button Classes="subtle" Click="OnRemove"
+                                            ToolTip.Tip="{Binding #Root.Files.Texts.Remove, FallbackValue=''}">
+                                        <PathIcon Data="{DynamicResource Icon.Close}" Width="12" Height="12" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Panel>
+        </Border>
+    </Grid>
+</UserControl>

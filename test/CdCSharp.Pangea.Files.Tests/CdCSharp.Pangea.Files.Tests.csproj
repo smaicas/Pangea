@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
+        <!-- xunit.v3 runs on Microsoft.Testing.Platform; the runner is selected in global.json -->
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Pinned to the xunit.v3 line Avalonia.Headless.XUnit builds against. -->
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <!-- The panel is driven through a real Pangea application with no windowing backend -->
+        <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Files\CdCSharp.Pangea.Files.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
+    </ItemGroup>
+</Project>

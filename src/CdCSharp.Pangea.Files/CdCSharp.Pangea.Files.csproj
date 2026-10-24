@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Files</PackageId>
+        <Description>Working through files with CdCSharp.Pangea: a list filled by picker or by dropping files and folders, a panel that shows how each one went, a box for a path, output names from a template that two parallel workers never share, and a batch that runs them in parallel, reports progress, cancels and cleans up after a failure.</Description>
+        <PackageTags>$(PackageTags);files;batch;drag-and-drop;file-picker</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="CdCSharp.Pangea.Files.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CdCSharp.Pangea\CdCSharp.Pangea.csproj" PrivateAssets="none" />
+        <ProjectReference Include="..\CdCSharp.Pangea.CodeGeneration\CdCSharp.Pangea.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <!-- FileItem's properties are generated; the generated code is compiled in here, so no consumer needs the generator. -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Binding.CodeGeneration\CdCSharp.Pangea.Binding.CodeGeneration.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.1.1" />
+    </ItemGroup>
+</Project>
