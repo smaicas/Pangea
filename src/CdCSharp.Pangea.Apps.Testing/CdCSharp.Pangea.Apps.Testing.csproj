@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12.0</LangVersion>
+
+        <!-- Package Metadata -->
+        <PackageId>CdCSharp.Pangea.Apps.Testing</PackageId>
+        <Description>Test doubles for CdCSharp.Pangea.Apps - a bus that answers from a script and records what was sent, and a host that connects and disconnects on cue - so the screens and handlers of an application in a host such as Omni are testable without one.</Description>
+        <PackageTags>$(PackageTags);testing;test-doubles;apps;messaging</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!--
+            Apart from CdCSharp.Pangea.Testing, as CdCSharp.Pangea.Data.Testing is: an application that
+            is not part of a host installs that one and should not have to take the bus with it.
+        -->
+        <ProjectReference Include="..\CdCSharp.Pangea.Apps\CdCSharp.Pangea.Apps.csproj" PrivateAssets="none" />
+        <ProjectReference Include="..\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" PrivateAssets="none" />
+    </ItemGroup>
+</Project>

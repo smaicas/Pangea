@@ -1,4 +1,5 @@
 using Avalonia.Styling;
+using CdCSharp.Pangea.Apps.Testing;
 using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Testing.Dispatchers;
 using CdCSharp.Pangea.Testing.Fakes;
@@ -19,13 +20,13 @@ public class HostEnvironmentTests
     [Fact]
     public void The_host_theme_is_worn_while_connected_and_the_own_one_comes_back_after()
     {
-        FakeHost host = new();
+        FakeAppHost host = new();
         RecordingThemeService themes = new();
         themes.SetVariant(ThemeVariant.Dark);
 
         HostEnvironmentApplier applier = Build(host, themes);
 
-        host.Connect(new AppEnvironment { Theme = Snapshot(AppThemeVariant.Light) });
+        host.Connect("Omni", new AppEnvironment { Theme = Snapshot(AppThemeVariant.Light) });
         applier.Update();
 
         Assert.Equal(HostEnvironmentApplier.HostThemeName, themes.CurrentTheme);
@@ -41,13 +42,13 @@ public class HostEnvironmentTests
     [Fact]
     public void The_same_theme_sent_again_is_not_rebuilt()
     {
-        FakeHost host = new();
+        FakeAppHost host = new();
         RecordingThemeService themes = new();
         HostEnvironmentApplier applier = Build(host, themes);
 
-        host.Connect(new AppEnvironment { Theme = Snapshot(AppThemeVariant.Dark) });
+        host.Connect("Omni", new AppEnvironment { Theme = Snapshot(AppThemeVariant.Dark) });
         applier.Update();
-        host.Connect(new AppEnvironment { Theme = Snapshot(AppThemeVariant.Dark) });
+        host.Connect("Omni", new AppEnvironment { Theme = Snapshot(AppThemeVariant.Dark) });
         applier.Update();
 
         Assert.Single(themes.ThemesSet);
@@ -56,17 +57,17 @@ public class HostEnvironmentTests
     [Fact]
     public void An_application_that_opts_out_keeps_its_own_theme()
     {
-        FakeHost host = new();
+        FakeAppHost host = new();
         RecordingThemeService themes = new();
         HostEnvironmentApplier applier = Build(host, themes, options => options.FollowHostTheme = false);
 
-        host.Connect(new AppEnvironment { Theme = Snapshot(AppThemeVariant.Light) });
+        host.Connect("Omni", new AppEnvironment { Theme = Snapshot(AppThemeVariant.Light) });
         applier.Update();
 
         Assert.Empty(themes.ThemesSet);
     }
 
-    private static HostEnvironmentApplier Build(FakeHost host, IThemeService themes, Action<AppsOptions>? configure = null)
+    private static HostEnvironmentApplier Build(FakeAppHost host, IThemeService themes, Action<AppsOptions>? configure = null)
     {
         AppsOptions options = new();
         configure?.Invoke(options);
@@ -82,33 +83,4 @@ public class HostEnvironmentTests
     {
         Variant = variant
     };
-
-    private sealed class FakeHost : IAppHostContext
-    {
-        public AppIdentity Identity { get; } = new("app", "App");
-
-        public bool LaunchedByHost => false;
-
-        public bool IsHosted { get; private set; }
-
-        public string? HostName => IsHosted ? "Omni" : null;
-
-        public AppEnvironment? Environment { get; private set; }
-
-        public event EventHandler? Changed;
-
-        public void Connect(AppEnvironment environment)
-        {
-            IsHosted = true;
-            Environment = environment;
-            Changed?.Invoke(this, EventArgs.Empty);
-        }
-
-        public void Disconnect()
-        {
-            IsHosted = false;
-            Environment = null;
-            Changed?.Invoke(this, EventArgs.Empty);
-        }
-    }
 }

@@ -18,6 +18,7 @@
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps\CdCSharp.Pangea.Apps.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps.Hosting\CdCSharp.Pangea.Apps.Hosting.csproj" />
         <ProjectReference Include="..\..\src\CdCSharp.Pangea.Testing\CdCSharp.Pangea.Testing.csproj" />
+        <ProjectReference Include="..\..\src\CdCSharp.Pangea.Apps.Testing\CdCSharp.Pangea.Apps.Testing.csproj" />
 
         <!--
             Applied to this project as it is to an application, so the manifest test reads attributes

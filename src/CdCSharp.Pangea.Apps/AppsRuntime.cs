@@ -1,9 +1,7 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CdCSharp.Pangea.Apps.Wire;
 using CdCSharp.Pangea.Core.Abstractions;
-using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -97,20 +95,7 @@ internal sealed class AppsRuntime(
         }
     }
 
-    private void BringToFront() => services.GetRequiredService<IUIDispatcher>().Post(() =>
-    {
-        if (services.GetService<IWindowManager>()?.GetMainWindow() is not { } window) return;
-
-        if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
-
-        window.Show();
-        window.Activate();
-
-        // Activate alone is ignored by Windows when the process is not in the foreground; a
-        // moment on top gets the window in front of whatever is.
-        window.Topmost = true;
-        window.Topmost = false;
-    });
+    private void BringToFront() => MainWindowFront.Bring(services);
 
     /// <summary>Asks the application's close handlers whether it may close. Decides only; <see cref="Shutdown"/> closes.</summary>
     private async Task<bool> DecideCloseAsync(string reason, CancellationToken cancellationToken)
