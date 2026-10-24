@@ -28,9 +28,17 @@
         <AvaloniaResource Include="Resources\Themes\InvariantResources.axaml" />
         <AvaloniaXaml Remove="Resources\Themes\Root.axaml" />
         <AvaloniaResource Include="Resources\Themes\Root.axaml" />
+        <!-- The icons PangeaStyles merges in -->
+        <AvaloniaXaml Remove="Resources\Icons\PangeaIcons.axaml" />
+        <AvaloniaResource Include="Resources\Icons\PangeaIcons.axaml" />
         <!-- Simple theme control dictionaries, rebased on Avalonia 12.1.1 -->
         <None Remove="Resources\Controls\Shared\*.xaml" />
         <AvaloniaResource Include="Resources\Controls\Shared\*.xaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- The icons are Apache 2.0: their notice and licence travel with the package that ships them. -->
+        <None Include="$(MSBuildThisFileDirectory)..\..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="" Visible="false" />
     </ItemGroup>
 
 </Project>
