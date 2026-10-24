@@ -4,6 +4,7 @@ using CdCSharp.Pangea.Core.Abstractions;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Core.Configuration;
 using CdCSharp.Pangea.Dialogs;
+using CdCSharp.Pangea.Platform;
 using CdCSharp.Pangea.Security;
 using CdCSharp.Pangea.Services;
 using CdCSharp.Pangea.Shell;
@@ -129,6 +130,8 @@ public static class PangeaExtensions
         services.TryAddSingleton(_ => GetApplicationLifetime(application));
         services.TryAddSingleton<IWindowManager, WindowManager>();
         services.TryAddSingleton<IDialogService, DialogService>();
+        services.TryAddSingleton<IFilePickerService, FilePickerService>();
+        services.TryAddSingleton<ISystemLauncher, SystemLauncher>();
         services.TryAddSingleton(BuildShellPresenter);
 
         // An answer everywhere, and a better answer on the platforms that have one of their own.

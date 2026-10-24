@@ -108,6 +108,15 @@ public class PangeaTestServicesTests
         Assert.NotNull(services.GetService(typeof(IUIDispatcher)));
     }
 
+    [Fact]
+    public void PickersAndTheLauncher_AreTheRecordingDoubles()
+    {
+        PangeaTestServices services = new();
+
+        Assert.Same(services.FilePickers, services.GetService(typeof(IFilePickerService)));
+        Assert.Same(services.Launcher, services.GetService(typeof(Platform.ISystemLauncher)));
+    }
+
     /// <summary>
     /// Null rather than a throw, so <c>GetRequiredService</c> is what names the missing type.
     /// </summary>

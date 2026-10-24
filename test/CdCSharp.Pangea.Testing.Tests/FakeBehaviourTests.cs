@@ -195,6 +195,52 @@ public class FakeBehaviourTests
         Assert.Equal(1, ran);
     }
 
+    /// <summary>The answer a screen most often gets wrong is the person closing the picker.</summary>
+    [Fact]
+    public async Task TheFilePickers_AnswerFromTheScriptAndCancelOnceItRunsOut()
+    {
+        RecordingFilePickerService pickers = new RecordingFilePickerService()
+            .Choosing(@"C:\photos\one.png", @"C:\photos\two.png")
+            .Choosing(@"C:\out");
+
+        Assert.Equal([@"C:\photos\one.png", @"C:\photos\two.png"], await pickers.OpenFilesAsync("Add images"));
+        Assert.Equal(@"C:\out", await pickers.OpenFolderAsync("Destination"));
+        Assert.Null(await pickers.SaveFileAsync("Save", "result.png"));
+    }
+
+    [Fact]
+    public async Task TheFilePickers_RememberWhatWasAskedAndWhere()
+    {
+        RecordingFilePickerService pickers = new RecordingFilePickerService().Cancelling().Choosing(@"C:\a.png");
+
+        Assert.Null(await pickers.OpenFileAsync("Open", [new Dialogs.FileType("Images", ["png"])], @"C:\photos"));
+        Assert.Equal(@"C:\a.png", await pickers.SaveFileAsync("Save the image", "photo.png", startIn: @"C:\photos\photo.png"));
+
+        Assert.Equal(2, pickers.Requests.Count);
+        Assert.Equal(FilePickerKind.OpenFile, pickers.Requests[0].Kind);
+        Assert.Equal("Images", Assert.Single(pickers.Requests[0].Types).Name);
+        Assert.Equal(@"C:\photos", pickers.Requests[0].StartIn);
+        Assert.Equal(FilePickerKind.SaveFile, pickers.LastRequest?.Kind);
+        Assert.Equal("photo.png", pickers.LastRequest?.SuggestedName);
+    }
+
+    [Fact]
+    public async Task TheLauncher_RecordsWhatWouldHaveBeenOpened()
+    {
+        RecordingSystemLauncher launcher = new();
+
+        Assert.True(await launcher.OpenAsync(@"C:\out\result.png"));
+        Assert.True(await launcher.ShowInFolderAsync(@"C:\out\result.png"));
+        Assert.True(await launcher.OpenUriAsync(new Uri("https://example.com")));
+
+        launcher.Succeeds = false;
+
+        Assert.False(await launcher.OpenAsync(@"C:\out"));
+        Assert.Equal([@"C:\out\result.png", @"C:\out"], launcher.Opened);
+        Assert.Equal([@"C:\out\result.png"], launcher.ShownInFolder);
+        Assert.Equal("https://example.com/", Assert.Single(launcher.OpenedUris).AbsoluteUri);
+    }
+
     private sealed class Settings
     {
         public string Culture { get; set; } = "en-US";

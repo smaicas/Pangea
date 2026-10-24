@@ -4,6 +4,7 @@ using CdCSharp.Pangea.Dialogs;
 using CdCSharp.Pangea.Localization;
 using CdCSharp.Pangea.Localization.Abstractions;
 using CdCSharp.Pangea.Navigation.Abstractions;
+using CdCSharp.Pangea.Platform;
 using CdCSharp.Pangea.Storage.Abstractions;
 using CdCSharp.Pangea.Testing.Dispatchers;
 using CdCSharp.Pangea.Testing.Fakes;
@@ -29,8 +30,8 @@ namespace CdCSharp.Pangea.Testing;
 /// Assert.Equal(typeof(OrderDetailViewModel), services.Navigation.LastDestination);
 /// </code>
 /// <para>
-/// Commands run inline, dialogs answer from a script, and navigations are recorded rather than
-/// performed. Add the application's own services with <see cref="Add{TService}"/>.
+/// Commands run inline, dialogs and file pickers answer from a script, and navigations and
+/// whatever would be handed to the operating system are recorded rather than performed. Add the application's own services with <see cref="Add{TService}"/>.
 /// </para>
 /// </remarks>
 public sealed class PangeaTestServices : IServiceProvider
@@ -46,6 +47,8 @@ public sealed class PangeaTestServices : IServiceProvider
     {
         Dispatcher = dispatcher ?? new InlineUIDispatcher();
         Dialogs = new RecordingDialogService();
+        FilePickers = new RecordingFilePickerService();
+        Launcher = new RecordingSystemLauncher();
         Navigation = new RecordingNavigationService();
         Storage = new InMemoryStorageService();
         Theming = new RecordingThemeService();
@@ -55,6 +58,8 @@ public sealed class PangeaTestServices : IServiceProvider
         Add<IUIDispatcher>(Dispatcher);
         Add<IRelayCommandFactory>(new RelayCommandFactory(Dispatcher));
         Add<IDialogService>(Dialogs);
+        Add<IFilePickerService>(FilePickers);
+        Add<ISystemLauncher>(Launcher);
         Add<INavigationService>(Navigation);
         Add<IStorageService>(Storage);
         Add<IThemeService>(Theming);
@@ -66,6 +71,12 @@ public sealed class PangeaTestServices : IServiceProvider
 
     /// <summary>The dialog service view models will be handed. Script it before exercising them.</summary>
     public RecordingDialogService Dialogs { get; }
+
+    /// <summary>The file pickers view models will be handed. Unscripted, every picker is cancelled.</summary>
+    public RecordingFilePickerService FilePickers { get; }
+
+    /// <summary>What would have been opened, shown in a folder or browsed to. Nothing is.</summary>
+    public RecordingSystemLauncher Launcher { get; }
 
     /// <summary>The navigation service view models will be handed. Assert on it afterwards.</summary>
     public RecordingNavigationService Navigation { get; }
