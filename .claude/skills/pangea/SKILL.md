@@ -490,8 +490,8 @@ screen that works through a list of files - picked, dropped, run in parallel - u
 
 Extending the toolkit itself - an `IPangeaFeature` - is in [references/extending-pangea.md](references/extending-pangea.md).
 An application inside a host such as Omni (manifest, messages to other applications, files and
-answers for them, one copy, the host's theme) uses `CdCSharp.Pangea.Apps`: read
-[references/apps.md](references/apps.md) first.
+answers for them, one copy, the host's theme, what it has going on for the host to show and stop) uses
+`CdCSharp.Pangea.Apps`: read [references/apps.md](references/apps.md) first.
 
 ---
 

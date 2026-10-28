@@ -315,6 +315,52 @@ public sealed class RunningJobCloseHandler(IJobRunner jobs) : IAppCloseHandler
 Register it with `services.AddSingleton<IAppCloseHandler, RunningJobCloseHandler>()`. The answer
 goes back to the host first, and only then does the application shut down.
 
+## What it has going on
+
+The host shows what each application has going on - a program it started, a service it runs, a model
+it loaded, work in progress - and lets the person stop it. The application says what, and how to stop
+it: the host never kills what an application can stop its own way. List each with `AppResources`, from
+the container, and dispose it when it is gone:
+
+```csharp
+using CdCSharp.Pangea.Apps;
+using System.Threading;
+
+namespace AppsSamples.Resources;
+
+public interface IModelServer
+{
+    Task UnloadAsync(CancellationToken cancellationToken);
+}
+
+public sealed class LoadedModel(AppResources resources, IModelServer server)
+{
+    private IAppResource? _loaded;
+
+    public void Loaded(string model, int processId)
+    {
+        _loaded?.Dispose();
+        _loaded = resources.Add(AppResourceKind.Model, model, "GPU", stop: server.UnloadAsync, processId: processId);
+    }
+
+    public void Answering(bool answering)
+    {
+        if (_loaded is not null) _loaded.Detail = answering ? "GPU · answering" : "GPU";
+    }
+
+    public void Unloaded() => _loaded?.Dispose();
+}
+```
+
+- `AppResourceKind`: `Process`, `Service`, `Model`, `Task`. `Title`, `Detail` and `ProcessId` can change while it
+  lasts; the host hears each change, a few together at a time.
+- With `stop`, the host offers to stop it; the stop runs in the application, and the resource then leaves the list.
+  An exception from it reaches the host with its message. Without `stop`, it is only shown.
+- Work marked with `AppActivity` is listed too, as tasks. `activity.Begin("Downloading «song»", stop)` makes it
+  stoppable: cancel the work there, and it ends as it ends when cancelled.
+- The bus sends the list only to a host that announced it takes it (`AppBusFeatures.Resources`): an earlier
+  host is never sent a frame it does not know.
+
 ## What the host decides
 
 While connected, the application wears the host's palette and variant (its own metrics stay) and its
@@ -375,8 +421,9 @@ public static class LibraryViewModelTests
   `AppHandlerNotFoundException`; `IsConnected = false` is `AppBusUnavailableException`. `Sent`,
   `SentOf<T>()`, `LastSent<T>()` and `Published` record; `Raise(event)` delivers to subscribers.
 - `FakeAppHost`: not hosted until `Connect("Omni", environment)`; `Disconnect()`. Both raise `Changed`.
-- `AddApps(bus, host)` also registers the real `AppActivity`, `AppInteractions`, `AppIdentity` and
-  `AppRequestFolders`, the last under a new folder among the temporary files. `AppBus()` and
+- `AddApps(bus, host)` also registers the real `AppActivity`, `AppResources`, `AppInteractions`, `AppIdentity` and
+  `AppRequestFolders`, the last under a new folder among the temporary files. `AppResources.Current` and
+  `StopAsync(id)` are what the host would see and ask. `AppBus()` and
   `AppHost()` reach the doubles.
 - A handler is a plain class: test it by calling `HandleAsync` with `new AppRequestContext("caller")`.
 
@@ -416,3 +463,9 @@ public static class MiniHost
 
 `AppManifestReader.TryRead(path)` reads a manifest - id, name, version, commit, icon, handled ids -
 from an assembly's metadata, without loading it.
+
+What each application has going on: `broker.ResourcesOf(appId)`, kept up to date and announced by
+`ResourcesChanged`; `ConnectedApp.ReportsResources` says whether an application reports at all.
+`await broker.StopResourceAsync(appId, resource.Id, timeout)` asks it to stop one: `true` stopped, `false`
+not there or not stoppable, `null` not connected or no answer, and an `InvalidOperationException` with the
+application's reason when stopping failed.

@@ -30,6 +30,9 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
     private const int ConnectTimeoutMilliseconds = 500;
     private static readonly TimeSpan WelcomeTimeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>Changes this close together go to the host as one list: a download's progress is not a frame a tick.</summary>
+    private static readonly TimeSpan ResourcesPause = TimeSpan.FromMilliseconds(150);
+
     private readonly IServiceProvider _services;
     private readonly ILogger _logger;
     private readonly string _pipeName;
@@ -45,6 +48,11 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
     private volatile FrameStream? _connection;
     private long _nextId;
     private int _disposed;
+
+    /// <summary>What the application has going on, when it reports it; null for one that does not.</summary>
+    private readonly AppResources? _resources;
+    private volatile bool _hostTakesResources;
+    private int _resourcesQueued;
 
     public AppBusClient(
         AppIdentity identity,
@@ -85,6 +93,9 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
         {
             _handlers.TryAdd(entry.MessageId, entry);
         }
+
+        _resources = services.GetService(typeof(AppResources)) as AppResources;
+        if (_resources is not null) _resources.Changed += OnResourcesChanged;
     }
 
     public AppIdentity Identity { get; }
@@ -355,6 +366,7 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
 
         HostName = host?.HostName;
         Environment = host?.Environment;
+        _hostTakesResources = _resources is not null && host?.Features?.Contains(AppBusFeatures.Resources) == true;
         _connection = frames;
 
         _logger.LogInformation("Connected to the application host {Host}", HostName);
@@ -362,6 +374,7 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
         try
         {
             await SubscribeAllAsync(frames, stopping).ConfigureAwait(false);
+            if (_hostTakesResources) await frames.WriteAsync(ResourcesFrame(), stopping).ConfigureAwait(false);
             RaiseChanged(connection: true);
 
             while (await frames.ReadAsync(stopping).ConfigureAwait(false) is { } frame)
@@ -372,6 +385,7 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
         finally
         {
             _connection = null;
+            _hostTakesResources = false;
             HostName = null;
             Environment = null;
 
@@ -422,8 +436,59 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
             case FrameKind.Close:
                 _ = Task.Run(() => AnswerCloseAsync(frame, frames));
                 break;
+
+            case FrameKind.Stop:
+                _ = Task.Run(() => AnswerStopAsync(frame, frames));
+                break;
         }
     }
+
+    /// <summary>The host asks to stop one of the resources: the application stops it its own way, and says whether it did.</summary>
+    private async Task AnswerStopAsync(Frame request, FrameStream frames)
+    {
+        string id = request.Id ?? NextId();
+        string resource = request.Read<StopRequest>()?.Id ?? "";
+        Frame reply;
+
+        try
+        {
+            bool stopped = _resources is not null && await _resources.StopAsync(resource, _stopping.Token).ConfigureAwait(false);
+            reply = Frame.Of(FrameKind.Response, stopped, id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Stopping {Resource} for the host failed", resource);
+            reply = Fault(id, "", FaultCodes.Failed, ex.Message) with { ErrorType = ex.GetType().FullName };
+        }
+
+        await TrySendAsync(frames, reply, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    /// <summary>Something changed: the list goes to the host a moment later, with whatever else changed meanwhile.</summary>
+    private void OnResourcesChanged(object? sender, EventArgs e)
+    {
+        if (!_hostTakesResources || Interlocked.Exchange(ref _resourcesQueued, 1) == 1) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(ResourcesPause, _stopping.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _resourcesQueued, 0);
+            }
+
+            if (_hostTakesResources && _connection is { } frames) await TrySendAsync(frames, ResourcesFrame(), CancellationToken.None).ConfigureAwait(false);
+        });
+    }
+
+    private Frame ResourcesFrame() => Frame.Of(FrameKind.Resources, new AppResourceList(_resources?.Current ?? []));
 
     private async Task AnswerAsync(Frame request, FrameStream frames)
     {
@@ -594,6 +659,7 @@ public sealed class AppBusClient : IAppBus, IAppHostContext, IAsyncDisposable, I
 
     private AppHello BuildHello() => new(Identity.Id, Identity.Name)
     {
+        Features = _resources is null ? [] : [AppBusFeatures.Resources],
         Version = Identity.Version,
         Commit = Identity.Commit,
         ProcessId = System.Environment.ProcessId,

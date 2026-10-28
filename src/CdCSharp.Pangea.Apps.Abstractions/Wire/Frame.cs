@@ -71,7 +71,7 @@ public enum FrameKind
     /// <summary>A request on its way to the application that handles it.</summary>
     Request,
 
-    /// <summary>The answer to a <see cref="Request"/>, <see cref="Query"/> or <see cref="Close"/>.</summary>
+    /// <summary>The answer to a <see cref="Request"/>, <see cref="Query"/>, <see cref="Close"/> or <see cref="Stop"/>.</summary>
     Response,
 
     /// <summary>A request that could not be answered: see <see cref="Frame.Code"/>.</summary>
@@ -99,7 +99,19 @@ public enum FrameKind
     Activate,
 
     /// <summary>Host to application: please close. Answered with whether it agreed. Payload: <see cref="CloseRequest"/>.</summary>
-    Close
+    Close,
+
+    /// <summary>
+    /// Application to host: what it has going on, the whole list. Payload: <see cref="AppResourceList"/>. Sent only to a
+    /// host that announced <see cref="AppBusFeatures.Resources"/>.
+    /// </summary>
+    Resources,
+
+    /// <summary>
+    /// Host to application: stop one of your resources. Answered with whether it stopped. Payload: <see cref="StopRequest"/>.
+    /// Sent only to an application that announced <see cref="AppBusFeatures.Resources"/>.
+    /// </summary>
+    Stop
 }
 
 /// <summary>The kinds of <see cref="FrameKind.Fault"/>, which the client turns into different exceptions.</summary>

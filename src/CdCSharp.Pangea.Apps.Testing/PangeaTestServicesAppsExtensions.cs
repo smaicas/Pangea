@@ -34,6 +34,7 @@ public static class PangeaTestServicesAppsExtensions
             .Add(host)
             .Add(host.Identity)
             .Add(activity)
+            .Add(new AppResources(activity))
             .Add(new AppInteractions(activity, services))
             .Add(new AppRequestFolders(requests, NullLogger<AppRequestFolders>.Instance));
     }

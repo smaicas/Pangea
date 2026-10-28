@@ -21,10 +21,24 @@ public sealed record AppHello(string AppId, string Name)
 
     /// <summary>The message ids it answers.</summary>
     public IReadOnlyList<string> Handles { get; init; } = [];
+
+    /// <summary>What it can do beyond the protocol's version: <see cref="AppBusFeatures"/>. Empty from an older application.</summary>
+    public IReadOnlyList<string> Features { get; init; } = [];
 }
 
 /// <summary>What the host answers to <see cref="AppHello"/>.</summary>
-public sealed record HostWelcome(string HostName, AppEnvironment Environment);
+public sealed record HostWelcome(string HostName, AppEnvironment Environment)
+{
+    /// <summary>What it can do beyond the protocol's version: <see cref="AppBusFeatures"/>. Empty from an older host.</summary>
+    public IReadOnlyList<string> Features { get; init; } = [];
+}
+
+/// <summary>Everything an application has going on, sent whole whenever it changes. Payload of <see cref="FrameKind.Resources"/>.</summary>
+public sealed record AppResourceList(IReadOnlyList<AppResourceInfo> Resources);
+
+/// <summary>The host asks the application to stop one of its resources. Payload of <see cref="FrameKind.Stop"/>.</summary>
+/// <param name="Id">The <see cref="AppResourceInfo.Id"/>.</param>
+public sealed record StopRequest(string Id);
 
 /// <summary>Why the host asks an application to close.</summary>
 /// <param name="Reason">One of <see cref="CloseReasons"/>, or anything else a host wants to say.</param>

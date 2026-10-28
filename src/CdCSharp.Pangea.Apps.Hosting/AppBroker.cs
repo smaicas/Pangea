@@ -39,6 +39,9 @@ public sealed class AppBrokerOptions
 public sealed record ConnectedApp(string ConnectionId, AppHello Hello, DateTimeOffset ConnectedAt)
 {
     public string AppId => Hello.AppId;
+
+    /// <summary>Whether it reports what it has going on, and stops it when asked: <see cref="AppBroker.ResourcesOf"/>.</summary>
+    public bool ReportsResources => Hello.Features?.Contains(AppBusFeatures.Resources) == true;
 }
 
 /// <summary>One thing that went through the broker, for a host that shows the traffic.</summary>
@@ -107,6 +110,12 @@ public sealed class AppBroker : IAsyncDisposable
     /// <summary>Raised on any thread for everything routed.</summary>
     public event EventHandler<BusTrace>? Traced;
 
+    /// <summary>
+    /// Raised on any thread, with the application's id, when what it has going on changes - and when it disconnects, which
+    /// takes all of it.
+    /// </summary>
+    public event EventHandler<string>? ResourcesChanged;
+
     /// <summary>Starts listening. The pipe exists when this returns, so an application can connect straight away.</summary>
     public void Start()
     {
@@ -123,6 +132,55 @@ public sealed class AppBroker : IAsyncDisposable
 
     /// <summary>Whether an application with this id is connected.</summary>
     public bool IsConnected(string appId) => FindApp(appId) is not null;
+
+    /// <summary>
+    /// What the application has going on, as it last said: empty when it is not connected, or does not report it
+    /// (<see cref="ConnectedApp.ReportsResources"/>).
+    /// </summary>
+    public IReadOnlyList<AppResourceInfo> ResourcesOf(string appId) => FindApp(appId)?.Resources ?? [];
+
+    /// <summary>Asks the application to stop one of its resources, which it does its own way.</summary>
+    /// <returns>
+    /// Whether it stopped it; false when it has no such thing or it cannot be stopped; <see langword="null"/> when the
+    /// application is not connected, does not take the request, or did not answer within <paramref name="timeout"/>.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Stopping it failed: the message says why, as the application put it.</exception>
+    public async Task<bool?> StopResourceAsync(string appId, string resourceId, TimeSpan timeout)
+    {
+        if (FindApp(appId) is not { Info.ReportsResources: true } connection) return null;
+
+        string id = NextId();
+        TaskCompletionSource<Frame> answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.Pending[id] = answer;
+
+        try
+        {
+            if (!await TrySendAsync(connection, Frame.Of(FrameKind.Stop, new StopRequest(resourceId), id)).ConfigureAwait(false)) return null;
+
+            Frame reply = await answer.Task.WaitAsync(timeout).ConfigureAwait(false);
+            string title = connection.Resources.FirstOrDefault(resource => resource.Id == resourceId)?.Title ?? resourceId;
+
+            if (reply.Kind == FrameKind.Fault)
+            {
+                Trace(new BusTrace(DateTimeOffset.Now, FrameKind.Stop, null, _options.HostName, appId) { Detail = $"{title}: {reply.Error}", Failed = true });
+
+                if (reply.Code == FaultCodes.Disconnected) return null;
+                throw new InvalidOperationException(reply.Error ?? $"{connection.Hello.Name} could not stop {title}.");
+            }
+
+            bool stopped = reply.Read<bool>();
+            Trace(new BusTrace(DateTimeOffset.Now, FrameKind.Stop, null, _options.HostName, appId) { Detail = stopped ? $"{title}: stopped" : $"{title}: not stopped" });
+            return stopped;
+        }
+        catch (TimeoutException)
+        {
+            return null;
+        }
+        finally
+        {
+            connection.Pending.TryRemove(id, out _);
+        }
+    }
 
     /// <summary>Changes what every application is told, and tells the connected ones now.</summary>
     public async Task SetEnvironmentAsync(AppEnvironment environment)
@@ -284,7 +342,8 @@ public sealed class AppBroker : IAsyncDisposable
 
             connection = new Connection(NextId(), info, frames);
 
-            await frames.WriteAsync(Frame.Of(FrameKind.Welcome, new HostWelcome(_options.HostName, _environment)), stopping).ConfigureAwait(false);
+            await frames.WriteAsync(Frame.Of(FrameKind.Welcome, new HostWelcome(_options.HostName, _environment) { Features = [AppBusFeatures.Resources] }),
+                stopping).ConfigureAwait(false);
 
             _connections[connection.Id] = connection;
             _logger.LogInformation("{App} connected (pid {Pid})", info.Name, info.ProcessId);
@@ -339,6 +398,11 @@ public sealed class AppBroker : IAsyncDisposable
 
             case FrameKind.Unsubscribe when frame.Message is { } unsubscribed:
                 lock (connection.Subscriptions) connection.Subscriptions.Remove(unsubscribed);
+                break;
+
+            case FrameKind.Resources:
+                connection.Resources = frame.Read<AppResourceList>()?.Resources ?? [];
+                ResourcesChanged?.Invoke(this, connection.Hello.AppId);
                 break;
 
             case FrameKind.Query:
@@ -486,6 +550,8 @@ public sealed class AppBroker : IAsyncDisposable
         _logger.LogInformation("{App} disconnected", connection.Hello.Name);
         Trace(new BusTrace(DateTimeOffset.Now, FrameKind.Hello, null, connection.Hello.AppId, _options.HostName) { Detail = "disconnected" });
         RaiseAppsChanged();
+
+        if (connection.Resources.Count > 0) ResourcesChanged?.Invoke(this, connection.Hello.AppId);
     }
 
     private async Task<Connection?> WaitForHandlerAsync(string message, TimeSpan timeout)
@@ -585,6 +651,15 @@ public sealed class AppBroker : IAsyncDisposable
 
         /// <summary>Answers the host is waiting for from this application.</summary>
         public ConcurrentDictionary<string, TaskCompletionSource<Frame>> Pending { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>What it has going on, as it last said; replaced whole each time.</summary>
+        public IReadOnlyList<AppResourceInfo> Resources
+        {
+            get => Volatile.Read(ref _resources);
+            set => Volatile.Write(ref _resources, value);
+        }
+
+        private IReadOnlyList<AppResourceInfo> _resources = [];
     }
 
     private sealed record Inflight(Connection Origin, string OriginId, Connection Target, string Message, DateTimeOffset Started);

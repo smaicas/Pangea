@@ -8,7 +8,7 @@ namespace CdCSharp.Pangea.Apps;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Mark the work with <see cref="Begin"/> and dispose what it returns when the work ends, however it
+/// Mark the work with <see cref="Begin(string)"/> and dispose what it returns when the work ends, however it
 /// ends:
 /// </para>
 /// <code>
@@ -17,6 +17,10 @@ namespace CdCSharp.Pangea.Apps;
 ///     await exporter.ExportAsync(project, cancellationToken);
 /// }
 /// </code>
+/// <para>
+/// The host also shows it among what the application has going on (<see cref="AppResources"/>), and with
+/// <see cref="Begin(string, Func{CancellationToken, Task})"/> offers to stop it.
+/// </para>
 /// <para>
 /// Registered by <see cref="AppsFeature"/>, which also registers the <see cref="IAppCloseHandler"/>
 /// that consults it, so marking the work is all there is to do. An application with more to decide
@@ -27,6 +31,7 @@ public sealed class AppActivity
 {
     private readonly object _gate = new();
     private readonly List<Entry> _running = [];
+    private long _next;
 
     /// <summary>Whether any work is going on.</summary>
     public bool IsBusy
@@ -37,7 +42,7 @@ public sealed class AppActivity
         }
     }
 
-    /// <summary>What is going on, in the order it started, as described to <see cref="Begin"/>.</summary>
+    /// <summary>What is going on, in the order it started, as described to <see cref="Begin(string)"/>.</summary>
     public IReadOnlyList<string> Running
     {
         get
@@ -51,16 +56,53 @@ public sealed class AppActivity
 
     /// <summary>Marks work as going on until the result is disposed; disposing twice ends it once.</summary>
     /// <param name="description">What the work is, for a log or a status line: <c>Exporting the video</c>.</param>
-    public IDisposable Begin(string description)
+    public IDisposable Begin(string description) => Begin(description, stop: null);
+
+    /// <summary>Marks work the host may ask to stop, as <see cref="Begin(string)"/> does.</summary>
+    /// <param name="description">What the work is, for a log, a status line and the host.</param>
+    /// <param name="stop">
+    /// Stops it - cancels the download, say - when the person asks from the host. The work then ends as it ends when
+    /// cancelled, disposing what this returned.
+    /// </param>
+    public IDisposable Begin(string description, Func<CancellationToken, Task>? stop)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
 
-        Entry entry = new(this, description);
+        Entry entry = new(this, $"task-{Interlocked.Increment(ref _next)}", description, DateTimeOffset.Now, stop);
 
         lock (_gate) _running.Add(entry);
 
         Changed?.Invoke(this, EventArgs.Empty);
         return entry;
+    }
+
+    /// <summary>The work going on as the host is told it: tasks, in the order they started.</summary>
+    internal IReadOnlyList<AppResourceInfo> Describe()
+    {
+        lock (_gate)
+        {
+            return
+            [
+                .. _running.Select(entry => new AppResourceInfo(entry.Id, AppResourceKind.Task, entry.Description)
+                {
+                    Since = entry.Since,
+                    CanStop = entry.Stop is not null
+                })
+            ];
+        }
+    }
+
+    /// <returns>False when there is no such work, or it cannot be stopped.</returns>
+    internal async Task<bool> StopAsync(string id, CancellationToken cancellationToken)
+    {
+        Entry? entry;
+
+        lock (_gate) entry = _running.FirstOrDefault(candidate => candidate.Id == id);
+
+        if (entry?.Stop is not { } stop) return false;
+
+        await stop(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     private void End(Entry entry)
@@ -72,9 +114,16 @@ public sealed class AppActivity
         if (removed) Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    private sealed class Entry(AppActivity activity, string description) : IDisposable
+    private sealed class Entry(AppActivity activity, string id, string description, DateTimeOffset since, Func<CancellationToken, Task>? stop)
+        : IDisposable
     {
+        public string Id { get; } = id;
+
         public string Description { get; } = description;
+
+        public DateTimeOffset Since { get; } = since;
+
+        public Func<CancellationToken, Task>? Stop { get; } = stop;
 
         public void Dispose() => activity.End(this);
     }

@@ -12,6 +12,7 @@ internal sealed class BusHarness : IAsyncDisposable
 {
     private readonly List<AppBusClient> _clients = [];
     private readonly List<ServiceProvider> _providers = [];
+    private readonly Dictionary<AppBusClient, ServiceProvider> _servicesOf = [];
 
     public BusHarness(Action<AppBrokerOptions>? configure = null)
     {
@@ -46,8 +47,12 @@ internal sealed class BusHarness : IAsyncDisposable
             includeGenerated);
 
         _clients.Add(client);
+        _servicesOf[client] = provider;
         return client;
     }
+
+    /// <summary>The container an application was created with: what its own code would resolve.</summary>
+    public IServiceProvider ServicesOf(AppBusClient client) => _servicesOf[client];
 
     /// <summary>An application, connected and greeted.</summary>
     public async Task<AppBusClient> ConnectAsync(string appId, Action<IServiceCollection>? services = null, bool includeGenerated = false)

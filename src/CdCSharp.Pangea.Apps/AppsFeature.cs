@@ -9,8 +9,8 @@ namespace CdCSharp.Pangea.Apps;
 /// <summary>
 /// Makes the application part of a host: the bus, the single-instance lock, the host's environment,
 /// and what answering other applications takes - folders for the files they ask for, a turn for what
-/// the person answers on screen, and work that keeps the application open. Registered by being
-/// installed, like every Pangea feature.
+/// the person answers on screen, work that keeps the application open, and what it has going on for the
+/// host to show and stop. Registered by being installed, like every Pangea feature.
 /// </summary>
 /// <remarks>
 /// Nothing here is required to run. Without a host the application is a standalone application
@@ -37,6 +37,7 @@ public sealed class AppsFeature : IPangeaFeature
             AppRequestFolders.DefaultRootFor(provider.GetRequiredService<AppIdentity>()),
             provider.GetRequiredService<ILogger<AppRequestFolders>>()));
         services.TryAddSingleton<AppActivity>();
+        services.TryAddSingleton<AppResources>();
         services.TryAddSingleton<AppInteractions>();
 
         // Added beside the application's own: every close handler is asked.
