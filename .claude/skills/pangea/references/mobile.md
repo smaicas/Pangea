@@ -117,6 +117,12 @@ public class MyApplication : AvaloniaAndroidApplication<App>
 public class MainActivity : AvaloniaMainActivity;
 ```
 
+**`ISingleViewApplicationLifetime.MainView` is `null` on Android.** The shell reaches each activity
+through `IActivityApplicationLifetime.MainViewFactory`, the route Avalonia supports there, and every
+activity gets the same shell, so navigation and open dialogs survive one being recreated. Code that
+needs the `TopLevel` takes it from a control on screen with `TopLevel.GetTopLevel(control)`;
+`IFilePickerService` and `ISystemLauncher` already know where to look.
+
 Leave the `<application>` node out of `AndroidManifest.xml`: `[Application]` writes it, and the
 class has to be the one Android instantiates or the AppBuilder is never customised.
 

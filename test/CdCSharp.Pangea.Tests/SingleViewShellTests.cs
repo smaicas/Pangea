@@ -8,6 +8,7 @@ using CdCSharp.Pangea.Dialogs;
 using CdCSharp.Pangea.Shell;
 using CdCSharp.Pangea.Core.Base;
 using CdCSharp.Pangea.Startup;
+using CdCSharp.Pangea.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -141,6 +142,80 @@ public class SingleViewShellTests
         await StartupSequence.RunAsync(services);
 
         Assert.IsType<MainViewModel>(HostOf(surface).MainContent?.DataContext);
+    }
+
+    /// <summary>
+    /// The system pickers and launcher hang off the view on screen, and on Android the lifetime
+    /// does not know which view that is.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task TheShellIsFoundWithoutTheLifetimeKnowingIt()
+    {
+        IServiceProvider services = Bootstrap(out ProbeSurface surface);
+
+        await StartupSequence.RunAsync(services);
+
+        Assert.Same(HostOf(surface), MainTopLevel.ShellRoot(services, fromLifetime: null));
+    }
+
+    [AvaloniaFact]
+    public void AnActivityIsGivenTheShell()
+    {
+        Func<Control>? factory = null;
+        PangeaShellHost host = new();
+
+        ActivitySingleViewSurface surface = new(assigned => factory = assigned) { MainView = host };
+
+        Assert.Same(host, factory!());
+        Assert.Same(host, surface.MainView);
+    }
+
+    /// <summary>What happens when Android recreates an activity: the old one has let go first.</summary>
+    [AvaloniaFact]
+    public void AnActivityThatReplacesAFinishedOne_GetsTheSameShell()
+    {
+        Func<Control>? factory = null;
+        PangeaShellHost host = new();
+
+        _ = new ActivitySingleViewSurface(assigned => factory = assigned) { MainView = host };
+
+        ContentControl finished = new() { Content = factory!() };
+        finished.Content = null;
+
+        ContentControl next = new() { Content = factory() };
+
+        Assert.Same(host, next.Content);
+    }
+
+    /// <summary>
+    /// An activity launched while another is alive. A control cannot have two parents, so left
+    /// alone this throws in the middle of the new activity's creation.
+    /// </summary>
+    [AvaloniaFact]
+    public void ANewActivityTakesTheShellFromOneStillAlive()
+    {
+        Func<Control>? factory = null;
+        PangeaShellHost host = new();
+
+        _ = new ActivitySingleViewSurface(assigned => factory = assigned) { MainView = host };
+
+        ContentControl alive = new() { Content = factory!() };
+        ContentControl next = new() { Content = factory() };
+
+        Assert.Null(alive.Content);
+        Assert.Same(next, host.Parent);
+    }
+
+    [AvaloniaFact]
+    public void ClearingTheView_WithdrawsTheFactory()
+    {
+        Func<Control>? factory = null;
+
+        ActivitySingleViewSurface surface = new(assigned => factory = assigned) { MainView = new PangeaShellHost() };
+
+        surface.MainView = null;
+
+        Assert.Null(factory);
     }
 
     /// <summary>

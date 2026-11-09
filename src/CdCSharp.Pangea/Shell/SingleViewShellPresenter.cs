@@ -54,6 +54,9 @@ internal sealed class SingleViewShellPresenter : IShellPresenter
 
     public bool IsSingleView => true;
 
+    /// <summary>What the platform is showing, once there is something to show.</summary>
+    internal Control? Root => _host;
+
     public void ShowMain()
     {
         Control main = BuildMainView();

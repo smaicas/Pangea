@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using CdCSharp.Pangea.Shell;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CdCSharp.Pangea.Windows;
@@ -16,7 +17,14 @@ internal static class MainTopLevel
     public static TopLevel? Find(IServiceProvider services) => Application.Current?.ApplicationLifetime switch
     {
         IClassicDesktopStyleApplicationLifetime desktop => services.GetService<IWindowManager>()?.GetMainWindow() ?? desktop.MainWindow,
-        ISingleViewApplicationLifetime { MainView: { } view } => TopLevel.GetTopLevel(view),
+        ISingleViewApplicationLifetime singleView when ShellRoot(services, singleView.MainView) is { } view => TopLevel.GetTopLevel(view),
         _ => null
     };
+
+    /// <summary>
+    /// The shell's own root, because on Android the lifetime is never told what it is. What the
+    /// lifetime holds is for a view that was handed to it directly, without going through the shell.
+    /// </summary>
+    internal static Control? ShellRoot(IServiceProvider services, Control? fromLifetime) =>
+        services.GetService<IShellPresenter>() is SingleViewShellPresenter { Root: { } root } ? root : fromLifetime;
 }

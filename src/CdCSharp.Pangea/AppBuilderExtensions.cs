@@ -153,7 +153,7 @@ public static class PangeaExtensions
         {
             ISingleViewApplicationLifetime singleView => new SingleViewShellPresenter(
                 serviceProvider,
-                new LifetimeSingleViewSurface(singleView),
+                SurfaceOf(singleView),
                 serviceProvider.GetRequiredService<IOptions<PangeaOptions>>(),
                 serviceProvider.GetRequiredService<TypeRegistry>(),
                 serviceProvider.GetRequiredService<ILogger<SingleViewShellPresenter>>(),
@@ -164,6 +164,15 @@ public static class PangeaExtensions
             // the window manager says so plainly if it turns out not to.
             _ => new DesktopShellPresenter(serviceProvider, serviceProvider.GetRequiredService<IWindowManager>())
         };
+
+    /// <summary>
+    /// Android's lifetime is both kinds, and the one that hands the view to each activity is the
+    /// one it supports.
+    /// </summary>
+    private static ISingleViewSurface SurfaceOf(ISingleViewApplicationLifetime lifetime) =>
+        lifetime is IActivityApplicationLifetime activities
+            ? new ActivitySingleViewSurface(activities)
+            : new LifetimeSingleViewSurface(lifetime);
 
     /// <summary>
     /// Read when something asks for it rather than while the container is being built.
