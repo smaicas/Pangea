@@ -1,8 +1,6 @@
 using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Storage.Abstractions;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Supabase.Gotrue;
-using Supabase.Gotrue.Interfaces;
 
 namespace CdCSharp.Pangea.Supabase.Services;
 
@@ -16,29 +14,27 @@ namespace CdCSharp.Pangea.Supabase.Services;
 /// bundles and screenshots without anyone deciding that it should.
 /// </para>
 /// <para>
-/// Gotrue's persistence contract is synchronous and <see cref="ISecretStore"/> is not, and blocking
-/// on a task from inside a call the UI thread makes is how that thread deadlocks. So the session is
-/// held in memory: read once before the client is built - which is what
-/// <see cref="PrimeAsync"/> is for - and written behind the caller afterwards. Gotrue does not wait
-/// for the write and has nothing to do if it fails; what matters is that the next launch finds it,
-/// and the next launch is a long time after this returns.
+/// <see cref="ISecretStore"/> is asynchronous and Gotrue's contract is not, so the session is read
+/// by <see cref="PrimeAsync"/> before the client is built and written behind the caller
+/// afterwards: see <see cref="PrimedSessionPersistence"/>.
 /// </para>
 /// </remarks>
-internal sealed class SecretStoreSessionPersistence : IGotrueSessionPersistence<Session>
+internal sealed class SecretStoreSessionPersistence : PrimedSessionPersistence
 {
     private readonly ISecretStore _secrets;
     private readonly string _key;
-    private readonly ILogger _logger;
-    private readonly object _gate = new();
+    private readonly IStorageService _storage;
 
-    private string? _session;
-    private Task _pending = Task.CompletedTask;
-
-    public SecretStoreSessionPersistence(ISecretStore secrets, string key, ILogger logger)
+    /// <param name="secrets">Where the session is kept.</param>
+    /// <param name="key">The key it is kept under.</param>
+    /// <param name="storage">Where an older version's session file is looked for and deleted.</param>
+    /// <param name="logger">Where failures to keep it are reported.</param>
+    public SecretStoreSessionPersistence(ISecretStore secrets, string key, IStorageService storage, ILogger logger)
+        : base(logger)
     {
         _secrets = secrets;
         _key = key;
-        _logger = logger;
+        _storage = storage;
     }
 
     /// <summary>
@@ -50,7 +46,8 @@ internal sealed class SecretStoreSessionPersistence : IGotrueSessionPersistence<
     /// where it always was.
     /// <para>
     /// The legacy path is the file previous versions wrote, or <see langword="null"/> to skip the
-    /// import entirely.
+    /// import entirely. It is read and deleted through <see cref="IStorageService"/>, like every
+    /// other file the feature touches.
     /// </para>
     /// </remarks>
     public async Task PrimeAsync(string? legacyFilePath, CancellationToken cancellationToken = default)
@@ -62,25 +59,28 @@ internal sealed class SecretStoreSessionPersistence : IGotrueSessionPersistence<
             stored = await AdoptAsync(legacyFilePath, cancellationToken).ConfigureAwait(false);
         }
 
-        lock (_gate)
-        {
-            _session = stored;
-        }
+        Prime(stored);
     }
+
+    protected override Task WriteAsync(string session, CancellationToken cancellationToken) =>
+        _secrets.SetAsync(_key, session, cancellationToken);
+
+    protected override Task RemoveAsync(CancellationToken cancellationToken) =>
+        _secrets.RemoveAsync(_key, cancellationToken);
 
     private async Task<string?> AdoptAsync(string path, CancellationToken cancellationToken)
     {
         try
         {
-            if (!File.Exists(path)) return null;
+            if (!_storage.FileExists(path)) return null;
 
-            string contents = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            string contents = await _storage.ReadTextAsync(path).WaitAsync(cancellationToken).ConfigureAwait(false);
 
             await _secrets.SetAsync(_key, contents, cancellationToken).ConfigureAwait(false);
 
-            File.Delete(path);
+            _storage.DeleteFile(path);
 
-            _logger.LogInformation(
+            Logger.LogInformation(
                 "The Supabase session was moved out of {Path} and into the {Protection} secret store",
                 path, _secrets.Protection);
 
@@ -88,94 +88,8 @@ internal sealed class SecretStoreSessionPersistence : IGotrueSessionPersistence<
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "The Supabase session at {Path} could not be moved into the secret store", path);
+            Logger.LogWarning(ex, "The Supabase session at {Path} could not be moved into the secret store", path);
             return null;
-        }
-    }
-
-    public Session? LoadSession()
-    {
-        string? stored;
-
-        lock (_gate)
-        {
-            stored = _session;
-        }
-
-        if (string.IsNullOrEmpty(stored)) return null;
-
-        try
-        {
-            return JsonConvert.DeserializeObject<Session>(stored);
-        }
-        catch (JsonException ex)
-        {
-            // Treated as absent rather than thrown over: the application signs in again, which is
-            // the same recovery it needs on a first run.
-            _logger.LogWarning(ex, "The stored Supabase session could not be read; signing in again");
-            return null;
-        }
-    }
-
-    public void SaveSession(Session session)
-    {
-        string serialized = JsonConvert.SerializeObject(session);
-
-        lock (_gate)
-        {
-            _session = serialized;
-        }
-
-        Queue(token => _secrets.SetAsync(_key, serialized, token), "saved");
-    }
-
-    public void DestroySession()
-    {
-        lock (_gate)
-        {
-            _session = null;
-        }
-
-        Queue(token => _secrets.RemoveAsync(_key, token), "removed");
-    }
-
-    /// <summary>
-    /// Runs a store operation behind the caller, one at a time and in order.
-    /// </summary>
-    /// <remarks>
-    /// Chained rather than fired off: a save and the delete that follows it racing each other is
-    /// how a signed-out application starts up signed in.
-    /// </remarks>
-    private void Queue(Func<CancellationToken, Task> operation, string what)
-    {
-        lock (_gate)
-        {
-            _pending = _pending.ContinueWith(
-                async _ =>
-                {
-                    try
-                    {
-                        await operation(CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        // The session is still live in memory; what is lost is the next launch
-                        // starting signed in. Failing the sign-in over it would be the worse trade.
-                        _logger.LogError(ex, "The Supabase session could not be {What}", what);
-                    }
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default).Unwrap();
-        }
-    }
-
-    /// <summary>Waits for the writes queued behind the caller. For tests and for a clean shutdown.</summary>
-    public Task DrainAsync()
-    {
-        lock (_gate)
-        {
-            return _pending;
         }
     }
 }

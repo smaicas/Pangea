@@ -1,5 +1,11 @@
 using CdCSharp.Pangea.Core.Abstractions;
+using CdCSharp.Pangea.Storage;
+using CdCSharp.Pangea.Storage.Abstractions;
+using CdCSharp.Pangea.Storage.Providers;
+using CdCSharp.Pangea.Storage.Services;
 using CdCSharp.Pangea.Supabase.Services;
+using CdCSharp.Pangea.Testing.Fakes;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using Supabase.Gotrue;
 
@@ -46,6 +52,13 @@ public sealed class SecretStoreSessionTests : IDisposable
 
     public SecretStoreSessionTests() => Directory.CreateDirectory(_root);
 
+    /// <summary>Real files: the older version's session file is a file on disk.</summary>
+    private IStorageService Storage => new StorageService(new PortablePlatformPathProvider(Options.Create(new StorageOptions
+    {
+        ApplicationName = "SecretSessionProbe",
+        CustomDataPath = _root
+    })));
+
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
@@ -59,7 +72,7 @@ public sealed class SecretStoreSessionTests : IDisposable
     [Fact]
     public async Task WithNothingStored_ThereIsNoSessionToRestore()
     {
-        SecretStoreSessionPersistence persistence = new(new MemorySecretStore(), Key, NullLogger.Instance);
+        SecretStoreSessionPersistence persistence = new(new MemorySecretStore(), Key, Storage, NullLogger.Instance);
 
         await persistence.PrimeAsync(legacyFilePath: null, Ct);
 
@@ -70,7 +83,7 @@ public sealed class SecretStoreSessionTests : IDisposable
     public async Task WhatWasSaved_IsWhatTheNextLaunchRestores()
     {
         MemorySecretStore secrets = new();
-        SecretStoreSessionPersistence writing = new(secrets, Key, NullLogger.Instance);
+        SecretStoreSessionPersistence writing = new(secrets, Key, Storage, NullLogger.Instance);
 
         await writing.PrimeAsync(legacyFilePath: null, Ct);
 
@@ -78,7 +91,7 @@ public sealed class SecretStoreSessionTests : IDisposable
         await writing.DrainAsync();
 
         // A second run of the application, reading what the first one left.
-        SecretStoreSessionPersistence reading = new(secrets, Key, NullLogger.Instance);
+        SecretStoreSessionPersistence reading = new(secrets, Key, Storage, NullLogger.Instance);
         await reading.PrimeAsync(legacyFilePath: null, Ct);
 
         Assert.Equal("refresh-me", reading.LoadSession()?.RefreshToken);
@@ -88,7 +101,7 @@ public sealed class SecretStoreSessionTests : IDisposable
     public async Task SigningOut_TakesTheCredentialOutOfTheStore()
     {
         MemorySecretStore secrets = new();
-        SecretStoreSessionPersistence persistence = new(secrets, Key, NullLogger.Instance);
+        SecretStoreSessionPersistence persistence = new(secrets, Key, Storage, NullLogger.Instance);
 
         await persistence.PrimeAsync(legacyFilePath: null, Ct);
 
@@ -113,7 +126,7 @@ public sealed class SecretStoreSessionTests : IDisposable
         await File.WriteAllTextAsync(
             legacy, Newtonsoft.Json.JsonConvert.SerializeObject(ASession("from-the-old-file")), Ct);
 
-        SecretStoreSessionPersistence persistence = new(secrets, Key, NullLogger.Instance);
+        SecretStoreSessionPersistence persistence = new(secrets, Key, Storage, NullLogger.Instance);
 
         await persistence.PrimeAsync(legacy, Ct);
 
@@ -136,7 +149,7 @@ public sealed class SecretStoreSessionTests : IDisposable
         await File.WriteAllTextAsync(
             legacy, Newtonsoft.Json.JsonConvert.SerializeObject(ASession("stale")), Ct);
 
-        SecretStoreSessionPersistence persistence = new(secrets, Key, NullLogger.Instance);
+        SecretStoreSessionPersistence persistence = new(secrets, Key, Storage, NullLogger.Instance);
 
         await persistence.PrimeAsync(legacy, Ct);
 
@@ -152,7 +165,7 @@ public sealed class SecretStoreSessionTests : IDisposable
     public async Task WritesAreQueuedInOrder_SoASignOutIsNotOvertaken()
     {
         MemorySecretStore secrets = new();
-        SecretStoreSessionPersistence persistence = new(secrets, Key, NullLogger.Instance);
+        SecretStoreSessionPersistence persistence = new(secrets, Key, Storage, NullLogger.Instance);
 
         await persistence.PrimeAsync(legacyFilePath: null, Ct);
 
@@ -164,5 +177,27 @@ public sealed class SecretStoreSessionTests : IDisposable
 
         Assert.Null(await secrets.GetAsync(Key, Ct));
         Assert.Equal(2, secrets.Writes);
+    }
+
+    /// <summary>
+    /// The older version's file is looked for through the storage service, like every file the
+    /// feature touches. Looked for on the disk at the path the in-memory double names, a stray
+    /// session at the root of the drive would be adopted by whichever container started first.
+    /// </summary>
+    [Fact]
+    public async Task TheOldFileIsAdoptedThroughTheStorageService()
+    {
+        MemorySecretStore secrets = new();
+        InMemoryStorageService storage = new();
+        string legacy = storage.GetDataFilePath("supabase-session.json");
+
+        await storage.WriteTextAsync(legacy, Newtonsoft.Json.JsonConvert.SerializeObject(ASession("in-memory")));
+
+        SecretStoreSessionPersistence persistence = new(secrets, Key, storage, NullLogger.Instance);
+        await persistence.PrimeAsync(legacy, Ct);
+
+        Assert.Equal("in-memory", persistence.LoadSession()?.RefreshToken);
+        Assert.False(storage.FileExists(legacy));
+        Assert.False(File.Exists(legacy), $"Nothing should exist on the disk at {legacy}");
     }
 }

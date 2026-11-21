@@ -1,8 +1,9 @@
-﻿using CdCSharp.Pangea.Storage;
+﻿﻿using CdCSharp.Pangea.Storage;
 using CdCSharp.Pangea.Storage.Abstractions;
 using CdCSharp.Pangea.Storage.Providers;
 using CdCSharp.Pangea.Storage.Services;
 using CdCSharp.Pangea.Supabase.Services;
+using CdCSharp.Pangea.Testing.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Supabase.Gotrue;
@@ -10,18 +11,20 @@ using Supabase.Gotrue;
 namespace CdCSharp.Pangea.Supabase.Tests;
 
 /// <summary>
-/// The session that has to be there on the next launch.
+/// The session that has to be there on the next launch, when there is no secret store to keep it.
 /// </summary>
 /// <remarks>
-/// Written against real files rather than the in-memory double, because the thing being checked is
-/// that a synchronous contract writes something the same code can read back - and the double would
-/// prove that about itself.
+/// Mostly written against real files, because the thing being checked is that what one launch
+/// writes the next one reads - and the in-memory double would prove that about itself. The double
+/// is used where the question is the opposite one: that nothing goes around the storage service.
 /// </remarks>
 public sealed class SessionPersistenceTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "pangea-session-" + Guid.NewGuid().ToString("N"));
 
-    private StorageSessionPersistence Arrange(string fileName = "session.json")
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private IStorageService RealStorage()
     {
         IOptions<StorageOptions> options = Options.Create(new StorageOptions
         {
@@ -29,9 +32,17 @@ public sealed class SessionPersistenceTests : IDisposable
             CustomDataPath = _root
         });
 
-        IStorageService storage = new StorageService(new PortablePlatformPathProvider(options));
+        return new StorageService(new PortablePlatformPathProvider(options));
+    }
 
-        return new StorageSessionPersistence(storage, fileName, NullLogger.Instance);
+    /// <summary>A launch: the persistence as the client provider builds it, primed before use.</summary>
+    private static async Task<StorageSessionPersistence> LaunchAsync(IStorageService storage, string fileName = "session.json")
+    {
+        StorageSessionPersistence persistence = new(storage, fileName, NullLogger.Instance);
+
+        await persistence.PrimeAsync(Ct);
+
+        return persistence;
     }
 
     public void Dispose()
@@ -40,21 +51,28 @@ public sealed class SessionPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void WithNothingStored_ThereIsNoSessionToRestore() => Assert.Null(Arrange().LoadSession());
+    public async Task WithNothingStored_ThereIsNoSessionToRestore() =>
+        Assert.Null((await LaunchAsync(RealStorage())).LoadSession());
 
     [Fact]
-    public void ASavedSessionComesBack()
+    public async Task ASavedSessionComesBack_OnTheNextLaunch()
     {
-        StorageSessionPersistence persistence = Arrange();
+        IStorageService storage = RealStorage();
+        StorageSessionPersistence first = await LaunchAsync(storage);
 
-        persistence.SaveSession(new Session
+        first.SaveSession(new Session
         {
             AccessToken = "access",
             RefreshToken = "refresh",
             User = new User { Id = "8a1f", IsAnonymous = true }
         });
 
-        Session restored = Assert.IsType<Session>(persistence.LoadSession());
+        // Gotrue reads back what it just saved before the write has landed.
+        Assert.Equal("refresh", first.LoadSession()?.RefreshToken);
+
+        await first.DrainAsync();
+
+        Session restored = Assert.IsType<Session>((await LaunchAsync(storage)).LoadSession());
 
         Assert.Equal("refresh", restored.RefreshToken);
         Assert.Equal("8a1f", restored.User?.Id);
@@ -66,23 +84,27 @@ public sealed class SessionPersistenceTests : IDisposable
     /// the account still being reachable by anything that can read the file.
     /// </summary>
     [Fact]
-    public void DestroyingTheSessionRemovesTheStoredCredential()
+    public async Task DestroyingTheSessionRemovesTheStoredCredential()
     {
-        StorageSessionPersistence persistence = Arrange();
+        IStorageService storage = RealStorage();
+        StorageSessionPersistence persistence = await LaunchAsync(storage);
 
         persistence.SaveSession(new Session { RefreshToken = "refresh" });
         persistence.DestroySession();
+        await persistence.DrainAsync();
 
         Assert.Null(persistence.LoadSession());
+        Assert.Null((await LaunchAsync(storage)).LoadSession());
         Assert.Empty(Directory.EnumerateFiles(_root, "session.json", SearchOption.AllDirectories));
     }
 
     [Fact]
-    public void DestroyingASessionThatWasNeverSaved_DoesNothing()
+    public async Task DestroyingASessionThatWasNeverSaved_DoesNothing()
     {
-        StorageSessionPersistence persistence = Arrange();
+        StorageSessionPersistence persistence = await LaunchAsync(RealStorage());
 
         persistence.DestroySession();
+        await persistence.DrainAsync();
 
         Assert.Null(persistence.LoadSession());
     }
@@ -92,26 +114,54 @@ public sealed class SessionPersistenceTests : IDisposable
     /// already has for a first run.
     /// </summary>
     [Fact]
-    public void AStoredSessionThatCannotBeParsed_IsTreatedAsNone()
+    public async Task AStoredSessionThatCannotBeParsed_IsTreatedAsNone()
     {
-        StorageSessionPersistence persistence = Arrange();
+        IStorageService storage = RealStorage();
+        StorageSessionPersistence first = await LaunchAsync(storage);
 
-        persistence.SaveSession(new Session { RefreshToken = "refresh" });
+        first.SaveSession(new Session { RefreshToken = "refresh" });
+        await first.DrainAsync();
 
         string path = Directory.EnumerateFiles(_root, "session.json", SearchOption.AllDirectories).Single();
-        File.WriteAllText(path, "{ this is not a session");
+        await File.WriteAllTextAsync(path, "{ this is not a session", Ct);
 
-        Assert.Null(persistence.LoadSession());
+        Assert.Null((await LaunchAsync(storage)).LoadSession());
     }
 
     [Fact]
-    public void SavingTwiceKeepsTheLatestSession()
+    public async Task SavingTwiceKeepsTheLatestSession()
     {
-        StorageSessionPersistence persistence = Arrange();
+        IStorageService storage = RealStorage();
+        StorageSessionPersistence persistence = await LaunchAsync(storage);
 
         persistence.SaveSession(new Session { RefreshToken = "first" });
         persistence.SaveSession(new Session { RefreshToken = "second" });
+        await persistence.DrainAsync();
 
-        Assert.Equal("second", persistence.LoadSession()?.RefreshToken);
+        Assert.Equal("second", (await LaunchAsync(storage)).LoadSession()?.RefreshToken);
+    }
+
+    /// <summary>
+    /// The session goes where the storage service puts it, and nowhere else. Written straight to the
+    /// path the service names, the in-memory double's session landed in a real file at the root of
+    /// the current drive - one file for every container in the process, so that every one of them
+    /// restored the same account.
+    /// </summary>
+    [Fact]
+    public async Task TheSessionGoesThroughTheStorageService_AndNeverAroundIt()
+    {
+        InMemoryStorageService one = new();
+        InMemoryStorageService other = new();
+
+        StorageSessionPersistence first = await LaunchAsync(one, "supabase-session.json");
+        first.SaveSession(new Session { RefreshToken = "only-mine" });
+        await first.DrainAsync();
+
+        string path = one.GetDataFilePath("supabase-session.json");
+
+        Assert.Contains(path, one.Files.Keys);
+        Assert.False(File.Exists(path), $"The session was written to the disk at {path}");
+        Assert.Null((await LaunchAsync(other, "supabase-session.json")).LoadSession());
+        Assert.Equal("only-mine", (await LaunchAsync(one, "supabase-session.json")).LoadSession()?.RefreshToken);
     }
 }

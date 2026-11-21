@@ -100,10 +100,11 @@ internal sealed class SupabaseClientProvider : ISupabaseClientProvider
     }
 
     /// <remarks>
-    /// Asynchronous for one reason: the session is read out of the secret store before the client
-    /// is built. Gotrue asks for it synchronously during its own initialization, and a store that
-    /// has to be awaited cannot answer that from the UI thread without deadlocking - so it is read
-    /// here, where waiting is allowed, and answered from memory afterwards.
+    /// Asynchronous for one reason: the session is read - out of the secret store, or the storage
+    /// service when there is none - before the client is built. Gotrue asks for it synchronously
+    /// during its own initialization, and a store that has to be awaited cannot answer that from the
+    /// UI thread without deadlocking - so it is read here, where waiting is allowed, and answered
+    /// from memory afterwards.
     /// </remarks>
     private async Task<(ClientOptions Options, IGotrueSessionPersistence<global::Supabase.Gotrue.Session>? Persistence)>
         BuildClientOptionsAsync(CancellationToken cancellationToken)
@@ -127,11 +128,13 @@ internal sealed class SupabaseClientProvider : ISupabaseClientProvider
 
             StorageSessionPersistence fallback = new(_storage, _options.SessionFileName, _logger);
 
+            await fallback.PrimeAsync(cancellationToken).ConfigureAwait(false);
+
             options.SessionHandler = fallback;
             return (options, fallback);
         }
 
-        SecretStoreSessionPersistence persistence = new(_secrets, _options.SessionSecretKey, _logger);
+        SecretStoreSessionPersistence persistence = new(_secrets, _options.SessionSecretKey, _storage, _logger);
 
         await persistence.PrimeAsync(legacyPath, cancellationToken).ConfigureAwait(false);
 
